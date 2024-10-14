@@ -1,0 +1,80 @@
+x-default-env-vars: &default-env-vars
+  XDG_CONFIG_HOME: /xdg/config
+  XDG_DATA_HOME: /xdg/data
+  XDG_CACHE_HOME: /xdg/cache
+  XDG_STATE_HOME: /xdg/state
+  TZ: $TZ
+x-podman: &podman
+  userns_mode: keep-id
+  security_opt:
+    - "label=disable"
+x-logging: &default-logging
+  driver: json-file
+  options:
+    mode: non-blocking
+    max-buffer-size: 4m
+    max-size: "200m"
+    max-file: "1"
+
+networks:
+  neon-core:
+    external: true
+volumes:
+  xdg:
+    driver_opts:
+      type: xdg
+      o: bind
+      device: ${DIANA_XDG_PATH}
+
+services:
+    email_proxy:
+    <<: *podman
+    deploy:
+    replicas: 0
+    container_name: neon-email-proxy
+    image: ghcr.io/neongeckocom/neon_email_proxy:${MQ_IMAGE_TAG}
+    depends_on:
+    - rabbitmq
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: $HOSTNAME
+    networks:
+    - neon-core
+    volumes:
+    - xdg:/xdg:rw
+    environment:
+    <<: *default-env-vars
+  metrics_service:
+    <<: *podman
+    deploy:
+      replicas: 0
+    container_name: neon-metrics-service
+    image: ghcr.io/neongeckocom/neon_metrics_service:${MQ_IMAGE_TAG}
+    depends_on:
+      - rabbitmq
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: $HOSTNAME
+    networks:
+      - neon-core
+    volumes:
+      - xdg:/xdg:rw
+    environment:
+      <<: *default-env-vars
+  stt_nemo:
+    <<: *podman
+    deploy:
+      replicas: 0
+    container_name: neon-stt-nemo
+    image: ghcr.io/neongeckocom/neon-stt-plugin-nemo:${HTTP_IMAGE_TAG}
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: $HOSTNAME
+    networks:
+      - neon-core
+    ports:
+      - 8081:8080
+    volumes:
+      - xdg:/xdg:rw
+    environment:
+      <<: *default-env-vars

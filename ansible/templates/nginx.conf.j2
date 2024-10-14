@@ -1,0 +1,125 @@
+events {
+    worker_connections 1024;
+}
+
+http {
+    # STT
+    server {
+        listen 443 ssl;
+        server_name fasterwhisper.{{ common_name }};
+
+        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
+        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
+
+        location / {
+            proxy_pass http://fasterwhisper:8080;
+        }
+    }
+
+    # TTS
+    server {
+        listen 443 ssl;
+        server_name coqui.{{ common_name }};
+
+        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
+        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
+
+        location / {
+            proxy_pass http://coqui:9666;
+        }
+    }
+
+    # Translation
+    server {
+        listen 443 ssl;
+        server_name libretranslate.{{ common_name }};
+
+        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
+        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
+
+        location / {
+            proxy_pass http://libretranslate:5000;
+        }
+    }
+
+    # HTTP Services
+    server {
+        listen 443 ssl;
+        server_name hana.{{ common_name }};
+
+        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
+        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
+
+        location / {
+            proxy_pass http://hana:8080;
+        }
+    }
+
+    server {
+        listen 443 ssl;
+        server_name iris.{{ common_name }};
+
+        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
+        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
+
+        location / {
+            proxy_pass http://iris:7860;
+        }
+    }
+
+    server {
+        listen 443 ssl;
+        server_name iris-websat.{{ common_name }};
+    
+        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
+        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
+    
+        location / {
+            proxy_pass http://iris-websat:8000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    
+        location /ws {
+            proxy_pass http://iris-websat:8000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+
+    # RMQ Admin
+    server {
+        listen 443 ssl;
+        server_name rmq-admin.{{ common_name }};
+
+        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
+        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
+
+        location / {
+            proxy_pass http://rabbitmq:15672;
+        }
+    }
+
+    # Yacht Container Management/Logs
+    server {
+        listen 443 ssl;
+        server_name yacht.{{ common_name }};
+
+        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
+        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
+
+        location / {
+            proxy_pass http://yacht:8000;
+        }
+    }
+}

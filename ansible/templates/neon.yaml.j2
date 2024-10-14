@@ -1,0 +1,75 @@
+hana:
+  server_host: "0.0.0.0"
+  port: 8080
+  mq_default_timeout: 10
+  access_token_ttl: 86400 # 1 day
+  refresh_token_ttl: 604800 # 1 week
+  requests_per_minute: 60
+  auth_requests_per_minute: 6 # This counts valid and invalid requests from an IP address
+  access_token_secret: "{{ hana.access_token_secret }}"
+  refresh_token_secret: "{{ hana.refresh_token_secret }}"
+  fastapi_title: "My HANA API Host"
+  fastapi_summary: "Personal HTTP API to access my DIANA backend."
+  disable_auth: True
+  stt_max_length_encoded: 500000 # Arbitrary limit that is larger than any expected voice command
+  tts_max_words: 128 # Arbitrary limit that is longer than any default LLM token limit
+  enable_email: False # Disabled by default; anyone with access to the API will be able to send emails from the configured address
+  node_username: neon_node # Username to authenticate Node API access; leave empty to disable Node API access
+  node_password: "{{ hana.node_pw }}" # Password associated with node_username
+MQ:
+  port: 5672
+  server: neon-rabbitmq
+  users:
+    chat_api_proxy:
+      password: "{{ users.neon_core.password }}"
+      user: neon_core
+    chat_observer:
+      password: "{{ users.chat_observer.password }}"
+      user: chat_observer
+    mq-libre-translate:
+      password: "{{ users.neon_libretranslate.password }}"
+      user: neon_libretranslate
+    neon_api_connector:
+      password: "{{ users.neon_api.password }}"
+      user: neon_api
+    neon_coupon_connector:
+      password: "{{ users.neon_coupons.password }}"
+      user: neon_coupons
+    neon_email_proxy:
+      password: -"{{ users.neon_email.password }}"
+      user: neon_email
+    neon_llm_chatgpt:
+      password: "{{ users.neon_llm_chatgpt.password }}"
+      user: neon_llm_chatgpt
+    neon_llm_fastchat:
+      password: "{{ users.neon_llm_fastchat.password }}"
+      user: neon_llm_fastchat
+    neon_metrics_connector:
+      password: "{{ users.neon_metrics.password }}"
+      user: neon_metrics
+    neon_script_parser_service:
+      password: "{{ users.neon_script_parser.password }}"
+      user: neon_script_parser
+    neon_chat_api:
+      password: "{{ users.neon_core.password }}"
+      user: neon_core
+iris:
+  default_lang: en-us
+  languages:
+    - en-us
+  webui_chatbot_label: "Neon AI"
+  webui_mic_label: "Speak with Neon"
+  webui_input_placeholder: "Speak with Neon"
+  webui_ws_url: wss://iris-websat.{{ common_name }}/ws # Note that this is self-signed
+websocket:
+  host: neon-messagebus
+listener:
+  enable_voice_loop: False
+# keys:
+#   api_services:
+#     alpha_vantage:
+#       api_key: CUSTOM_KEY_HERE
+#     open_weather_map:
+#       api_key: CUSTOM_KEY_HERE
+#     wolfram_alpha:
+#       api_key: CUSTOM_KEY_HERE

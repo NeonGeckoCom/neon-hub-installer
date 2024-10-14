@@ -1,0 +1,17 @@
+volumes:
+  yacht_config:
+    driver: local
+    name: yacht_config
+networks:
+  neon-core:
+    external: true
+
+services:
+  dockge:
+    image: selfhostedpro/yacht
+    restart: unless-stopped
+    ports:
+      - 8000:8000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - yacht_config:/config

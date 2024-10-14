@@ -1,0 +1,360 @@
+x-podman: &podman
+  userns_mode: keep-id
+  security_opt:
+    - "label=disable"
+x-logging: &default-logging
+  driver: json-file
+  options:
+    mode: non-blocking
+    max-buffer-size: 4m
+    max-size: "200m"
+    max-file: "1"
+x-default-env-vars: &default-env-vars
+  XDG_CONFIG_HOME: $XDG_CONFIG_HOME
+  TZ: $TZ
+  PULSE_SERVER: unix:${XDG_RUNTIME_DIR}/pulse/native
+  PULSE_COOKIE: /xdg/config/pulse/cookie
+
+networks:
+  neon-core:
+volumes:
+  xdg:
+    driver_opts:
+      type: xdg
+      o: bind
+      device: ${NEON_XDG_PATH}
+  models:
+    name: models
+    driver: local
+  vosk:
+    name: vosk
+    driver: local
+  listener_records:
+    name: listener_records
+    driver: local
+  tts_cache:
+    name: tts_cache
+    driver: local
+  nltk:
+    name: nltk
+    driver: local
+  local_state:
+    name: local_state
+    driver: local
+  neon_gui_files:
+    name: neon_gui_files
+    driver: local
+
+services:
+  # Core
+  messagebus:
+    <<: *podman
+    logging: *default-logging
+    restart: unless-stopped
+    image: ghcr.io/neongeckocom/neon_messagebus:${NEON_IMAGE_TAG}
+    container_name: neon-messagebus
+    depends_on:
+      - rabbitmq
+    networks:
+      neon-core:
+        aliases:
+          - neon-messagebus
+    volumes:
+      - ${NEON_CONFIG_FOLDER}:/xdg/config
+      - ${NEON_LOCAL_FOLDER}:/xdg/local
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      <<: *default-env-vars
+  speech:
+    <<: *podman
+    logging: *default-logging
+    restart: unless-stopped
+    depends_on:
+      - messagebus
+    image: ghcr.io/neongeckocom/neon_speech-default_model:${NEON_IMAGE_TAG}
+    container_name: neon-speech
+    networks:
+      neon-core:
+    volumes:
+      - xdg:/home/neon:rw
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /home/${NEON_USER}/.config/pulse/cookie:/xdg/config/pulse/cookie:ro
+      - ${NEON_CONFIG_FOLDER}:/xdg/config:ro
+      - listener_records:/xdg/local/share/neon/listener
+      - ${NEON_LOCAL_FOLDER}:/xdg/local
+      - models:/xdg/local/share/precise-lite
+      - vosk:/xdg/local/share/vosk
+    environment:
+      <<: *default-env-vars
+    devices:
+      - /dev/snd
+  audio:
+    <<: *podman
+    logging: *default-logging
+    restart: unless-stopped
+    depends_on:
+      - messagebus
+    image: ghcr.io/neongeckocom/neon_audio:${NEON_IMAGE_TAG}
+    container_name: neon-audio
+    networks:
+      neon-core:
+    volumes:
+      - ${XDG_RUNTIME_DIR}/bus:${XDG_RUNTIME_DIR}/bus:ro
+      - /home/${NEON_USER}/.config/pulse/cookie:/xdg/config/pulse/cookie:ro
+      - ${NEON_CONFIG_FOLDER}:/xdg/config
+      - ${NEON_LOCAL_FOLDER}:/xdg/local
+      - tts_cache:/xdg/cache/neon
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      <<: *default-env-vars
+      DBUS_SESSION_BUS_ADDRESS: unix:path=${XDG_RUNTIME_DIR}/bus
+    devices:
+      - /dev/snd
+  gui:
+    <<: *podman
+    logging: *default-logging
+    restart: unless-stopped
+    depends_on:
+      - messagebus
+    image: ghcr.io/neongeckocom/neon_gui:${NEON_IMAGE_TAG}
+    container_name: neon-gui
+    networks:
+      neon-core:
+        aliases:
+          - neon-gui
+    volumes:
+      - xdg:/home/neon:rw
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ${NEON_CONFIG_FOLDER}:/xdg/config:ro
+      - ${XDG_RUNTIME_DIR}:${XDG_RUNTIME_DIR}:ro
+      - ${XDG_RUNTIME_DIR}/bus:${XDG_RUNTIME_DIR}/bus:ro
+      - neon_gui_files:/xdg/cache/gui_files
+      - /run/udev/data:/run/udev/data:ro
+    environment:
+      <<: *default-env-vars
+      DBUS_SESSION_BUS_ADDRESS: unix:path=${XDG_RUNTIME_DIR}/bus
+      DISPLAY: $DISPLAY
+      QML2_IMPORT_PATH: /usr/lib/qml
+      QT_QPA_PLATFORM: $QT_QPA_PLATFORM
+      QT_QPA_EGLFS_HIDECURSOR: 1
+      QT_QPA_EGLFS_KMS_ATOMIC: 1
+      QT_QPA_EGLFS_INTEGRATION: $QT_QPA_EGLFS_INTEGRATION
+      QT_QPA_EGLFS_KMS_CONFIG: $QT_QPA_EGLFS_KMS_CONFIG
+      QT_QPA_PLATFORMTHEME: qt5ct
+      QT_PLUGIN_PATH: /usr/lib/qt/plugins:/usr/lib/plugins:/usr/lib/plugins/kf5
+      QT_FILE_SELECTORS: ovos
+      QT_FONT_DPI: 120
+      QT_IM_MODULE: qtvirtualkeyboard
+      QT_QUICK_CONTROLS_STYLE: OpenVoiceStyle
+      WAYLAND_DISPLAY: $WAYLAND_DISPLAY
+      XDG_CURRENT_DESKTOP: kde
+      XDG_RUNTIME_DIR: $XDG_RUNTIME_DIR
+    devices:
+      - /dev/input
+      - /dev/dri
+      - /dev/snd
+  enclosure:
+    <<: *podman
+    logging: *default-logging
+    restart: unless-stopped
+    depends_on:
+      - messagebus
+    image: ghcr.io/neongeckocom/neon_enclosure:${NEON_IMAGE_TAG}
+    container_name: neon-enclosure
+    networks:
+      neon-core:
+    volumes:
+      - ${XDG_RUNTIME_DIR}/pulse/cookie:${XDG_RUNTIME_DIR}/pulse/cookie:ro
+      - ${XDG_RUNTIME_DIR}/bus:${XDG_RUNTIME_DIR}/bus:ro
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - ${NEON_CONFIG_FOLDER}:/xdg/config
+      - ${NEON_LOCAL_FOLDER}:/xdg/local
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      <<: *default-env-vars
+      DISPLAY: ${DISPLAY}
+      DBUS_SESSION_BUS_ADDRESS: unix:path=${XDG_RUNTIME_DIR}/bus
+    devices:
+      - /dev/snd
+  skills:
+    <<: *podman
+    logging: *default-logging
+    restart: unless-stopped
+    depends_on:
+      - messagebus
+    image: ghcr.io/neongeckocom/neon_skills-default_skills:${NEON_IMAGE_TAG}
+    container_name: neon-skills
+    networks:
+      neon-core:
+    volumes:
+      - /home/${NEON_USER}/.config/pulse/cookie:/xdg/config/pulse/cookie:ro
+      - ${NEON_CONFIG_FOLDER}:/xdg/config
+      - ${NEON_LOCAL_FOLDER}:/xdg/local
+      - nltk:/home/${NEON_USER}/nltk_data
+      - ${NEON_SHARE_FOLDER}:/xdg/local/share/neon
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    devices:
+      - /dev/snd
+    environment:
+      <<: *default-env-vars
+  # Hub
+  rabbitmq:
+    <<: *podman
+    container_name: neon-rabbitmq
+    image: rabbitmq:3-management
+    ports:
+      - 5672:5672
+      - 15672:15672
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: $HOSTNAME
+    networks:
+      neon-core:
+        aliases:
+          - neon-rabbitmq
+    volumes:
+      - xdg:/xdg:rw
+      - /home/neon/xdg/config/rabbitmq:/etc/rabbitmq
+    environment:
+      - RABBITMQ_ENABLED_PLUGINS=rabbitmq_management
+  # MQ Services
+  api_proxy:
+    <<: *podman
+    container_name: neon-api-proxy
+    image: ghcr.io/neongeckocom/neon_api_proxy:${MQ_IMAGE_TAG}
+    depends_on:
+      - rabbitmq
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: $HOSTNAME
+    networks:
+      neon-core:
+    volumes:
+      - xdg:/xdg:rw
+    environment:
+      <<: *default-env-vars
+  # HTTP Services
+  hana:
+    <<: *podman
+    depends_on:
+      - rabbitmq
+    container_name: neon-hana
+    image: ghcr.io/neongeckocom/neon-hana:${HTTP_IMAGE_TAG}
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: $HOSTNAME
+    networks:
+      neon-core:
+    ports:
+      - 8082:8080
+    volumes:
+      - xdg:/etc/xdg:rw
+    environment:
+      <<: *default-env-vars
+  neon_libretranslate:
+    <<: *podman
+    container_name: neon-libretranslate
+    image: ghcr.io/neongeckocom/libretranslate:latest
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: $HOSTNAME
+    networks:
+      neon-core:
+        aliases:
+          - libretranslate
+    ports:
+      - 5000:5000
+    volumes:
+      - xdg:/xdg:rw
+    environment:
+      <<: *default-env-vars
+  tts_coqui:
+    <<: *podman
+    container_name: neon-tts-coqui
+    image: ghcr.io/neongeckocom/neon-tts-plugin-coqui:${HTTP_IMAGE_TAG}
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: $HOSTNAME
+    networks:
+      neon-core:
+        aliases:
+          - coqui
+    ports:
+      - 9666:9666
+    volumes:
+      - xdg:/xdg:rw
+    environment:
+      <<: *default-env-vars
+  stt_fasterwhisper: # TODO: Neon image, with Neon user (permissions are a mess)
+    <<: *podman
+    container_name: neon-stt-fasterwhisper
+    image: docker.io/smartgic/ovos-stt-server-fasterwhisper:alpha
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: $HOSTNAME
+    networks:
+      neon-core:
+        aliases:
+          - fasterwhisper
+    ports:
+      - 8080:8080
+    environment:
+      <<: *default-env-vars
+  iris:
+    <<: *podman
+    depends_on:
+      - rabbitmq
+    container_name: neon-iris
+    user: root
+    image: ghcr.io/neongeckocom/neon-iris:${HTTP_IMAGE_TAG}
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: $HOSTNAME
+    networks:
+      neon-core:
+        aliases:
+          - iris
+    ports:
+      - 7860:7860
+    volumes:
+      - xdg:/xdg:rw
+    environment:
+      <<: *default-env-vars
+  iris_websat:
+    <<: *podman
+    depends_on:
+      - rabbitmq
+    container_name: neon-iris-websat
+    user: root
+    image: ghcr.io/neongeckocom/neon-iris-websat:${HTTP_IMAGE_TAG}
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: $HOSTNAME
+    networks:
+      neon-core:
+        aliases:
+          - iris-websat
+    ports:
+      - 8001:8000
+    volumes:
+      - xdg:/xdg:rw
+      - /home/neon/xdg/config:/home/neon/.config:ro
+    environment:
+      <<: *default-env-vars
+  nginx:
+    image: nginx:alpine
+    networks:
+      neon-core:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /home/neon/compose/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /home/neon/{{ common_name }}.crt:/etc/ssl/certs/{{ common_name }}.crt:ro
+      - /home/neon/{{ common_name }}.key:/etc/ssl/private/{{ common_name }}.key:ro

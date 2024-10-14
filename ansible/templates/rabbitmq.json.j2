@@ -1,0 +1,316 @@
+{
+  "users": [
+    {
+      "name": "neon_api_utils",
+      "password": "Klatchat2021",
+      "tags": [
+        "backend",
+        "user"
+      ]
+    },
+    {
+      "name": "neon_metrics",
+      "password": "{{ users.neon_metrics.password }}",
+      "tags": [
+        "backend",
+        "service"
+      ]
+    },
+    {
+      "name": "neon_coupons",
+      "password": "{{ users.neon_coupons.password }}",
+      "tags": [
+        "backend",
+        "service"
+      ]
+    },
+    {
+      "name": "neon_email",
+      "password": "{{ users.neon_email.password }}",
+      "tags": [
+        "backend",
+        "service"
+      ]
+    },
+    {
+      "name": "neon_script_parser",
+      "password": "{{ users.neon_script_parser.password }}",
+      "tags": [
+        "backend",
+        "service"
+      ]
+    },
+    {
+      "name": "neon_api",
+      "password": "{{ users.neon_api.password }}",
+      "tags": [
+        "backend",
+        "service"
+      ]
+    },
+    {
+      "name": "neon_libretranslate",
+      "password": "{{ users.neon_libretranslate.password }}",
+      "tags": [
+        "backend",
+        "service"
+      ]
+    },
+    {
+      "name": "neon_llm_chatgpt",
+      "password": "{{ users.neon_llm_chatgpt.password }}",
+      "tags": [
+        "backend",
+        "llm"
+      ]
+    },
+    {
+      "name": "neon_llm_fastchat",
+      "password": "{{ users.neon_llm_fastchat.password }}",
+      "tags": [
+        "backend",
+        "llm"
+      ]
+    },
+    {
+      "name": "neon_core",
+      "password": "{{ users.neon_core.password }}",
+      "tags": [
+        "backend",
+        "core"
+      ]
+    },
+    {
+      "name": "chat_observer",
+      "password": "{{ users.chat_observer.password }}",
+      "tags": [
+        "backend",
+        "klat"
+      ]
+    },
+    {
+      "name": "neon_bot_submind",
+      "password": "{{ users.neon_bot_submind.password }}",
+      "tags": [
+        "chatbots"
+      ]
+    },
+    {
+      "name": "neon_llm_submind",
+      "password": "{{ users.neon_llm_submind.password }}",
+      "tags": [
+        "chatbots",
+        "llm"
+      ]
+    },
+    {
+      "name": "neon_bot_facilitator",
+      "password": "{{ users.neon_bot_facilitator.password }}",
+      "tags": [
+        "chatbots"
+      ]
+    },
+    {
+      "name": "neon",
+      "password": "neon",
+      "tags": [
+        "administrator"
+      ]
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "/neon_emails"
+    },
+    {
+      "name": "/neon_api"
+    },
+    {
+      "name": "/neon_script_parser"
+    },
+    {
+      "name": "/neon_metrics"
+    },
+    {
+      "name": "/neon_coupons"
+    },
+    {
+      "name": "/neon_testing"
+    },
+    {
+      "name": "/translation"
+    },
+    {
+      "name": "/llm"
+    },
+    {
+      "name": "/neon_chat_api"
+    },
+    {
+      "name": "/chatbots"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "neon_core",
+      "vhost": "/neon_chat_api",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "neon_api_utils",
+      "vhost": "/neon_chat_api",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*(?!_request).*"
+    },
+    {
+      "user": "neon_llm_chatgpt",
+      "vhost": "/llm",
+      "configure": "chat_gpt_.*",
+      "write": "chat_gpt_.*|amq\\.default",
+      "read": "chat_gpt_.*"
+    },
+    {
+      "user": "neon_llm_fastchat",
+      "vhost": "/llm",
+      "configure": "fastchat_.*",
+      "write": "fastchat_.*|amq\\.default",
+      "read": "fastchat_.*"
+    },
+    {
+      "user": "neon_api_utils",
+      "vhost": "/llm",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*(?!_input).*"
+    },
+    {
+      "user": "neon_libretranslate",
+      "vhost": "/translation",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "neon_api_utils",
+      "vhost": "/neon_coupons",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "neon_email",
+      "vhost": "/neon_emails",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "neon_api_utils",
+      "vhost": "/neon_emails",
+      "configure": ".*",
+      "write": ".*",
+      "read": "^(?!neon_emails_input).*"
+    },
+    {
+      "user": "neon_api",
+      "vhost": "/neon_api",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "neon_api_utils",
+      "vhost": "/neon_metrics",
+      "configure": ".*",
+      "write": ".*",
+      "read": ""
+    },
+    {
+      "user": "neon_api_utils",
+      "vhost": "/neon_api",
+      "configure": "./*",
+      "write": "./*",
+      "read": "./*"
+    },
+    {
+      "user": "neon_api_utils",
+      "vhost": "/neon_script_parser",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "neon_script_parser",
+      "vhost": "/neon_script_parser",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "neon_metrics",
+      "vhost": "/neon_metrics",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "neon_api_utils",
+      "vhost": "/neon_testing",
+      "configure": "./*",
+      "write": "./*",
+      "read": "./*"
+    },
+    {
+      "user": "neon_coupons",
+      "vhost": "/neon_coupons",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "neon_bot_submind",
+      "vhost": "/chatbots",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "neon_llm_submind",
+      "vhost": "/chatbots",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "neon_bot_facilitator",
+      "vhost": "/chatbots",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "chat_observer",
+      "vhost": "/neon_chat_api",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "chat_observer",
+      "vhost": "/chatbots",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "chat_observer",
+      "vhost": "/translation",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ]
+}

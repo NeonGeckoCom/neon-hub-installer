@@ -1,0 +1,257 @@
+---
+- name: Manage secrets on Ansible Controller
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    secrets_file: "{{ playbook_dir }}/neon_hub_secrets.yaml"
+    # Config
+    users:
+      neon_core: {}
+      chat_observer: {}
+      neon_libretranslate: {}
+      neon_api: {}
+      neon_coupons: {}
+      neon_email: {}
+      neon_llm_chatgpt: {}
+      neon_llm_fastchat: {}
+      neon_metrics: {}
+      neon_script_parser: {}
+      neon_bot_submind: {}
+      neon_llm_submind: {}
+      neon_bot_facilitator: {}
+    hana:
+      access_token_secret: {}
+      refresh_token_secret: {}
+      node_pw: {}
+  tasks:
+    - name: Check if secrets file exists
+      stat:
+        path: "{{ secrets_file }}"
+      register: secrets_stat
+
+    - name: Generate secrets if not exist
+      include_tasks: generate-secrets.yaml
+      when: not secrets_stat.stat.exists
+
+- name: Set up Neon Hub
+  hosts: localhost
+  connection: local
+  become: yes
+
+  vars:
+    # Hub
+    xdg_dir: /home/neon/xdg
+    common_name: neon-hub.local
+    secrets_file: "{{ playbook_dir }}/neon_hub_secrets.yaml"
+    # Docker - this will change rarely
+    docker_user: "{{ ansible_user }}"
+    container_count: 4
+    docker_edition: "ce"
+    docker_packages:
+      - "docker-{{ docker_edition }}"
+      - "docker-{{ docker_edition }}-cli"
+      - "docker-{{ docker_edition }}-rootless-extras"
+    docker_packages_state: present
+    docker_install_compose: true
+    docker_add_repo: true
+    # Certificate - this will change rarely
+    primary_ip: "{{ ansible_default_ipv4.address }}"
+    country: US
+    state: Washington
+    location: Bellevue
+    organization: Neon
+    organizational_unit: Neon
+
+  roles:
+    - geerlingguy.docker
+
+  tasks:
+    # TODO: Loops, move neon.yaml to /opt/neon/config, create user neon.yaml with templating
+    # TODO: Time zone config, 12/24 hr time config
+    # TODO: Debug config
+    # Prepare
+    - name: Ensure package prerequisites are installed
+      ansible.builtin.package:
+        name: openssl,python3-docker,python3-jsondiff
+        state: present
+    - name: Get primary IP address
+      ansible.builtin.set_fact:
+        primary_ip: "{{ ansible_default_ipv4.address }}"
+    # Users and groups
+    - name: Create neon user if it doesn't exist
+      ansible.builtin.user:
+        name: neon
+        createhome: yes
+        system: yes
+        shell: /bin/bash
+    - name: Create neon group if it doesn't exist
+      ansible.builtin.group:
+        name: neon
+        system: yes
+    - name: Add current user to neon group
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        append: yes
+        groups: neon
+    - name: Add neon to audio group
+      ansible.builtin.user:
+        name: neon
+        append: yes
+        groups: audio
+    - name: Add neon to docker group
+      ansible.builtin.user:
+        name: neon
+        append: yes
+        groups: docker
+    # Set up prerequisite folders
+    - name: Create {{ xdg_dir }} folder with 2775 permissions
+      ansible.builtin.file:
+        path: "{{ xdg_dir }}"
+        state: directory
+        mode: "2775" # Keeps the group sticky
+        owner: neon
+        group: neon
+    - name: Create /home/neon/compose folder with 2775 permissions
+      ansible.builtin.file:
+        path: "/home/neon/compose"
+        state: directory
+        mode: "2775" # Keeps the group sticky
+        owner: neon
+        group: neon
+    - name: Create /home/neon/.config/pulse folder with 2775 permissions
+      ansible.builtin.file:
+        path: "/home/neon/.config/pulse"
+        state: directory
+        mode: "2775" # Keeps the group sticky
+        owner: neon
+        group: neon
+    - name: Create {{ xdg_dir }}/config folder with 2775 permissions
+      ansible.builtin.file:
+        path: "{{ xdg_dir }}/config"
+        state: directory
+        mode: "2775" # Keeps the group sticky
+        owner: neon
+        group: neon
+    - name: Create {{ xdg_dir }}/local folder with 2775 permissions
+      ansible.builtin.file:
+        path: "{{ xdg_dir }}/local"
+        state: directory
+        mode: "2775" # Keeps the group sticky
+        owner: neon
+        group: neon
+    - name: Create {{ xdg_dir }}/share folder with 2775 permissions
+      ansible.builtin.file:
+        path: "{{ xdg_dir }}/share"
+        state: directory
+        mode: "2775" # Keeps the group sticky
+        owner: neon
+        group: neon
+    - name: Create {{ xdg_dir }}/config/neon folder with 2775 permissions
+      ansible.builtin.file:
+        path: "{{ xdg_dir }}/config/neon"
+        state: directory
+        mode: "2775" # Keeps the group sticky
+        owner: neon
+        group: neon
+    - name: Create {{ xdg_dir }}/config/rabbitmq folder
+      ansible.builtin.file:
+        path: "{{ xdg_dir }}/config/rabbitmq"
+        state: directory
+    # Certificate generation
+    - name: Generate self-signed certificate
+      import_tasks: generate-certificate.yaml
+    # Generate configs
+    - name: Load secrets
+      include_vars:
+        file: "{{ secrets_file }}"
+      # no_log: true
+    - name: Create rabbitmq.json
+      ansible.builtin.template:
+        src: templates/rabbitmq.json.j2
+        dest: "{{ xdg_dir }}/config/rabbitmq/rabbitmq.json"
+        mode: "0644"
+        owner: neon
+        group: neon
+    - name: Create neon.yaml
+      ansible.builtin.template:
+        src: templates/neon.yaml.j2
+        dest: "{{ xdg_dir }}/config/neon/neon.yaml"
+        mode: "0644"
+        owner: neon
+        group: neon
+    - name: Create diana.yaml
+      ansible.builtin.template:
+        src: templates/diana.yaml.j2
+        dest: "{{ xdg_dir }}/config/neon/diana.yaml"
+        mode: "0644"
+        owner: neon
+        group: neon
+    - name: Create rabbitmq.conf
+      ansible.builtin.template:
+        src: templates/rabbitmq.conf
+        dest: "{{ xdg_dir }}/config/rabbitmq/rabbitmq.conf"
+        mode: "0644"
+        owner: neon
+        group: neon
+    # Docker services
+    - name: Copy Yacht compose file
+      ansible.builtin.template:
+        src: templates/yacht-stack.yml.j2
+        dest: /home/neon/compose/yacht-stack.yml
+        mode: "0644"
+        owner: neon
+        group: neon
+    - name: Copy nginx config file
+      ansible.builtin.template:
+        src: templates/nginx.conf.j2
+        dest: /home/neon/compose/nginx.conf
+        mode: "0644"
+        owner: neon
+        group: neon
+    - name: Copy environment variables file with user-provided values
+      ansible.builtin.template:
+        src: templates/.env.j2
+        dest: /home/neon/compose/.env
+        mode: "0644"
+        owner: neon
+        group: neon
+    - name: Read .env file
+      ansible.builtin.slurp:
+        src: /home/neon/compose/.env
+      register: env_file
+    - name: Parse .env file
+      ansible.builtin.set_fact:
+        env_vars: "{{ (env_file['content'] | b64decode).split('\n') | select('match', '^(?!#).*=.*') | list }}"
+    - name: Copy compose file from template
+      ansible.builtin.template:
+        src: templates/neon-hub.yml.j2
+        dest: /home/neon/compose/neon-hub.yml
+        mode: "0644"
+        owner: neon
+        group: neon
+    # Deploy
+    - name: Start Core and Hub
+      community.docker.docker_compose_v2:
+        project_src: /home/neon/compose
+        project_name: neon
+        files:
+          - neon-hub.yml
+      register: neon_services
+      until: neon_services is succeeded
+      retries: 5
+      delay: 3
+      environment:
+        DOCKER_TIMEOUT: "900"
+    - name: Start yacht
+      community.docker.docker_compose_v2:
+        project_src: /home/neon/compose
+        project_name: yacht
+        files:
+          - yacht-stack.yml
+      register: yacht_services
+      until: yacht_services is succeeded
+      retries: 5
+      delay: 3
+      environment:
+        DOCKER_TIMEOUT: "900"
