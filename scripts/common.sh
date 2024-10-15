@@ -10,7 +10,7 @@ fail_format="\e[31mfail\e[0m"
 # agreement this could lead to security infringement.
 function ask_optin() {
     while true; do
-        read -rp "Upload the log on https://dpaste.com website? (yes/no) " yn
+        read -rp "Upload the log on https://dpaste.com website? (y/n) " yn
         case $yn in
         [Yy]*)
             return 0

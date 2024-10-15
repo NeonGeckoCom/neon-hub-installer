@@ -103,7 +103,7 @@ esac
 # Installation
 echo "Installing Neon Hub. This may take some time, take a break and relax."
 export ANSIBLE_CONFIG=ansible.cfg
-ansible-playbook -i 127.0.0.1 -e "xdg_dir=$XDG_DIR common_name=$HOSTNAME" "${ansible_debug[@]}" playbook.yml
+ansible-playbook -i 127.0.0.1 -e "xdg_dir=$XDG_DIR common_name=$HOSTNAME" "${ansible_debug[@]}" ansible/hub.yaml | tee $ANSIBLE_LOG_FILE
 
 if [ "${PIPESTATUS[0]}" -eq 0 ]; then
     show_message "Neon Hub has been successfully installed!"
