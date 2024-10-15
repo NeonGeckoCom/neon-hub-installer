@@ -45,7 +45,7 @@
     common_name: neon-hub.local
     secrets_file: "{{ playbook_dir }}/neon_hub_secrets.yaml"
     # Docker - this will change rarely
-    docker_user: "{{ ansible_user }}"
+    docker_user: "{{ ansible_user | default(lookup('env', 'USER')) }}"
     container_count: 4
     docker_edition: "ce"
     docker_packages:
@@ -91,7 +91,7 @@
         system: yes
     - name: Add current user to neon group
       ansible.builtin.user:
-        name: "{{ ansible_user }}"
+        name: "{{ ansible_user | default(lookup('env', 'USER')) }}"
         append: yes
         groups: neon
     - name: Add neon to audio group

@@ -1,5 +1,11 @@
 #!/bin/bash
 
+export ANSIBLE_LOG_FILE=/var/log/neon-hub-ansible.log
+export LOG_FILE=/var/log/neon-hub-installer.log
+export INSTALLER_VENV_NAME="neon-hub-installer"
+export OS_RELEASE=/etc/os-release
+export USER_ID="$EUID"
+
 # Enable debug/verbosity for Bash and Ansible
 if [ "$DEBUG" == "true" ]; then
   set -x
@@ -20,6 +26,18 @@ get_input() {
 get_yesno() {
     whiptail --title "Neon Hub Installer" --yesno "$1" 10 78 3>&1 1>&2 2>&3
 }
+
+# shellcheck source=scripts/common.sh
+source scripts/common.sh
+
+# TODO: If anything fails here, it's silent. Need to at least tell the user to check the log file.
+set -eE
+detect_user
+get_os_information
+required_packages
+create_python_venv
+install_ansible
+set +eE
 
 # Welcome message
 show_message "Welcome to the Neon Hub installer! 
@@ -85,23 +103,28 @@ esac
 # Installation
 echo "Installing Neon Hub. This may take some time, take a break and relax."
 export ANSIBLE_CONFIG=ansible.cfg
-ansible-playbook -i 127.0.0.1 -e "xdg_dir=$XDG_DIR common_name=$HOSTNAME" "${ansible_debug[@]}" playbook.yml
+ansible-playbook -i 127.0.0.1 -e "xdg_dir=$XDG_DIR common_name=$HOSTNAME" "${ansible_debug[@]}" ansible/hub.yaml | tee $ANSIBLE_LOG_FILE
 
 if [ "${PIPESTATUS[0]}" -eq 0 ]; then
     show_message "Neon Hub has been successfully installed!"
 else
     cat "$ANSIBLE_LOG_FILE" >> "$LOG_FILE"
-    DEBUG_URL="$(curl -sF 'content=<-' https://dpaste.com/api/v2/ <"$LOG_FILE")"
-    show_message "An error occurred during installation. The installer logs are available at $DEBUG_URL.
+    if ask_optin; then
+        DEBUG_URL="$(curl -sF 'content=<-' https://dpaste.com/api/v2/ <"$LOG_FILE")"
+        show_message "An error occurred during installation. The installer logs are available at $DEBUG_URL.
+        Need help? Email us this link at support@neon.ai"
+    else
+        echo -e "Unable to continue the process, please check $LOG_FILE for more details."
+        show_message "An error occurred during installation. Please check $LOG_FILE for more details."
+    fi
 
-    Need help? Email us this link at support@neon.ai"
     exit 1
 fi
 
 IP=$(hostname -I | awk '{print $1}')
 
 # Final message
-show_message "Your message queue secrets and Neon Node secret are available in ${PWD}/neon_hub_secrets.yaml. Please keep these secrets safe and do not share them with anyone. You will need these secrets to connect to your Neon Hub.
+show_message "Your message queue secrets and Neon Node secret are available in ${PWD}/ansible/neon_hub_secrets.yaml. Please keep these secrets safe and do not share them with anyone. You will need these secrets to connect to your Neon Hub.
 
 Neon Hub is ready to use! To begin, say \"Hey Neon\" and ask a question such as \"What time is it?\" or \"What's the weather like today?\". 
 
