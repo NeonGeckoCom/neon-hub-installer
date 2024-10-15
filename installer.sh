@@ -21,6 +21,19 @@ get_yesno() {
     whiptail --title "Neon Hub Installer" --yesno "$1" 10 78 3>&1 1>&2 2>&3
 }
 
+# shellcheck source=scripts/common.sh
+source scripts/common.sh
+
+set -eE
+trap on_error ERR
+detect_user
+get_os_information
+required_packages
+create_python_venv
+install_ansible
+trap "" ERR
+set +eE
+
 # Welcome message
 show_message "Welcome to the Neon Hub installer! 
 
@@ -91,10 +104,14 @@ if [ "${PIPESTATUS[0]}" -eq 0 ]; then
     show_message "Neon Hub has been successfully installed!"
 else
     cat "$ANSIBLE_LOG_FILE" >> "$LOG_FILE"
-    DEBUG_URL="$(curl -sF 'content=<-' https://dpaste.com/api/v2/ <"$LOG_FILE")"
-    show_message "An error occurred during installation. The installer logs are available at $DEBUG_URL.
+    if [ "$(ask_optin)" -eq 0 ]; then
+        DEBUG_URL="$(curl -sF 'content=<-' https://dpaste.com/api/v2/ <"$LOG_FILE")"
+        show_message "An error occurred during installation. The installer logs are available at $DEBUG_URL.
+        Need help? Email us this link at support@neon.ai"
+    else
+        show_message "An error occurred during installation. Please check $LOG_FILE for more details."
+    fi
 
-    Need help? Email us this link at support@neon.ai"
     exit 1
 fi
 
