@@ -30,6 +30,7 @@ get_yesno() {
 # shellcheck source=scripts/common.sh
 source scripts/common.sh
 
+# TODO: If anything fails here, it's silent. Need to at least tell the user to check the log file.
 set -eE
 detect_user
 get_os_information
