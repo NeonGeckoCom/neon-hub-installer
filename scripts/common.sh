@@ -16,8 +16,7 @@ function ask_optin() {
             return 0
             ;;
         [Nn]*)
-            echo -e "Unable to continue the process, please check $LOG_FILE for more details."
-            exit 1
+            return 1
             ;;
         *) echo -e "Please answer (y)es or (n)o." ;;
         esac

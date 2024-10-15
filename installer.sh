@@ -109,11 +109,12 @@ if [ "${PIPESTATUS[0]}" -eq 0 ]; then
     show_message "Neon Hub has been successfully installed!"
 else
     cat "$ANSIBLE_LOG_FILE" >> "$LOG_FILE"
-    if [ "$(ask_optin)" -eq 0 ]; then
+    if ask_optin; then
         DEBUG_URL="$(curl -sF 'content=<-' https://dpaste.com/api/v2/ <"$LOG_FILE")"
         show_message "An error occurred during installation. The installer logs are available at $DEBUG_URL.
         Need help? Email us this link at support@neon.ai"
     else
+        echo -e "Unable to continue the process, please check $LOG_FILE for more details."
         show_message "An error occurred during installation. Please check $LOG_FILE for more details."
     fi
 
