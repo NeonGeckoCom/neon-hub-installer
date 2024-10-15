@@ -25,13 +25,11 @@ get_yesno() {
 source scripts/common.sh
 
 set -eE
-trap on_error ERR
 detect_user
 get_os_information
 required_packages
 create_python_venv
 install_ansible
-trap "" ERR
 set +eE
 
 # Welcome message

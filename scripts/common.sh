@@ -63,8 +63,6 @@ function get_os_information() {
         source "$OS_RELEASE"
 
         export DISTRO_NAME="$ID"
-        export DISTRO_VERSION_ID="$VERSION_ID"
-        export DISTRO_VERSION="$VERSION"
         export ARCH KERNEL PYTHON
     else
         # Mostly if the detected system is not a Linux OS
