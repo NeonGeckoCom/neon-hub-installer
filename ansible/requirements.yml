@@ -1,4 +1,8 @@
 ---
-collections:
+roles:
   - name: geerlingguy.docker
+    version: 7.4.1
+collections:
   - name: community.docker
+    version: 3.7.0
+    source: https://galaxy.ansible.com
