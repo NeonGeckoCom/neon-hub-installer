@@ -1,5 +1,11 @@
 #!/bin/bash
 
+export ANSIBLE_LOG_FILE=/var/log/neon-hub-ansible.log
+export LOG_FILE=/var/log/neon-hub-installer.log
+export INSTALLER_VENV_NAME="neon-hub-installer"
+export OS_RELEASE=/etc/os-release
+export USER_ID="$EUID"
+
 # Enable debug/verbosity for Bash and Ansible
 if [ "$DEBUG" == "true" ]; then
   set -x
