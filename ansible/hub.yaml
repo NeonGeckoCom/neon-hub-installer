@@ -158,6 +158,7 @@
       ansible.builtin.file:
         path: "{{ xdg_dir }}/config/rabbitmq"
         state: directory
+        mode: "2775"
     # Certificate generation
     - name: Generate self-signed certificate
       import_tasks: generate-certificate.yaml
@@ -171,8 +172,6 @@
         src: templates/rabbitmq.json.j2
         dest: "{{ xdg_dir }}/config/rabbitmq/rabbitmq.json"
         mode: "0644"
-        owner: neon
-        group: neon
     - name: Create neon.yaml
       ansible.builtin.template:
         src: templates/neon.yaml.j2
@@ -192,8 +191,6 @@
         src: templates/rabbitmq.conf
         dest: "{{ xdg_dir }}/config/rabbitmq/rabbitmq.conf"
         mode: "0644"
-        owner: neon
-        group: neon
     # Docker services
     - name: Copy Yacht compose file
       ansible.builtin.template:
