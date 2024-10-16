@@ -29,19 +29,6 @@ http {
         }
     }
 
-    {% comment %} # Translation
-    server {
-        listen 443 ssl;
-        server_name libretranslate.{{ common_name }};
-
-        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
-        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
-
-        location / {
-            proxy_pass http://libretranslate:5000;
-        }
-    } {% endcomment %}
-
     # HTTP Services
     server {
         listen 443 ssl;

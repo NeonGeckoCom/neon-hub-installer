@@ -256,23 +256,6 @@ services:
       - xdg:/etc/xdg:rw
     environment:
       <<: *default-env-vars
-  {% comment %} neon_libretranslate:
-    <<: *podman
-    container_name: neon-libretranslate
-    image: ghcr.io/neongeckocom/libretranslate:latest
-    restart: unless-stopped
-    logging: *default-logging
-    hostname: $HOSTNAME
-    networks:
-      neon-core:
-        aliases:
-          - libretranslate
-    ports:
-      - 5000:5000
-    volumes:
-      - xdg:/xdg:rw
-    environment:
-      <<: *default-env-vars {% endcomment %}
   tts_coqui:
     <<: *podman
     container_name: neon-tts-coqui
