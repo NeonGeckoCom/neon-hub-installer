@@ -1,6 +1,6 @@
 # Neon Hub
 
-Neon Hub is a central server for artificial intelligence, powered by Neon.AI. It is designed to be a private, offline, and secure alternative to cloud-based AI assistants like Alexa, Google Assistant, and Siri. A Neon Hub can run on any consumer computer built within the last 5 years, running the Linux operating system, and can be accessed from any device on the same network. Neon Hub is designed to be easy to set up and use, with a web interface for managing services and a RESTful API for developers. A GPU is not required and is currently not supported, but future versions will support GPU acceleration.
+Neon Hub is a central server for artificial intelligence, powered by Neon AI®. It is designed to be a private, offline, and secure alternative to cloud-based AI assistants like Alexa, Google Assistant, and Siri. A Neon Hub can run on any consumer computer built within the last 5 years, running the Linux operating system, and can be accessed from any device on the same network. Neon Hub is designed to be easy to set up and use, with a web interface for managing services and a RESTful API for developers. A GPU is not required and is currently not supported, but future versions will support GPU acceleration.
 
 A Neon Hub can be used with any number of Neon Nodes, which can be as small as a Raspberry Pi Zero W. Nodes can be placed throughout a home or office, and can be used to interact with the Hub using voice commands, text, or a web interface. The Hub can be used to control smart home devices, answer questions, play music, and more.
 
@@ -19,7 +19,7 @@ Neon Hub is perfect for:
 | --------- | ------- | -------------- |
 | CPU       | 2 cores | 4 cores        |
 | Memory    | 4GB     | 8GB            |
-| Disk      | 77GB    | 100GB SSD/NVME |
+| Disk      | 100GB   | 150GB SSD/NVME |
 
 ~25GB for Docker images, 7GB for OS, 45GB for data
 
@@ -39,11 +39,14 @@ Neon Hub runs on both x86 and ARM CPUs.
 | neon-hana        | 443MB    |
 | neon-iris        | 1.78GB   |
 | neon-iris-websat | 1.61GB   |
-| libretranslate   | 5.1GB    |
 | coqui            | 1.3GB    |
 | fasterwhisper    | 1.94GB   |
 | yacht            | 415MB    |
 | **Total**        | 25.338GB |
+
+## Installation
+
+Clone this repository (`git clone https://github.com/NeonGeckoCom/neon-hub-installer`) and run the `install.sh` script. It will install prerequisites, then take you through a guided setup process.
 
 ## Exposed services and their ports
 
@@ -63,12 +66,6 @@ At this time, Neon Hub only ships with fasterwhisper.
 TTS allows the assistant to talk to you. Currently, Neon Hubs only ship with a custom Coqui model, which is optimized for Raspberry Pi CPU inference and performs extremely well on x86 processors.
 
 - coqui: `http://neon-hub.local:9666`
-
-### Translation
-
-Neon Hub ships with Libretranslate for fully private and offline language translation.
-
-- libretranslate: `http://neon-hub.local:5000`
 
 ### HTTP Services
 
@@ -162,16 +159,15 @@ api_key: CUSTOM_KEY_HERE
 
 Neon Hub comes with an nginx reverse proxy that routes traffic to the appropriate service. The following paths are available:
 
-| Service        | Friendly URL                            | URL with port                 |
-| -------------- | --------------------------------------- | ----------------------------- |
-| Libretranslate | `https://libretranslate.neon-hub.local` | `http://neon-hub.local:5000`  |
-| Fasterwhisper  | `https://fasterwhisper.neon-hub.local`  | `http://neon-hub.local:8080`  |
-| Coqui          | `https://coqui.neon-hub.local`          | `http://neon-hub.local:9666`  |
-| HANA           | `https://hana.neon-hub.local`           | `http://neon-hub.local:8082`  |
-| Iris           | `https://iris.neon-hub.local`           | `http://neon-hub.local:7860`  |
-| Iris-Websat    | `https://iris-websat.neon-hub.local`    | `http://neon-hub.local:8001`  |
-| Yacht          | `https://yacht.neon-hub.local`          | `http://neon-hub.local:8000`  |
-| RMQ-Admin      | `https://rmq-admin.neon-hub.local`      | `http://neon-hub.local:15672` |
+| Service       | Friendly URL                           | URL with port                 |
+| ------------- | -------------------------------------- | ----------------------------- |
+| Fasterwhisper | `https://fasterwhisper.neon-hub.local` | `http://neon-hub.local:8080`  |
+| Coqui         | `https://coqui.neon-hub.local`         | `http://neon-hub.local:9666`  |
+| HANA          | `https://hana.neon-hub.local`          | `http://neon-hub.local:8082`  |
+| Iris          | `https://iris.neon-hub.local`          | `http://neon-hub.local:7860`  |
+| Iris-Websat   | `https://iris-websat.neon-hub.local`   | `http://neon-hub.local:8001`  |
+| Yacht         | `https://yacht.neon-hub.local`         | `http://neon-hub.local:8000`  |
+| RMQ-Admin     | `https://rmq-admin.neon-hub.local`     | `http://neon-hub.local:15672` |
 
 Please note that the Iris-Websat service will only work with HTTPS, although you can see your chat history and the Iris interface at `http://neon-hub.local:8001`.
 
@@ -182,7 +178,7 @@ Please note that the Iris-Websat service will only work with HTTPS, although you
 Add the following to your `/etc/hosts` file:
 
 ```bash
-10.10.10.10 neon-hub.local fasterwhisper.neon-hub.local coqui.neon-hub.local libretranslate.neon-hub.local hana.neon-hub.local iris.neon-hub.local iris-websat.neon-hub.local yacht.neon-hub.local rmq-admin.neon-hub.local
+10.10.10.10 neon-hub.local fasterwhisper.neon-hub.local coqui.neon-hub.local hana.neon-hub.local iris.neon-hub.local iris-websat.neon-hub.local yacht.neon-hub.local rmq-admin.neon-hub.local
 ```
 
 Replace `10.10.10.10` with the IP address of your Neon Hub. (TODO: Maybe. We can probably just exclude neon-hub.local from the hosts file for appliances.)
@@ -195,7 +191,6 @@ If you have a DNS server, you can add the following records:
 neon-hub.local. IN A 10.10.10.10
 fasterwhisper.neon-hub.local. IN A 10.10.10.10
 coqui.neon-hub.local. IN A 10.10.10.10
-libretranslate.neon-hub.local. IN A 10.10.10.10
 hana.neon-hub.local. IN A 10.10.10.10
 iris.neon-hub.local. IN A 10.10.10.10
 iris-websat.neon-hub.local. IN A 10.10.10.10

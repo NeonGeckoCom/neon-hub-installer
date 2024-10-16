@@ -102,6 +102,8 @@ esac
 
 # Installation
 echo "Installing Neon Hub. This may take some time, take a break and relax."
+echo "You can find installation logs at $LOG_FILE."
+
 export ANSIBLE_CONFIG=ansible.cfg
 ansible-playbook -i 127.0.0.1 -e "xdg_dir=$XDG_DIR common_name=$HOSTNAME" "${ansible_debug[@]}" ansible/hub.yaml | tee $ANSIBLE_LOG_FILE
 
@@ -128,7 +130,7 @@ show_message "Your message queue secrets and Neon Node secret are available in $
 
 Neon Hub is ready to use! To begin, say \"Hey Neon\" and ask a question such as \"What time is it?\" or \"What's the weather like today?\". 
 
-You can customize your Neon Hub by navigating to https://${HOSTNAME} in your preferred web browser. It is also available at https://$IP.
+You can check your Neon Hub services by navigating to https://yacht.${HOSTNAME} in your preferred web browser. It is also available at http://$IP:8000. The default credentials are admin@yacht.local:pass.
 
 Please note that the first time you access the web interface, you will need to accept the self-signed SSL certificate. You can do this in most browsers by clicking \"Advanced\" and then \"Proceed to ${HOSTNAME}\".
 

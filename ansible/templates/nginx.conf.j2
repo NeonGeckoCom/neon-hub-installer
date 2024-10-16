@@ -29,7 +29,7 @@ http {
         }
     }
 
-    # Translation
+    {% comment %} # Translation
     server {
         listen 443 ssl;
         server_name libretranslate.{{ common_name }};
@@ -40,7 +40,7 @@ http {
         location / {
             proxy_pass http://libretranslate:5000;
         }
-    }
+    } {% endcomment %}
 
     # HTTP Services
     server {

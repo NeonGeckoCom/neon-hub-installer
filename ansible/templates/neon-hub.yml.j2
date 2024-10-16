@@ -219,7 +219,6 @@ services:
         aliases:
           - neon-rabbitmq
     volumes:
-      - xdg:/xdg:rw
       - /home/neon/xdg/config/rabbitmq:/etc/rabbitmq
     environment:
       - RABBITMQ_ENABLED_PLUGINS=rabbitmq_management
@@ -257,7 +256,7 @@ services:
       - xdg:/etc/xdg:rw
     environment:
       <<: *default-env-vars
-  neon_libretranslate:
+  {% comment %} neon_libretranslate:
     <<: *podman
     container_name: neon-libretranslate
     image: ghcr.io/neongeckocom/libretranslate:latest
@@ -273,7 +272,7 @@ services:
     volumes:
       - xdg:/xdg:rw
     environment:
-      <<: *default-env-vars
+      <<: *default-env-vars {% endcomment %}
   tts_coqui:
     <<: *podman
     container_name: neon-tts-coqui
