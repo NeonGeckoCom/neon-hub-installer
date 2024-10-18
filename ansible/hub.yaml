@@ -260,5 +260,5 @@
     - name: Create file indicating successful deployment
       ansible.builtin.file:
         path: "{{ xdg_dir }}/neon-installed"
-        state: file
+        state: touch
         mode: "2775"
