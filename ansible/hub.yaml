@@ -182,6 +182,9 @@
         src: templates/enabled_plugins
         dest: "{{ xdg_dir }}/config/rabbitmq/enabled_plugins"
         mode: "0644"
+        user: 1000
+        group: 1000
+      become: no
     - name: Create neon.yaml
       ansible.builtin.template:
         src: templates/neon.yaml.j2
