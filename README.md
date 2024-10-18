@@ -46,7 +46,7 @@ Neon Hub runs on both x86 and ARM CPUs.
 
 ## Installation
 
-Clone this repository (`git clone https://github.com/NeonGeckoCom/neon-hub-installer`) and run the `install.sh` script. It will install prerequisites, then take you through a guided setup process.
+Clone this repository (`git clone https://github.com/NeonGeckoCom/neon-hub-installer`) and run `sudo ./installer.sh`. It will install prerequisites, then take you through a guided setup process.
 
 ## Exposed services and their ports
 

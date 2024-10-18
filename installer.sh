@@ -42,7 +42,7 @@ set +eE
 # Welcome message
 show_message "Welcome to the Neon Hub installer! 
 
-Neon Hub is central server for artificial intelligence, powered by Neon.AI. It is designed to be a private, offline, and secure alternative to cloud-based AI assistants like Alexa, Google Assistant, and Siri. 
+Neon Hub is central server for artificial intelligence, powered by Neon AI®. It is designed to be a private, offline, and secure alternative to cloud-based AI assistants like Alexa, Google Assistant, and Siri. 
 
 This installer will guide you through the process of setting up a Neon Hub on your computer. You will need to have a working internet connection and a computer running Linux. The installer will install all necessary dependencies, set up a Docker environment, and configure Neon Hub to run as services.
 
@@ -128,9 +128,9 @@ IP=$(hostname -I | awk '{print $1}')
 # Final message
 show_message "Your message queue secrets and Neon Node secret are available in ${PWD}/ansible/neon_hub_secrets.yaml. Please keep these secrets safe and do not share them with anyone. You will need these secrets to connect to your Neon Hub.
 
-Neon Hub is ready to use! To begin, say \"Hey Neon\" and ask a question such as \"What time is it?\" or \"What's the weather like today?\". 
+Neon Hub is ready to use! To begin, say \"Hey Neon\" and ask a question such as \"What time is it?\" or \"What's the weather like today?\"."
 
-You can check your Neon Hub services by navigating to https://yacht.${HOSTNAME} in your preferred web browser. It is also available at http://$IP:8000. The default credentials are admin@yacht.local:pass.
+show_message "You can check your Neon Hub services by navigating to https://yacht.${HOSTNAME} in your preferred web browser. It is also available at http://$IP:8000. The default credentials are admin@yacht.local:pass.
 
 Please note that the first time you access the web interface, you will need to accept the self-signed SSL certificate. You can do this in most browsers by clicking \"Advanced\" and then \"Proceed to ${HOSTNAME}\".
 

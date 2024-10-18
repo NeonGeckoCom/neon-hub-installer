@@ -172,6 +172,16 @@
         src: templates/rabbitmq.json.j2
         dest: "{{ xdg_dir }}/config/rabbitmq/rabbitmq.json"
         mode: "0644"
+    - name: Create rabbitmq.conf
+      ansible.builtin.template:
+        src: templates/rabbitmq.conf
+        dest: "{{ xdg_dir }}/config/rabbitmq/rabbitmq.conf"
+        mode: "0644"
+    - name: Create enabled_plugins
+      ansible.builtin.template:
+        src: templates/enabled_plugins
+        dest: "{{ xdg_dir }}/config/rabbitmq/enabled_plugins"
+        mode: "0644"
     - name: Create neon.yaml
       ansible.builtin.template:
         src: templates/neon.yaml.j2
@@ -186,11 +196,6 @@
         mode: "0644"
         owner: neon
         group: neon
-    - name: Create rabbitmq.conf
-      ansible.builtin.template:
-        src: templates/rabbitmq.conf
-        dest: "{{ xdg_dir }}/config/rabbitmq/rabbitmq.conf"
-        mode: "0644"
     # Docker services
     - name: Copy Yacht compose file
       ansible.builtin.template:
@@ -228,7 +233,7 @@
         owner: neon
         group: neon
     # Deploy
-    - name: Start Core and Hub
+    - name: Download and Start Core and Hub
       community.docker.docker_compose_v2:
         project_src: /home/neon/compose
         project_name: neon
@@ -252,3 +257,8 @@
       delay: 3
       environment:
         DOCKER_TIMEOUT: "900"
+    - name: Create file indicating successful deployment
+      ansible.builtin.file:
+        path: "{{ xdg_dir }}/neon-installed"
+        state: file
+        mode: "2775"
