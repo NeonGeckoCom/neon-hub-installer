@@ -331,6 +331,7 @@ services:
       <<: *default-env-vars
   nginx:
     image: nginx:alpine
+    container_name: neon-nginx
     networks:
       neon-core:
     ports:

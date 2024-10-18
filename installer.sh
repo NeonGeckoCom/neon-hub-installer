@@ -30,14 +30,34 @@ get_yesno() {
 # shellcheck source=scripts/common.sh
 source scripts/common.sh
 
-# TODO: If anything fails here, it's silent. Need to at least tell the user to check the log file.
+# Function to run command, log output, and handle errors
+run_step() {
+    local step_name=$1
+    local command=$2
+    echo "Running: $step_name" >> "$LOG_FILE"
+    if ! output=$($command 2>&1); then
+        echo "Error in $step_name. Check $LOG_FILE for details." >&2
+        echo "$output" >> "$LOG_FILE"
+        show_message "Error during $step_name. Please check the log file at $LOG_FILE for details."
+        exit 1
+    fi
+    echo "$output" >> "$LOG_FILE"
+}
+
+# Set up error handling
 set -eE
-detect_user
-get_os_information
-required_packages
-create_python_venv
-install_ansible
+trap 'echo "Error on line $LINENO. Check $LOG_FILE for details." >&2; exit 1' ERR
+
+# Run each step
+run_step "User detection" detect_user
+run_step "OS information gathering" get_os_information
+run_step "Required packages installation" required_packages
+run_step "Python virtual environment creation" create_python_venv
+run_step "Ansible installation" install_ansible
+
+# Disable error handling after this section
 set +eE
+trap - ERR
 
 # Welcome message
 show_message "Welcome to the Neon Hub installer! 
@@ -91,14 +111,6 @@ case $HOSTNAME_CHOICE in
         HOSTNAME=$(get_input "Please enter the new hostname:" "$HOSTNAME")
         ;;
 esac
-
-# # Simulating installation process
-# {
-#     for i in {1..100}; do
-#         sleep 0.1
-#         echo $i
-#     done
-# } | whiptail --gauge "Installing Neon Hub... Please wait." 6 50 0
 
 # Installation
 echo "Installing Neon Hub. This may take some time, take a break and relax."
