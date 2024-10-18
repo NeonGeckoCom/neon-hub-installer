@@ -159,6 +159,8 @@
         path: "{{ xdg_dir }}/config/rabbitmq"
         state: directory
         mode: "2775"
+        owner: 999
+        group: 999
     # Certificate generation
     - name: Generate self-signed certificate
       import_tasks: generate-certificate.yaml
@@ -172,19 +174,22 @@
         src: templates/rabbitmq.json.j2
         dest: "{{ xdg_dir }}/config/rabbitmq/rabbitmq.json"
         mode: "0644"
+        owner: 999
+        group: 999
     - name: Create rabbitmq.conf
       ansible.builtin.template:
         src: templates/rabbitmq.conf
         dest: "{{ xdg_dir }}/config/rabbitmq/rabbitmq.conf"
         mode: "0644"
+        owner: 999
+        group: 999
     - name: Create enabled_plugins
       ansible.builtin.template:
         src: templates/enabled_plugins
         dest: "{{ xdg_dir }}/config/rabbitmq/enabled_plugins"
         mode: "0644"
-        user: 1000
-        group: 1000
-      become: no
+        owner: 999
+        group: 999
     - name: Create neon.yaml
       ansible.builtin.template:
         src: templates/neon.yaml.j2
