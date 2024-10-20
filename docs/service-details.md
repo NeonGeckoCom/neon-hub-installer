@@ -29,11 +29,11 @@ TTS allows the assistant to talk to you. Currently, Neon Hubs only ship with a c
 
 ## HTTP Services
 
-Neon Hub uses HANA for RESTful API communications among different services. Non-developers will never need to use it, but it is available. Endpoint documentation and testing is available at `http://neon-hub.local:8082/docs`.
+Neon Hub uses [HANA](https://github.com/NeonGeckoCom/neon-hana) for RESTful API communications among different services. Non-developers will never need to use it, but it is available. Endpoint documentation and testing is available at `http://neon-hub.local:8082/docs`.
 
-Neon Hub also has two web variations of Iris. At `http://neon-hub.local:7860` there is a Gradio interface where you can type questions to Neon, speak directly to Neon, drop WAV files to speak to Neon, or change your personal information.
+Neon Hub also has two web variations of [Iris](https://github.com/NeonGeckoCom/neon-iris). At `http://neon-hub.local:7860` there is a Gradio interface where you can type questions to Neon, speak directly to Neon, drop WAV files to speak to Neon, or change your personal information.
 
-At `http://neon-hub.local:8001` there is a chat interface that includes a wakeword ("Hey Neon") for full voice interaction, similar to a smart speaker like Alexa. This interface is compatible with any modern smartphone, tablet, or computer. 
+At `http://neon-hub.local:8001` there is a chat interface that includes a wakeword ("Hey Neon") for full voice interaction, similar to a smart speaker like Alexa. This interface is compatible with any modern smartphone, tablet, or computer.
 
 !!!warning
     _At this time, Apple iOS devices do not have wake word support with audio playback due to security constraints imposed by Apple._
@@ -46,4 +46,4 @@ In order to fully leverage the Iris websat, you must either enable HTTPS and acc
 
 ### Custom SSL certificate
 
-The `nginx` service expects a public and private key pair to be located at `/home/neon/$HOSTNAME.crt` and `/home/neon/$HOSTNAME.key`, with the default value of `$HOSTNAME` being neon-hub.local. If you would like to use your own certificate, you can replace the existing files with your own and restart the nginx service in Yacht.
+The `nginx` service expects a public and private key to be located at `/home/neon/$HOSTNAME.crt` and `/home/neon/$HOSTNAME.key`, with the default value of `$HOSTNAME` being neon-hub.local. If you would like to use your own certificate, you can replace the existing files with your own and restart the nginx service in Yacht.

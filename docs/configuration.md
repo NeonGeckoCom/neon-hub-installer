@@ -15,6 +15,13 @@ Neon core services:
 
 ## Common configuration options
 
+Common configurations are found in the `neon.yaml` file.
+
+!!! warning
+    YAML is a whitespace-sensitive language. Be sure to maintain proper indentation when editing the `neon.yaml` file.
+
+Specific configuration changes are also detailed in blog posts by community dev Mike Gray. [Read the blog posts](https://blog.graywind.org/tags/neon/).
+
 ### Logging verbosity
 
 To increase or decrease the verbosity of the logs, change the `LOG_LEVEL` value. The default value is `INFO`.
@@ -37,6 +44,15 @@ To switch between 12-hour and 24-hour time, change the `time_format` value. The 
 
 ```yaml
 time_format: full
+```
+
+### Timezone
+
+To change the timezone manually, change the `location.timezone` value. The default value is `America/Los_Angeles`.
+
+```yaml
+location:
+  timezone: America/Chicago
 ```
 
 ## Installing additional skills and plugins
