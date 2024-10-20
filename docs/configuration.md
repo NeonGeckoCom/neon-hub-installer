@@ -6,12 +6,12 @@ All configuration is done in the `neon.yaml` file. This file is located in the `
 
 Neon core services:
 
-- neon-gui
-- neon-enclosure
-- neon-audio
-- neon-skills
-- neon-speech
-- neon-messagebus
+- [neon-gui](https://github.com/NeonGeckoCom/neon_gui)
+- [neon-enclosure](https://github.com/NeonGeckoCom/neon_enclosure)
+- [neon-audio](https://github.com/NeonGeckoCom/neon_audio)
+- [neon-skills](https://github.com/NeonGeckoCom/neoncore)
+- [neon-speech](https://github.com/NeonGeckoCom/neon_speech)
+- [neon-messagebus](https://github.com/NeonGeckoCom/neon_messagebus)
 
 ## Common configuration options
 
