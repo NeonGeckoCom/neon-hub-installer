@@ -1,5 +1,5 @@
 site_name: Neon Hub Installer - Neon AI®
-site_url: https://oscillatelabsllc.github.io/neon-hub-installer
+site_url: https://neongeckocom.github.io/neon-hub-installer
 plugins:
   - search
 theme:

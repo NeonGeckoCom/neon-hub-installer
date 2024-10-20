@@ -5,6 +5,12 @@ export LOG_FILE=/var/log/neon-hub-installer.log
 export INSTALLER_VENV_NAME="neon-hub-installer"
 export OS_RELEASE=/etc/os-release
 export USER_ID="$EUID"
+export NEWT_COLORS='
+window=,orange
+border=white,orange
+textbox=white,orange
+button=black,white
+'
 
 # Enable debug/verbosity for Bash and Ansible
 if [ "$DEBUG" == "true" ]; then

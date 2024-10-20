@@ -15,4 +15,6 @@ Neon Hub is perfect for:
 
 ## Documentation
 
-Detailed documentation is available at [https://oscillatelabsllc.github.io/neon-hub-installer](https://oscillatelabsllc.github.io/neon-hub-installer).
+Detailed documentation is available at [https://neongeckocom.github.io/neon-hub-installer](https://neongeckocom.github.io/neon-hub-installer).
+
+It can be accessed locally by [installing mkdocs](https://www.mkdocs.org/getting-started/) and running `mkdocs serve` in the root of the repository.
