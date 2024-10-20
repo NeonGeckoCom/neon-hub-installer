@@ -4,7 +4,6 @@
 # Format the "done" and "fail" strings
 done_format="\e[32mdone\e[0m"
 fail_format="\e[31mfail\e[0m"
-
 # This function ask user agreement on uploading the content of
 # ovos-installer.log on https://dpaste.com. Without the user
 # agreement this could lead to security infringement.

@@ -35,13 +35,11 @@ run_step() {
     local step_name=$1
     local command=$2
     echo "Running: $step_name" >> "$LOG_FILE"
-    if ! output=$($command 2>&1); then
+    if ! eval "$command" >> "$LOG_FILE" 2>&1; then
         echo "Error in $step_name. Check $LOG_FILE for details." >&2
-        echo "$output" >> "$LOG_FILE"
         show_message "Error during $step_name. Please check the log file at $LOG_FILE for details."
         exit 1
     fi
-    echo "$output" >> "$LOG_FILE"
 }
 
 # Set up error handling
@@ -49,11 +47,11 @@ set -eE
 trap 'echo "Error on line $LINENO. Check $LOG_FILE for details." >&2; exit 1' ERR
 
 # Run each step
-run_step "User detection" detect_user
-run_step "OS information gathering" get_os_information
-run_step "Required packages installation" required_packages
-run_step "Python virtual environment creation" create_python_venv
-run_step "Ansible installation" install_ansible
+run_step "User detection" "detect_user"
+run_step "OS information gathering" "get_os_information"
+run_step "Required packages installation" "required_packages"
+run_step "Python virtual environment creation" "create_python_venv"
+run_step "Ansible installation" "install_ansible"
 
 # Disable error handling after this section
 set +eE

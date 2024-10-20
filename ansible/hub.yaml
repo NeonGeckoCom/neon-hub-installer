@@ -105,55 +105,21 @@
         append: yes
         groups: docker
     # Set up prerequisite folders
-    - name: Create {{ xdg_dir }} folder with 2775 permissions
+    - name: Create Neon folders with 2775 permissions
       ansible.builtin.file:
-        path: "{{ xdg_dir }}"
+        path: "{{ item }}"
         state: directory
         mode: "2775" # Keeps the group sticky
         owner: neon
         group: neon
-    - name: Create /home/neon/compose folder with 2775 permissions
-      ansible.builtin.file:
-        path: "/home/neon/compose"
-        state: directory
-        mode: "2775" # Keeps the group sticky
-        owner: neon
-        group: neon
-    - name: Create /home/neon/.config/pulse folder with 2775 permissions
-      ansible.builtin.file:
-        path: "/home/neon/.config/pulse"
-        state: directory
-        mode: "2775" # Keeps the group sticky
-        owner: neon
-        group: neon
-    - name: Create {{ xdg_dir }}/config folder with 2775 permissions
-      ansible.builtin.file:
-        path: "{{ xdg_dir }}/config"
-        state: directory
-        mode: "2775" # Keeps the group sticky
-        owner: neon
-        group: neon
-    - name: Create {{ xdg_dir }}/local folder with 2775 permissions
-      ansible.builtin.file:
-        path: "{{ xdg_dir }}/local"
-        state: directory
-        mode: "2775" # Keeps the group sticky
-        owner: neon
-        group: neon
-    - name: Create {{ xdg_dir }}/share folder with 2775 permissions
-      ansible.builtin.file:
-        path: "{{ xdg_dir }}/share"
-        state: directory
-        mode: "2775" # Keeps the group sticky
-        owner: neon
-        group: neon
-    - name: Create {{ xdg_dir }}/config/neon folder with 2775 permissions
-      ansible.builtin.file:
-        path: "{{ xdg_dir }}/config/neon"
-        state: directory
-        mode: "2775" # Keeps the group sticky
-        owner: neon
-        group: neon
+      loop:
+        - "{{ xdg_dir }}"
+        - "{{ xdg_dir }}/local"
+        - "{{ xdg_dir }}/share"
+        - "{{ xdg_dir }}/config"
+        - "{{ xdg_dir }}/config/neon"
+        - "/home/neon/compose"
+        - "/home/neon/.config/pulse"
     - name: Create {{ xdg_dir }}/config/rabbitmq folder
       ansible.builtin.file:
         path: "{{ xdg_dir }}/config/rabbitmq"
@@ -169,24 +135,14 @@
       include_vars:
         file: "{{ secrets_file }}"
       # no_log: true
-    - name: Create rabbitmq.json
+    - name: Create rabbitmq files
+      loop:
+        - rabbitmq.json
+        - rabbitmq.conf
+        - enabled_plugins
       ansible.builtin.template:
-        src: templates/rabbitmq.json.j2
-        dest: "{{ xdg_dir }}/config/rabbitmq/rabbitmq.json"
-        mode: "0644"
-        owner: 999
-        group: 999
-    - name: Create rabbitmq.conf
-      ansible.builtin.template:
-        src: templates/rabbitmq.conf
-        dest: "{{ xdg_dir }}/config/rabbitmq/rabbitmq.conf"
-        mode: "0644"
-        owner: 999
-        group: 999
-    - name: Create enabled_plugins
-      ansible.builtin.template:
-        src: templates/enabled_plugins
-        dest: "{{ xdg_dir }}/config/rabbitmq/enabled_plugins"
+        src: "templates/{{ item }}.j2"
+        dest: "{{ xdg_dir }}/config/rabbitmq/{{ item }}"
         mode: "0644"
         owner: 999
         group: 999
