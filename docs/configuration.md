@@ -20,6 +20,8 @@ Common configurations are found in the `neon.yaml` file.
 !!! warning
     YAML is a whitespace-sensitive language. Be sure to maintain proper indentation when editing the `neon.yaml` file.
 
+For more configuration information, please [see the Neon documentation](https://neongeckocom.github.io/neon-docs/quick_reference/configuration/).
+
 Specific configuration changes are also detailed in blog posts by community dev Mike Gray. [Read the blog posts](https://blog.graywind.org/tags/neon/).
 
 ### Logging verbosity
@@ -55,6 +57,9 @@ location:
   timezone: America/Chicago
 ```
 
+!!! info
+    When you connect a Neon Node to a Hub, the Node's timezone is used instead.
+
 ## Installing additional skills and plugins
 
 Each Neon Core service is a Docker container. To install a new service, you need to add it to the `neon.yaml` file and then restart the services.
@@ -87,14 +92,13 @@ extra_dependencies:
 The default `neon.yaml` file includes a commented section for using your own API keys for external services. It looks like this:
 
 ```yaml
-# keys:
-#   api_services:
-#     alpha_vantage:
-#       api_key: CUSTOM_KEY_HERE
-#     open_weather_map:
-#       api_key: CUSTOM_KEY_HERE
-#     wolfram_alpha:
-#       api_key: CUSTOM_KEY_HERE
+# api_services:
+#   alpha_vantage:
+#     api_key: CUSTOM_KEY_HERE
+#   open_weather_map:
+#     api_key: CUSTOM_KEY_HERE
+#   wolfram_alpha:
+#     api_key: CUSTOM_KEY_HERE
 ```
 
 To use your own API keys, uncomment the section (remove the `# `) and replace `CUSTOM_KEY_HERE` with your key.
