@@ -4,7 +4,6 @@
 # Format the "done" and "fail" strings
 done_format="\e[32mdone\e[0m"
 fail_format="\e[31mfail\e[0m"
-
 # This function ask user agreement on uploading the content of
 # ovos-installer.log on https://dpaste.com. Without the user
 # agreement this could lead to security infringement.
@@ -78,7 +77,7 @@ function required_packages() {
 
     case "$DISTRO_NAME" in
     debian | ubuntu | raspbian | linuxmint | zorin)
-        UPDATE=1 apt_ensure python3 python3-dev python3-pip python3-venv whiptail jq &>>"$LOG_FILE"
+        UPDATE=1 apt_ensure python3 python3-dev python3-pip python3-venv whiptail jq git &>>"$LOG_FILE"
         ;;
     fedora)
         echo "Neon Hub only supports Debian-based distributions at the moment." | tee -a "$LOG_FILE"

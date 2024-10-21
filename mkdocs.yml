@@ -1,0 +1,46 @@
+site_name: Neon Hub Installer - Neon AI®
+site_url: https://neongeckocom.github.io/neon-hub-installer
+plugins:
+  - search
+theme:
+  logo: assets/neon_logo_transparent.svg
+  favicon: assets/favicon.png
+  name: material
+  features:
+    - search.suggest
+    - search.highlight
+    - search.share
+  palette:
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep orange
+      accent: orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep orange
+      accent: orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+nav:
+  - About: index.md
+  - System Requirements: requirements.md
+  - Installation: installation.md
+  - Configuration: configuration.md
+  - Troubleshooting: troubleshooting.md
+  - Available Services: services.md
+  - Service Details: service-details.md

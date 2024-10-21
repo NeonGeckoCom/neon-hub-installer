@@ -2,3 +2,4 @@
 neon_hub_secrets.yaml
 xdg/
 .DS_Store
+.venv/

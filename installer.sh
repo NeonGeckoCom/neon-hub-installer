@@ -30,19 +30,37 @@ get_yesno() {
 # shellcheck source=scripts/common.sh
 source scripts/common.sh
 
-# TODO: If anything fails here, it's silent. Need to at least tell the user to check the log file.
+# Function to run command, log output, and handle errors
+run_step() {
+    local step_name=$1
+    local command=$2
+    echo "Running: $step_name" >> "$LOG_FILE"
+    if ! eval "$command" >> "$LOG_FILE" 2>&1; then
+        echo "Error in $step_name. Check $LOG_FILE for details." >&2
+        show_message "Error during $step_name. Please check the log file at $LOG_FILE for details."
+        exit 1
+    fi
+}
+
+# Set up error handling
 set -eE
-detect_user
-get_os_information
-required_packages
-create_python_venv
-install_ansible
+trap 'echo "Error on line $LINENO. Check $LOG_FILE for details." >&2; exit 1' ERR
+
+# Run each step
+run_step "User detection" "detect_user"
+run_step "OS information gathering" "get_os_information"
+run_step "Required packages installation" "required_packages"
+run_step "Python virtual environment creation" "create_python_venv"
+run_step "Ansible installation" "install_ansible"
+
+# Disable error handling after this section
 set +eE
+trap - ERR
 
 # Welcome message
 show_message "Welcome to the Neon Hub installer! 
 
-Neon Hub is central server for artificial intelligence, powered by Neon.AI. It is designed to be a private, offline, and secure alternative to cloud-based AI assistants like Alexa, Google Assistant, and Siri. 
+Neon Hub is a central server for artificial intelligence, powered by Neon AI®. It is designed to be a private, offline, and secure alternative to cloud-based AI assistants like Alexa, Google Assistant, and Siri. 
 
 This installer will guide you through the process of setting up a Neon Hub on your computer. You will need to have a working internet connection and a computer running Linux. The installer will install all necessary dependencies, set up a Docker environment, and configure Neon Hub to run as services.
 
@@ -92,16 +110,10 @@ case $HOSTNAME_CHOICE in
         ;;
 esac
 
-# # Simulating installation process
-# {
-#     for i in {1..100}; do
-#         sleep 0.1
-#         echo $i
-#     done
-# } | whiptail --gauge "Installing Neon Hub... Please wait." 6 50 0
-
 # Installation
 echo "Installing Neon Hub. This may take some time, take a break and relax."
+echo "You can find installation logs at $LOG_FILE."
+
 export ANSIBLE_CONFIG=ansible.cfg
 ansible-playbook -i 127.0.0.1 -e "xdg_dir=$XDG_DIR common_name=$HOSTNAME" "${ansible_debug[@]}" ansible/hub.yaml | tee $ANSIBLE_LOG_FILE
 
@@ -126,9 +138,9 @@ IP=$(hostname -I | awk '{print $1}')
 # Final message
 show_message "Your message queue secrets and Neon Node secret are available in ${PWD}/ansible/neon_hub_secrets.yaml. Please keep these secrets safe and do not share them with anyone. You will need these secrets to connect to your Neon Hub.
 
-Neon Hub is ready to use! To begin, say \"Hey Neon\" and ask a question such as \"What time is it?\" or \"What's the weather like today?\". 
+Neon Hub is ready to use! To begin, say \"Hey Neon\" and ask a question such as \"What time is it?\" or \"What's the weather like today?\"."
 
-You can customize your Neon Hub by navigating to https://${HOSTNAME} in your preferred web browser. It is also available at https://$IP.
+show_message "You can check your Neon Hub services by navigating to https://yacht.${HOSTNAME} in your preferred web browser. It is also available at http://$IP:8000. The default credentials are admin@yacht.local:pass.
 
 Please note that the first time you access the web interface, you will need to accept the self-signed SSL certificate. You can do this in most browsers by clicking \"Advanced\" and then \"Proceed to ${HOSTNAME}\".
 

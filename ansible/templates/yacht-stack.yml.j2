@@ -7,9 +7,10 @@ networks:
     external: true
 
 services:
-  dockge:
+  yacht:
     image: selfhostedpro/yacht
     restart: unless-stopped
+    container_name: yacht
     ports:
       - 8000:8000
     volumes:
