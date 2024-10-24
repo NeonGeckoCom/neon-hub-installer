@@ -3,7 +3,7 @@ volumes:
     driver: local
     name: yacht_config
 networks:
-  neon-core:
+  neon_neon-core:
     external: true
 
 services:
@@ -11,6 +11,10 @@ services:
     image: selfhostedpro/yacht
     restart: unless-stopped
     container_name: yacht
+    networks:
+      neon_neon-core:
+        aliases:
+          - yacht
     ports:
       - 8000:8000
     volumes:
