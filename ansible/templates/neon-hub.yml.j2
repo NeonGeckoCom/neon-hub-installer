@@ -341,3 +341,19 @@ services:
       - /home/neon/compose/nginx.conf:/etc/nginx/nginx.conf:ro
       - /home/neon/{{ common_name }}.crt:/etc/ssl/certs/{{ common_name }}.crt:ro
       - /home/neon/{{ common_name }}.key:/etc/ssl/private/{{ common_name }}.key:ro
+{% if install_neon_node %}
+  hub_config:
+    <<: *podman
+    logging: *default-logging
+    restart: unless-stopped
+    depends_on:
+      - neon-hana
+    image: ghcr.io/oscillatelabsllc/neon-hub-config:main # TODO:
+    container_name: neon-hub-config
+    networks:
+      neon-core:
+    volumes:
+      - ${NEON_CONFIG_FOLDER}:/xdg/config
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+{% endif %}

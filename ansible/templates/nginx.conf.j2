@@ -109,4 +109,18 @@ http {
             proxy_pass http://yacht:8000;
         }
     }
+{% if install_neon_node %}
+    # Neon Hub Config
+    server {
+        listen 443 ssl;
+        server_name config.{{ common_name }}
+
+        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
+        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
+
+        location / {
+            proxy_pass http://hub_config:80;
+        }
+    }
+{% endif %}
 }

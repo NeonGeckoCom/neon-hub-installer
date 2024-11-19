@@ -1,0 +1,16 @@
+[Unit]
+Documentation=https://github.com/NeonGeckoCom/neon-nodes/blob/dev/README.md
+Description=Neon Node Voice Client
+
+[Service]
+ExecStart=/home/neon/.venvs/neon-node/bin/python /home/neon/start-node.py
+ExecReload=/usr/bin/kill -HUP $MAINPID
+ExecStop=/usr/bin/kill -KILL $MAINPID
+Restart=on-failure
+RestartSec=5s
+Environment="OVOS_CONFIG_BASE_FOLDER=neon"
+Environment="OVOS_CONFIG_FILENAME=neon.yaml"
+Environment="XDG_CONFIG_HOME=/home/neon/xdg/config"
+
+[Install]
+WantedBy=neon-messagebus.service
