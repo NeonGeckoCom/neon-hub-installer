@@ -3,6 +3,21 @@ events {
 }
 
 http {
+    include mime.types;
+    default_type application/octet-stream;
+    server_tokens off;
+    
+    # Basic settings
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+
+    # SSL Settings
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+
     # STT
     server {
         listen 443 ssl;
@@ -13,6 +28,13 @@ http {
 
         location / {
             proxy_pass http://fasterwhisper:8080;
+            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @fallback;
+        }
+
+        location @fallback {
+            return 503 "Service temporarily unavailable";
         }
     }
 
@@ -26,6 +48,13 @@ http {
 
         location / {
             proxy_pass http://coqui:9666;
+            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @fallback;
+        }
+
+        location @fallback {
+            return 503 "Service temporarily unavailable";
         }
     }
 
@@ -39,6 +68,19 @@ http {
 
         location / {
             proxy_pass http://hana:8080;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            add_header X-Debug-Host $host;
+            add_header X-Debug-Server-Name $server_name;
+            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @fallback;
+        }
+
+        location @fallback {
+            return 503 "Service temporarily unavailable";
         }
     }
 
@@ -51,39 +93,57 @@ http {
 
         location / {
             proxy_pass http://iris:7860;
+            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @fallback;
+        }
+
+        location @fallback {
+            return 503 "Service temporarily unavailable";
         }
     }
 
-    server {
-        listen 443 ssl;
-        server_name iris-websat.{{ common_name }};
-    
-        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
-        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
-    
-        location / {
-            proxy_pass http://iris-websat:8000;
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "upgrade";
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
-    
-        location /ws {
-            proxy_pass http://iris-websat:8000;
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "upgrade";
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
+server {
+    listen 443 ssl;
+    server_name iris-websat.{{ common_name }};
+
+    ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
+    ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
+
+    location / {
+        proxy_pass http://iris-websat:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+        proxy_intercept_errors on;
+        error_page 502 503 504 = @fallback;
     }
 
+    location /ws {
+        proxy_pass http://iris-websat:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+        proxy_intercept_errors on;
+        error_page 502 503 504 = @fallback;
+    }
+
+    location @fallback {
+        return 503 "Service temporarily unavailable";
+    }
+}
     # RMQ Admin
     server {
         listen 443 ssl;
@@ -94,6 +154,13 @@ http {
 
         location / {
             proxy_pass http://rabbitmq:15672;
+            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @fallback;
+        }
+
+        location @fallback {
+            return 503 "Service temporarily unavailable";
         }
     }
 
@@ -107,6 +174,13 @@ http {
 
         location / {
             proxy_pass http://yacht:8000;
+            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @fallback;
+        }
+
+        location @fallback {
+            return 503 "Service temporarily unavailable";
         }
     }
 {% if install_neon_node %}
@@ -119,7 +193,14 @@ http {
         ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
 
         location / {
-            proxy_pass http://hub_config:80;
+            proxy_pass http://neon-hub-config:8005;
+            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @fallback;
+        }
+
+        location @fallback {
+            return 503 "Service temporarily unavailable";
         }
     }
 {% endif %}

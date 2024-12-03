@@ -43,6 +43,15 @@ websocket:
   host: neon-messagebus
 listener:
   enable_voice_loop: False
+hotwords:
+  hey_mycroft_vosk:
+    active: false
+  hey_mycroft_pocketsphinx:
+    active: false
+  wake_up_pocketsphinx:
+    active: false
+  wake_up:
+    active: false
 {% if install_neon_node %}
 neon_node:
   description: Neon Hub Node # Friendly description of the node

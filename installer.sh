@@ -27,8 +27,14 @@ get_yesno() {
     whiptail --title "Neon Hub Installer" --yesno "$1" 10 78 3>&1 1>&2 2>&3
 }
 
+# Set up error handling
+set -eE
+trap 'echo "Error on line $LINENO. Check $LOG_FILE for details." >&2; exit 1' ERR
+
+# Source the common functions - Fix the path to be relative to the script location
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # shellcheck source=scripts/common.sh
-source scripts/common.sh
+source "${SCRIPT_DIR}/scripts/common.sh"
 
 # Function to run command, log output, and handle errors
 run_step() {
@@ -42,16 +48,21 @@ run_step() {
     fi
 }
 
-# Set up error handling
-set -eE
-trap 'echo "Error on line $LINENO. Check $LOG_FILE for details." >&2; exit 1' ERR
-
 # Run each step
-run_step "User detection" "detect_user"
-run_step "OS information gathering" "get_os_information"
-run_step "Required packages installation" "required_packages"
-run_step "Python virtual environment creation" "create_python_venv"
-run_step "Ansible installation" "install_ansible"
+run_step "User detection" detect_user
+run_step "OS information gathering" get_os_information
+run_step "Required packages installation" required_packages
+run_step "Python virtual environment creation" create_python_venv
+
+# Source the virtualenv before installing Ansible
+if [ -f "$VENV_PATH/bin/activate" ]; then
+    # shellcheck source=/dev/null
+    source "$VENV_PATH/bin/activate"
+    run_step "Ansible installation" install_ansible
+else
+    echo "Error: Virtual environment not found at $VENV_PATH" >&2
+    exit 1
+fi
 
 # Disable error handling after this section
 set +eE
@@ -129,7 +140,7 @@ echo "You can find installation logs at $LOG_FILE."
 
 export ANSIBLE_CONFIG=ansible.cfg
 ansible-playbook -i 127.0.0.1 -e "xdg_dir=$XDG_DIR common_name=$HOSTNAME install_neon_node=$INSTALL_NODE_VOICE_CLIENT" \
-"${ansible_debug[@]}" ansible/hub.yaml | tee $ANSIBLE_LOG_FILE
+"${ansible_debug[@]}" ansible/hub.yaml | tee -a $ANSIBLE_LOG_FILE
 
 if [ "${PIPESTATUS[0]}" -eq 0 ]; then
     show_message "Neon Hub has been successfully installed!"

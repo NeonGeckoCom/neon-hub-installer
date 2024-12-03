@@ -2,8 +2,8 @@
 # Functions borrowed from or inspired by https://github.com/OpenVoiceOS/ovos-installer/blob/main/utils/common.sh
 
 # Format the "done" and "fail" strings
-done_format="\e[32mdone\e[0m"
-fail_format="\e[31mfail\e[0m"
+done_format=$(printf "\033[32mdone\033[0m")
+fail_format=$(printf "\033[31mfail\033[0m")
 # This function ask user agreement on uploading the content of
 # ovos-installer.log on https://dpaste.com. Without the user
 # agreement this could lead to security infringement.
@@ -45,13 +45,12 @@ function detect_user() {
     export RUN_AS_HOME
     export VENV_PATH="${RUN_AS_HOME}/.venvs/${INSTALLER_VENV_NAME}"
 }
-
 # Retrieve operating system information based on standard /etc/os-release
 # and Python command. This is used to display information to the user
 # about the platform where the installer is running on and where Neon Hub is
 # going to be installed.
 function get_os_information() {
-    echo -ne "➤ Retrieving OS information... "
+    printf "➤ Retrieving OS information... "
     if [ -f "$OS_RELEASE" ]; then
         ARCH="$(uname -m 2>>"$LOG_FILE")"
         KERNEL="$(uname -r 2>>"$LOG_FILE")"
@@ -66,17 +65,18 @@ function get_os_information() {
         # Mostly if the detected system is not a Linux OS
         uname 2>>"$LOG_FILE"
     fi
-    echo -e "[$done_format]"
+    printf "[%s]\n" "$done_format"
 }
+
 
 # Install packages required by the installer based on retrieved information
 # from get_os_information() function. If the operating system is not supported then
 # the installer will exit with a message.
 function required_packages() {
-    echo -ne "➤ Validating installer package requirements... "
+    printf "[%s]\n" "$done_format"
 
     case "$DISTRO_NAME" in
-    debian | ubuntu | raspbian | linuxmint | zorin)
+    debian | ubuntu | raspbian | linuxmint | zorin | Ubuntu)
         UPDATE=1 apt_ensure python3 python3-dev python3-pip python3-venv python3-virtualenv whiptail jq git &>>"$LOG_FILE"
         ;;
     fedora)
@@ -113,8 +113,17 @@ function required_packages() {
 # to match the target user.
 function create_python_venv() {
     echo -ne "➤ Creating installer Python virtualenv... "
-
+    
+    # Make sure the .venvs directory exists
+    mkdir -p "${RUN_AS_HOME}/.venvs"
+    
     python3 -m venv "$VENV_PATH" &>>"$LOG_FILE"
+
+    # Make sure the virtualenv was created before trying to activate it
+    if [ ! -f "$VENV_PATH/bin/activate" ]; then
+        echo "Failed to create virtual environment" >&2
+        exit 1
+    fi
 
     # shellcheck source=/dev/null
     source "$VENV_PATH/bin/activate"
@@ -129,7 +138,7 @@ function create_python_venv() {
     fi
 
     $PIP_COMMAND install --upgrade pip setuptools &>>"$LOG_FILE"
-    chown "$RUN_AS":"$(id -ng "$RUN_AS")" "$VENV_PATH" "${RUN_AS_HOME}/.venvs" &>>"$LOG_FILE"
+    chown -R "$RUN_AS":"$(id -ng "$RUN_AS")" "${RUN_AS_HOME}/.venvs" &>>"$LOG_FILE"
     echo -e "[$done_format]"
 }
 
@@ -137,11 +146,11 @@ function create_python_venv() {
 # Ansible's collections required by the Ansible playbook as well. These
 # collections will be installed under the /root/.ansible directory.
 function install_ansible() {
-    echo -ne "➤ Installing Ansible requirements in Python virtualenv... "
+    printf "➤ Installing Ansible requirements in Python virtualenv... "
     ANSIBLE_VERSION="9.2.0"
     $PIP_COMMAND install ansible=="$ANSIBLE_VERSION" docker==7.1.0 requests==2.31.0 &>>"$LOG_FILE"
     ansible-galaxy install -r ansible/requirements.yml &>>"$LOG_FILE"
-    echo -e "[$done_format]"
+    printf "[%s]\n" "$done_format"
 }
 
 # Checks to see if apt-based packages are installed and installs them if needed.

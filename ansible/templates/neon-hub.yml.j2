@@ -44,6 +44,9 @@ volumes:
   neon_gui_files:
     name: neon_gui_files
     driver: local
+  yacht_config:
+    driver: local
+    name: yacht_config
 
 services:
   # Core
@@ -341,17 +344,37 @@ services:
       - /home/neon/compose/nginx.conf:/etc/nginx/nginx.conf:ro
       - /home/neon/{{ common_name }}.crt:/etc/ssl/certs/{{ common_name }}.crt:ro
       - /home/neon/{{ common_name }}.key:/etc/ssl/private/{{ common_name }}.key:ro
+  yacht:
+    image: selfhostedpro/yacht
+    restart: unless-stopped
+    container_name: yacht
+    networks:
+      neon-core:
+        aliases:
+          - yacht
+    ports:
+      - 8000:8000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - yacht_config:/config
+
 {% if install_neon_node %}
   hub_config:
     <<: *podman
     logging: *default-logging
     restart: unless-stopped
     depends_on:
-      - neon-hana
+      - hana
     image: ghcr.io/oscillatelabsllc/neon-hub-config:main # TODO:
+    environment:
+      DIANA_PATH: /xdg/config/neon/diana.yaml
     container_name: neon-hub-config
     networks:
       neon-core:
+        aliases:
+          - neon-hub-config
+    ports:
+      - 8005:80
     volumes:
       - ${NEON_CONFIG_FOLDER}:/xdg/config
       - /etc/timezone:/etc/timezone:ro

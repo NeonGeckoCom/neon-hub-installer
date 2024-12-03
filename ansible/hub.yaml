@@ -161,13 +161,6 @@
         owner: neon
         group: neon
     # Docker services
-    - name: Copy Yacht compose file
-      ansible.builtin.template:
-        src: templates/yacht-stack.yml.j2
-        dest: /home/neon/compose/yacht-stack.yml
-        mode: "0644"
-        owner: neon
-        group: neon
     - name: Copy nginx config file
       ansible.builtin.template:
         src: templates/nginx.conf.j2
@@ -205,18 +198,6 @@
           - neon-hub.yml
       register: neon_services
       until: neon_services is succeeded
-      retries: 5
-      delay: 3
-      environment:
-        DOCKER_TIMEOUT: "900"
-    - name: Start yacht
-      community.docker.docker_compose_v2:
-        project_src: /home/neon/compose
-        project_name: yacht
-        files:
-          - yacht-stack.yml
-      register: yacht_services
-      until: yacht_services is succeeded
       retries: 5
       delay: 3
       environment:
