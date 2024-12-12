@@ -367,8 +367,9 @@ services:
       - hana
     image: ghcr.io/oscillatelabsllc/neon-hub-config:main # TODO:
     environment:
-      DIANA_PATH: /xdg/config/neon/diana.yaml
+      DIANA_PATH: /root/.config/neon/diana.yaml
     container_name: neon-hub-config
+    user: root
     networks:
       neon-core:
         aliases:
@@ -376,7 +377,7 @@ services:
     ports:
       - 8005:80
     volumes:
-      - ${NEON_CONFIG_FOLDER}:/xdg/config
+      - ${NEON_CONFIG_FOLDER}:/root/.config
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
 {% endif %}
