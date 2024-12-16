@@ -365,9 +365,10 @@ services:
     restart: unless-stopped
     depends_on:
       - hana
-    image: ghcr.io/oscillatelabsllc/neon-hub-config:main # TODO:
+    image: ghcr.io/oscillatelabsllc/neon-hub-config:main # TODO: Move to NeonGeckoCom
     environment:
       DIANA_PATH: /root/.config/neon/diana.yaml
+      NEON_PATH: /root/.config/neon/neon.yaml
     container_name: neon-hub-config
     user: root
     networks:

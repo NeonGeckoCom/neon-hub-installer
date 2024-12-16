@@ -29,16 +29,6 @@
     requirements: "/home/neon/neon-node-requirements.txt"
     virtualenv: "/home/neon/.venvs/neon-node"
     extra_args: "--pre" # TODO: Remove after a stable release
-# - name: Download Rust messagebus
-#   ansible.builtin.get_url:
-#     url: https://github.com/OscillateLabsLLC/ovos-rust-messagebus/releases/download/v1.0.0/ovos_messagebus-x86_64-unknown-linux-gnu.tar.gz
-#     dest: /home/neon
-#     mode: 0755
-# - name: Unarchive Rust messagebus
-#   ansible.builtin.unarchive:
-#     remote_src: true
-#     src: /home/neon/ovos_messagebus-x86_64-unknown-linux-gnu.tar.gz
-#     dest: /home/neon
 - name: Set up Neon Node services
   ansible.builtin.template:
     src: "{{ item.src }}"
@@ -49,7 +39,6 @@
     backup: true
   loop:
     - { "src": "templates/neon-node/neon-node.service.j2", "dest": "/etc/systemd/system/neon-node.service" }
-    # - { "src": "templates/neon-node/rust-messagebus.service.j2", "dest": "/etc/systemd/system/neon-messagebus.service" }
 - name: Enable and start Neon Node services
   ansible.builtin.systemd_service:
     name: "{{ item }}"
@@ -59,5 +48,4 @@
     state: restarted
   become: true
   loop:
-    # - neon-messagebus.service
     - neon-node.service

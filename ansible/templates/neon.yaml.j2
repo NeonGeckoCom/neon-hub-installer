@@ -2,6 +2,35 @@ LOG_LEVEL: INFO
 system_unit: imperial
 time_format: half
 lang: en-us
+websocket:
+  host: neon-messagebus
+listener:
+  enable_voice_loop: False # Hub doesn't need it, Node uses its own voice loop
+hotwords:
+  hey_mycroft_vosk:
+    active: false
+  hey_mycroft_pocketsphinx:
+    active: false
+  wake_up_pocketsphinx:
+    active: false
+  wake_up:
+    active: false
+{% if install_neon_node %}
+neon_node:
+  description: Neon Hub Node # Friendly description of the node
+  hana_address: http://{{ common_name }}:8082  # Hana server HTTP address, switch to HTTPS when configured
+  hana_username: neon_node  # Hana node user username
+  hana_password: {{ hana.node_pw }}
+microphone: # Required here for Neon Node
+  module: ovos-microphone-plugin-alsa
+{% endif %}
+# api_services:
+#   alpha_vantage:
+#     api_key: CUSTOM_KEY_HERE
+#   open_weather_map:
+#     api_key: CUSTOM_KEY_HERE
+#   wolfram_alpha:
+#     api_key: CUSTOM_KEY_HERE
 MQ:
   port: 5672
   server: neon-rabbitmq
@@ -39,32 +68,3 @@ MQ:
     neon_chat_api:
       password: "{{ users.neon_core.password }}"
       user: neon_core
-websocket:
-  host: neon-messagebus
-listener:
-  enable_voice_loop: False
-hotwords:
-  hey_mycroft_vosk:
-    active: false
-  hey_mycroft_pocketsphinx:
-    active: false
-  wake_up_pocketsphinx:
-    active: false
-  wake_up:
-    active: false
-{% if install_neon_node %}
-neon_node:
-  description: Neon Hub Node # Friendly description of the node
-  hana_address: http://{{ common_name }}:8082  # Hana server HTTP address
-  hana_username: neon_node  # Hana node user username
-  hana_password: {{ hana.node_pw }}
-microphone: # Required here for Neon Node
-  module: ovos-microphone-plugin-alsa
-{% endif %}
-# api_services:
-#   alpha_vantage:
-#     api_key: CUSTOM_KEY_HERE
-#   open_weather_map:
-#     api_key: CUSTOM_KEY_HERE
-#   wolfram_alpha:
-#     api_key: CUSTOM_KEY_HERE
