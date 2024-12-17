@@ -1,0 +1,98 @@
+---
+- name: Install required packages
+  package:
+    name:
+      - openbox
+      - chromium-browser
+      - xorg
+      - x11-xserver-utils
+      - supervisor
+    state: present
+    if:
+      - ansible_os_family == "Debian"
+
+- name: Create OpenBox autostart config directory
+  file:
+    path: /etc/openbox
+    state: directory
+    mode: "0755"
+
+- name: Configure OpenBox autostart
+  copy:
+    dest: /etc/openbox/autostart
+    mode: "0755"
+    content: |
+      # Disable screen blanking and screensaver
+      xset s off
+      xset s noblank
+      xset -dpms
+
+      # Start Chromium in kiosk mode
+      chromium --kiosk --disable-infobars --disable-session-crashed-bubble \
+        --disable-restore-session-state \
+        --noerrdialogs \
+        --disable-notifications \
+        --start-maximized \
+        --no-first-run \
+        https://iris-websat.{{ common_name }} &
+
+- name: Create X session startup script
+  copy:
+    dest: /usr/local/bin/start-kiosk
+    mode: "0755"
+    content: |
+      #!/bin/bash
+      exec openbox-session
+
+- name: Create supervisor config
+  copy:
+    dest: /etc/supervisor/conf.d/kiosk.conf
+    content: |
+      [program:kiosk]
+      command=startx /usr/local/bin/start-kiosk -- -nocursor
+      user=neon
+      autorestart=true
+      environment=HOME="/home/neon",USER="neon"
+
+- name: Create .xinitrc
+  copy:
+    dest: /home/neon/.xinitrc
+    owner: "neon"
+    group: "neon"
+    mode: "0644"
+    content: |
+      #!/bin/sh
+      exec openbox-session
+
+- name: Enable and start supervisor
+  systemd:
+    name: supervisor
+    enabled: yes
+    state: started
+
+- name: Restart kiosk service
+  supervisorctl:
+    name: kiosk
+    state: restarted
+
+- name: Create README file with warning
+  copy:
+    dest: /home/neon/KIOSK-MODE-README.txt
+    owner: "neon"
+    group: "neon"
+    mode: "0644"
+    content: |
+      IMPORTANT: This system is configured to run in dedicated kiosk mode.
+
+      This means:
+      - The machine will automatically start in kiosk mode on boot
+      - It will display the web interface at https://iris-websat.{{ common_name }}
+      - This setup is not compatible with running other desktop environments
+      - The system will automatically restart the kiosk if it crashes
+
+      To temporarily exit kiosk mode: 
+      sudo systemctl stop supervisor
+
+      To permanently disable kiosk mode:
+      sudo systemctl disable supervisor
+      sudo rm /etc/supervisor/conf.d/kiosk.conf
