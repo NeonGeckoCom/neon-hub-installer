@@ -285,6 +285,7 @@ services:
       - 8001:8000
     volumes:
       - xdg:/xdg:rw
+      - ${NEON_CONFIG_FOLDER}:/root/.config
     environment:
       <<: *default-env-vars
   nginx:
