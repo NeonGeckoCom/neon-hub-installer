@@ -60,6 +60,6 @@ iris:
   webui_chatbot_label: "Neon AI"
   webui_mic_label: "Speak with Neon"
   webui_input_placeholder: "Speak with Neon"
-  webui_ws_url: wss://iris-websat.{{ common_name }}/ws # Note that this is self-signed
+  webui_ws_url: wss://{{ common_name }}:8001/ws # Note that this is self-signed
 websocket:
   host: neon-messagebus

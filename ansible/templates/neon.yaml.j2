@@ -15,15 +15,13 @@ hotwords:
     active: false
   wake_up:
     active: false
-{% if install_neon_node %}
-neon_node:
+neon_node: # Configuration is available regardless of whether Neon Node is installed
   description: Neon Hub Node # Friendly description of the node
   hana_address: http://{{ common_name }}:8082  # Hana server HTTP address, switch to HTTPS when configured
   hana_username: neon_node  # Hana node user username
   hana_password: {{ hana.node_pw }}
-microphone: # Required here for Neon Node
+microphone: # Required if using Neon Node
   module: ovos-microphone-plugin-alsa
-{% endif %}
 # api_services:
 #   alpha_vantage:
 #     api_key: CUSTOM_KEY_HERE
@@ -31,40 +29,3 @@ microphone: # Required here for Neon Node
 #     api_key: CUSTOM_KEY_HERE
 #   wolfram_alpha:
 #     api_key: CUSTOM_KEY_HERE
-MQ:
-  port: 5672
-  server: neon-rabbitmq
-  users:
-    chat_api_proxy:
-      password: "{{ users.neon_core.password }}"
-      user: neon_core
-    chat_observer:
-      password: "{{ users.chat_observer.password }}"
-      user: chat_observer
-    mq-libre-translate:
-      password: "{{ users.neon_libretranslate.password }}"
-      user: neon_libretranslate
-    neon_api_connector:
-      password: "{{ users.neon_api.password }}"
-      user: neon_api
-    neon_coupon_connector:
-      password: "{{ users.neon_coupons.password }}"
-      user: neon_coupons
-    neon_email_proxy:
-      password: -"{{ users.neon_email.password }}"
-      user: neon_email
-    neon_llm_chatgpt:
-      password: "{{ users.neon_llm_chatgpt.password }}"
-      user: neon_llm_chatgpt
-    neon_llm_fastchat:
-      password: "{{ users.neon_llm_fastchat.password }}"
-      user: neon_llm_fastchat
-    neon_metrics_connector:
-      password: "{{ users.neon_metrics.password }}"
-      user: neon_metrics
-    neon_script_parser_service:
-      password: "{{ users.neon_script_parser.password }}"
-      user: neon_script_parser
-    neon_chat_api:
-      password: "{{ users.neon_core.password }}"
-      user: neon_core

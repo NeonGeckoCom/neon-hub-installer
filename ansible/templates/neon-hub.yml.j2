@@ -285,7 +285,6 @@ services:
       - 8001:8000
     volumes:
       - xdg:/xdg:rw
-      - /home/neon/xdg/config:/home/neon/.config:ro
     environment:
       <<: *default-env-vars
   nginx:

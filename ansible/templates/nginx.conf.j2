@@ -46,6 +46,10 @@ http {
         ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
         ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
 
+        location = / {
+            return 302 /gradio/;
+        }
+
         location / {
             proxy_pass http://coqui:9666;
             proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
@@ -183,7 +187,6 @@ server {
             return 503 "Service temporarily unavailable";
         }
     }
-{% if install_neon_node %}
     # Neon Hub Config
     server {
         listen 443 ssl;
@@ -203,5 +206,4 @@ server {
             return 503 "Service temporarily unavailable";
         }
     }
-{% endif %}
 }
