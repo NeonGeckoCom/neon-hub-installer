@@ -290,6 +290,8 @@ services:
   nginx:
     image: nginx:alpine
     container_name: neon-nginx
+    logging: *default-logging
+    restart: unless-stopped
     networks:
       neon-core:
     ports:
@@ -301,8 +303,9 @@ services:
       - /home/neon/{{ common_name }}.key:/etc/ssl/private/{{ common_name }}.key:ro
   yacht:
     image: selfhostedpro/yacht
-    restart: unless-stopped
     container_name: yacht
+    logging: *default-logging
+    restart: unless-stopped
     networks:
       neon-core:
         aliases:
@@ -312,8 +315,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - yacht_config:/config
-
-{% if install_neon_node %}
   hub_config:
     <<: *podman
     logging: *default-logging
@@ -336,4 +337,3 @@ services:
       - ${NEON_CONFIG_FOLDER}:/root/.config
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
-{% endif %}
