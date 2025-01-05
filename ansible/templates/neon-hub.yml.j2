@@ -272,7 +272,6 @@ services:
     depends_on:
       - rabbitmq
     container_name: neon-iris-websat
-    user: root
     image: ghcr.io/neongeckocom/neon-iris-websat:${HTTP_IMAGE_TAG}
     restart: unless-stopped
     logging: *default-logging
@@ -284,8 +283,7 @@ services:
     ports:
       - 8001:8000
     volumes:
-      - xdg:/xdg:rw
-      - ${NEON_CONFIG_FOLDER}:/root/.config
+      - ${NEON_CONFIG_FOLDER}:/home/neon/.config:ro
     environment:
       <<: *default-env-vars
   nginx:
