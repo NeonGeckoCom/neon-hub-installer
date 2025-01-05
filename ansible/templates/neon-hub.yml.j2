@@ -283,7 +283,8 @@ services:
     ports:
       - 8001:8000
     volumes:
-      - ${NEON_CONFIG_FOLDER}:/home/neon/.config:ro
+      - xdg:/xdg:rw
+      - ${NEON_CONFIG_FOLDER}:/home/neon/.config
     environment:
       <<: *default-env-vars
   nginx:
