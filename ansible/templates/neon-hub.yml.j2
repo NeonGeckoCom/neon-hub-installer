@@ -283,6 +283,7 @@ services:
     ports:
       - 8001:8000
     volumes:
+      - xdg:/xdg:rw
       - ${NEON_CONFIG_FOLDER}/neon/diana.yaml:/home/neon/.config/neon/neon.yaml
     environment:
       <<: *default-env-vars
