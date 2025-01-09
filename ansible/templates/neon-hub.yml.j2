@@ -287,6 +287,8 @@ services:
       - ${NEON_CONFIG_FOLDER}:/home/neon/.config
     environment:
       <<: *default-env-vars
+      OVOS_CONFIG_BASE_FOLDER: neon
+      OVOS_CONFIG_FILENAME: neon.yaml
   nginx:
     image: nginx:alpine
     container_name: neon-nginx
