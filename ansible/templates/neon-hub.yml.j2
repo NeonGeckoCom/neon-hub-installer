@@ -284,7 +284,7 @@ services:
       - 8001:8000
     volumes:
       - xdg:/xdg:rw
-      - ${NEON_CONFIG_FOLDER}/neon/diana.yaml:/home/neon/.config/neon/neon.yaml
+      - ${NEON_CONFIG_FOLDER}/neon/diana.yaml:/config/neon/neon.yaml
     environment:
       <<: *default-env-vars
       OVOS_CONFIG_BASE_FOLDER: neon
