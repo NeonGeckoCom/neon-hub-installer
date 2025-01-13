@@ -47,6 +47,10 @@
     install_neon_node: "0"
     install_neon_node_gui: "0"
     secrets_file: "{{ playbook_dir }}/neon_hub_secrets.yaml"
+    # Neon Node GUI variables, only used if install_neon_node_gui is true
+    kiosk_user: kiosk
+    webapp_url: "https://iris-websat{{ common_name }}"
+    browser_package: firefox-esr
     # Docker - this will change rarely
     docker_user: "{{ ansible_user | default(lookup('env', 'USER')) }}"
     container_count: 4
@@ -86,6 +90,10 @@
     - name: Get primary IP address
       ansible.builtin.set_fact:
         primary_ip: "{{ ansible_default_ipv4.address }}"
+    - name: Previous installation
+      stat:
+        path: "{{ xdg_dir }}/neon-installed"
+      register: previous_install
     # Users and groups
     - name: Create neon user if it doesn't exist
       ansible.builtin.user:
@@ -221,6 +229,11 @@
     - name: Install Neon Node GUI
       import_tasks: kiosk.yaml
       when: install_neon_node_gui == "1"
+    - name: Remove Existing Neon Node GUI
+      import_tasks: kiosk-teardown.yaml
+      when:
+        - install_neon_node_gui == "0"
+        - previous_install.stat.exists
     # Finish
     - name: Create file indicating successful deployment
       ansible.builtin.file:

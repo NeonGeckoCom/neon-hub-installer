@@ -121,7 +121,7 @@ case $HOSTNAME_CHOICE in
         ;;
 esac
 
-INSTALL_NODE_VOICE_CLIENT_CHOICE=$(whiptail --title "Neon Hub Installer" --menu "Install the Neon Node Voice Client? This allows you to treat your Hub as a Node." 15 78 3 \
+INSTALL_NODE_VOICE_CLIENT_CHOICE=$(whiptail --title "Neon Hub Installer" --menu "Install the Neon Node Voice Client? This allows you to treat your Hub as a Node, so you can speak to it directly." 15 78 3 \
 "1" "Yes (default)" \
 "2" "No" 3>&1 1>&2 2>&3)
 
@@ -134,13 +134,26 @@ case $INSTALL_NODE_VOICE_CLIENT_CHOICE in
         ;;
 esac
 
+INSTALL_NODE_KIOSK_CHOICE=$(whiptail --title "Neon Hub Installer" --menu "Install the Neon Node Kiosk experience? A browser window with the Neon Iris Web Satellite will automatically start in fullscreen each time you boot. Can only choose if you didn't choose to install the Neon Node Voice Client." 15 78 3 \
+"1" "No (default)" \
+"2" "Yes" 3>&1 1>&2 2>&3)
+
+case $INSTALL_NODE_KIOSK_CHOICE in
+    1)
+        INSTALL_NODE_KIOSK=0
+        ;;
+    2)
+        INSTALL_NODE_KIOSK=1
+        ;;
+esac
+
 # Installation
 echo "Installing Neon Hub. This may take some time, take a break and relax."
 echo "You can find installation logs at $LOG_FILE."
 
 export ANSIBLE_CONFIG=ansible.cfg
-ansible-playbook -i 127.0.0.1 -e "xdg_dir=$XDG_DIR common_name=$HOSTNAME install_neon_node=$INSTALL_NODE_VOICE_CLIENT" \
-"${ansible_debug[@]}" ansible/hub.yaml | tee -a $ANSIBLE_LOG_FILE
+ansible-playbook -i 127.0.0.1 -e "xdg_dir=$XDG_DIR common_name=$HOSTNAME install_neon_node=$INSTALL_NODE_VOICE_CLIENT \
+install_neon_node_gui=$INSTALL_NODE_KIOSK_CHOICE" "${ansible_debug[@]}" ansible/hub.yaml | tee -a $ANSIBLE_LOG_FILE
 
 if [ "${PIPESTATUS[0]}" -eq 0 ]; then
     show_message "Neon Hub has been successfully installed!"
@@ -167,6 +180,6 @@ Neon Hub is ready to use! To begin, say \"Hey Neon\" and ask a question such as 
 
 show_message "You can check your Neon Hub services by navigating to https://yacht.${HOSTNAME} in your preferred web browser. It is also available at http://$IP:8000. The default credentials are admin@yacht.local:pass.
 
-Please note that the first time you access the web interface, you will need to accept the self-signed SSL certificate. You can do this in most browsers by clicking \"Advanced\" and then \"Proceed to ${HOSTNAME}\".
+Please note that the first time you access the web interface, you will need to accept the self-signed SSL certificate. You can do this in most browsers by clicking \"Advanced\" and then \"Proceed to ${HOSTNAME}\"."
 
-Congratulations on setting up your Neon Hub! Enjoy your new AI server!"
+show_message "Congratulations on setting up your Neon Hub! Enjoy your new AI server!"

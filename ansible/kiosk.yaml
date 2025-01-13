@@ -1,79 +1,52 @@
 ---
-- name: Install required packages
-  package:
-    name:
-      - openbox
-      - chromium-browser
-      - xorg
-      - x11-xserver-utils
-      - supervisor
+- name: Install browser
+  apt:
+    name: "{{ browser_package }}"
     state: present
-    if:
-      - ansible_os_family == "Debian"
+    update_cache: yes
 
-- name: Create OpenBox autostart config directory
+- name: Create kiosk user
+  user:
+    name: "{{ kiosk_user }}"
+    create_home: yes
+    shell: /bin/bash
+    password: ""
+
+- name: Ensure autostart directory exists
   file:
-    path: /etc/openbox
+    path: "/home/{{ kiosk_user }}/.config/autostart"
     state: directory
-    mode: "0755"
+    owner: "{{ kiosk_user }}"
+    group: "{{ kiosk_user }}"
+    mode: '0755'
 
-- name: Configure OpenBox autostart
+- name: Configure browser autostart
+  template:
+    src: templates/browser.desktop.j2
+    dest: "/home/{{ kiosk_user }}/.config/autostart/browser.desktop"
+    owner: "{{ kiosk_user }}"
+    group: "{{ kiosk_user }}"
+    mode: '0755'
+
+- name: Configure systemd autologin directory
+  file:
+    path: /etc/systemd/system/getty@tty1.service.d
+    state: directory
+    mode: '0755'
+
+- name: Configure systemd autologin
   copy:
-    dest: /etc/openbox/autostart
-    mode: "0755"
+    dest: /etc/systemd/system/getty@tty1.service.d/override.conf
     content: |
-      # Disable screen blanking and screensaver
-      xset s off
-      xset s noblank
-      xset -dpms
+      [Service]
+      Type=simple
+      ExecStart=
+      ExecStart=-/lib/systemd/systemd-logind --autologin {{ kiosk_user }}
+    mode: '0644'
 
-      # Start Chromium in kiosk mode
-      chromium --kiosk --disable-infobars --disable-session-crashed-bubble \
-        --disable-restore-session-state \
-        --noerrdialogs \
-        --disable-notifications \
-        --start-maximized \
-        --no-first-run \
-        https://iris-websat.{{ common_name }} &
-
-- name: Create X session startup script
-  copy:
-    dest: /usr/local/bin/start-kiosk
-    mode: "0755"
-    content: |
-      #!/bin/bash
-      exec openbox-session
-
-- name: Create supervisor config
-  copy:
-    dest: /etc/supervisor/conf.d/kiosk.conf
-    content: |
-      [program:kiosk]
-      command=startx /usr/local/bin/start-kiosk -- -nocursor
-      user=neon
-      autorestart=true
-      environment=HOME="/home/neon",USER="neon"
-
-- name: Create .xinitrc
-  copy:
-    dest: /home/neon/.xinitrc
-    owner: "neon"
-    group: "neon"
-    mode: "0644"
-    content: |
-      #!/bin/sh
-      exec openbox-session
-
-- name: Enable and start supervisor
+- name: Reload systemd
   systemd:
-    name: supervisor
-    enabled: yes
-    state: started
-
-- name: Restart kiosk service
-  supervisorctl:
-    name: kiosk
-    state: restarted
+    daemon_reload: yes
 
 - name: Create README file with warning
   copy:
@@ -85,14 +58,9 @@
       IMPORTANT: This system is configured to run in dedicated kiosk mode.
 
       This means:
-      - The machine will automatically start in kiosk mode on boot
+      - The machine will automatically start in kiosk mode on boot, as {{ kiosk_user }}
       - It will display the web interface at https://iris-websat.{{ common_name }}
-      - This setup is not compatible with running other desktop environments
-      - The system will automatically restart the kiosk if it crashes
 
-      To temporarily exit kiosk mode: 
-      sudo systemctl stop supervisor
-
-      To permanently disable kiosk mode:
-      sudo systemctl disable supervisor
-      sudo rm /etc/supervisor/conf.d/kiosk.conf
+      If you no longer want to run in kiosk mode, it can be removed by running
+      the Neon Hub Installer script and indicating you do not want to install it.
+      The script will remove the user and files it created.

@@ -1,0 +1,42 @@
+---
+- name: Remove systemd autologin configuration
+  file:
+    path: /etc/systemd/system/getty@tty1.service.d/override.conf
+    state: absent
+
+- name: Remove systemd autologin directory if empty
+  file:
+    path: /etc/systemd/system/getty@tty1.service.d
+    state: absent
+  ignore_errors: yes  # Directory might not be empty
+
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes
+
+- name: Remove browser autostart file
+  file:
+    path: "/home/{{ kiosk_user }}/.config/autostart/browser.desktop"
+    state: absent
+
+- name: Remove autostart directory if empty
+  file:
+    path: "/home/{{ kiosk_user }}/.config/autostart"
+    state: absent
+  ignore_errors: yes  # Directory might not be empty
+
+- name: Remove kiosk user home directory
+  file:
+    path: "/home/{{ kiosk_user }}"
+    state: absent
+    
+- name: Remove kiosk user
+  user:
+    name: "{{ kiosk_user }}"
+    state: absent
+    remove: yes  # This ensures home directory and mail spool are removed
+
+- name: Remove kiosk README
+  file:
+    path: "/home/neon/KIOSK-MODE-README.txt"
+    state: absent
