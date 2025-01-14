@@ -28,13 +28,29 @@
     group: "{{ kiosk_user }}"
     mode: '0755'
 
+- name: Check for GDM
+  stat:
+    path: /etc/gdm3
+  register: gdm_check
+
+- name: Configure GDM autologin
+  copy:
+    dest: /etc/gdm3/custom.conf
+    content: |
+      [daemon]
+      AutomaticLoginEnable=true
+      AutomaticLogin={{ kiosk_user }}
+      WaylandEnable=true
+    mode: '0644'
+  when: gdm_check.stat.exists
+
 - name: Ensure systemd override directory exists
   file:
     path: /etc/systemd/system/getty@tty1.service.d
     state: directory
     mode: '0755'
 
-- name: Configure automatic login
+- name: Configure automatic login (fallback)
   copy:
     dest: /etc/systemd/system/getty@tty1.service.d/override.conf
     content: |
@@ -61,5 +77,5 @@
       - It will display the web interface at {{ webapp_url }}
 
       If you no longer want to run in kiosk mode, it can be removed by running
-      the Neon Hub Installer script and indicating you do not want to install it.
+      the Neon AI Hub Installer script and indicating you do not want to install it.
       The script will remove the user and files it created.
