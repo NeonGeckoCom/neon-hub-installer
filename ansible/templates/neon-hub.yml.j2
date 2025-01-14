@@ -215,6 +215,24 @@ services:
       - xdg:/etc/xdg:rw
     environment:
       <<: *default-env-vars
+  neon_libretranslate:
+    <<: *podman
+    container_name: neon-libretranslate
+    image: ghcr.io/neongeckocom/libretranslate:latest
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: $HOSTNAME
+    networks:
+      neon-core:
+        aliases:
+          - libretranslate
+    ports:
+      - 5000:5000
+    volumes:
+      - xdg:/xdg:rw
+    environment:
+      <<: *default-env-vars
+      ARGOS_PACKAGE_INDEX: https://raw.githubusercontent.com/argosopentech/argospm-index/802ad83594e3244e3f908ab0fefc56eef146a5da
   tts_coqui:
     <<: *podman
     container_name: neon-tts-coqui

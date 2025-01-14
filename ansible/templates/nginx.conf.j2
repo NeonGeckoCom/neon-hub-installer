@@ -65,6 +65,25 @@ http {
     # HTTP Services
     server {
         listen 443 ssl;
+        server_name libretranslate.{{ common_name }};
+
+        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
+        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
+
+        location / {
+            proxy_pass http://libretranslate:5000;
+            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @fallback;
+        }
+
+        location @fallback {
+            return 503 "Service temporarily unavailable";
+        }
+    }
+
+    server {
+        listen 443 ssl;
         server_name hana.{{ common_name }};
 
         ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
