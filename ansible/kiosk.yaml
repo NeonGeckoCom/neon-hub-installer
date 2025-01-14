@@ -1,7 +1,10 @@
 ---
-- name: Install browser
+- name: Install required packages
   apt:
-    name: "{{ browser_package }}"
+    name: 
+      - "{{ browser_package }}"
+      - xorg
+      - openbox  # Lightweight WM fallback
     state: present
     update_cache: yes
 
@@ -12,13 +15,17 @@
     shell: /bin/bash
     password: ""
 
-- name: Ensure autostart directory exists
+- name: Ensure config directories exist
   file:
-    path: "/home/{{ kiosk_user }}/.config/autostart"
+    path: "{{ item }}"
     state: directory
     owner: "{{ kiosk_user }}"
     group: "{{ kiosk_user }}"
     mode: '0755'
+  loop:
+    - "/home/{{ kiosk_user }}/.config/autostart"
+    - "/home/{{ kiosk_user }}/.config/plasma-workspace/env"
+    - "/home/{{ kiosk_user }}/.config/openbox"
 
 - name: Configure browser autostart
   template:
@@ -28,10 +35,13 @@
     group: "{{ kiosk_user }}"
     mode: '0755'
 
-- name: Check for GDM
+- name: Check for display managers
   stat:
-    path: /etc/gdm3
-  register: gdm_check
+    path: "{{ item.path }}"
+  register: dm_check
+  loop:
+    - { path: '/etc/gdm3', name: 'gdm' }
+    - { path: '/etc/sddm.conf.d', name: 'sddm' }
 
 - name: Configure GDM autologin
   copy:
@@ -41,8 +51,51 @@
       AutomaticLoginEnable=true
       AutomaticLogin={{ kiosk_user }}
       WaylandEnable=true
+      TimedLoginEnable=false
     mode: '0644'
-  when: gdm_check.stat.exists
+  when: dm_check.results[0].stat.exists
+
+- name: Ensure SDDM config directory exists
+  file:
+    path: /etc/sddm.conf.d
+    state: directory
+    mode: '0755'
+  when: dm_check.results[1].stat.exists
+
+- name: Configure SDDM autologin
+  copy:
+    dest: /etc/sddm.conf.d/autologin.conf
+    content: |
+      [Autologin]
+      User={{ kiosk_user }}
+      Session=plasma
+      Relogin=true
+    mode: '0644'
+  when: dm_check.results[1].stat.exists
+
+- name: Configure KDE startup script
+  copy:
+    dest: "/home/{{ kiosk_user }}/.config/plasma-workspace/env/kiosk.sh"
+    content: |
+      #!/bin/sh
+      export KIOSK_URL="{{ webapp_url }}"
+      # Disable screen locking
+      kwriteconfig5 --file kscreenlockerrc --group Daemon --key Autolock false
+      # Disable session restore
+      kwriteconfig5 --file ksmserverrc --group General --key loginMode default
+    owner: "{{ kiosk_user }}"
+    group: "{{ kiosk_user }}"
+    mode: '0755'
+
+- name: Configure Openbox autostart
+  copy:
+    dest: "/home/{{ kiosk_user }}/.config/openbox/autostart"
+    content: |
+      # Start browser in kiosk mode
+      "{{ browser_package }}" --kiosk "{{ webapp_url }}" &
+    owner: "{{ kiosk_user }}"
+    group: "{{ kiosk_user }}"
+    mode: '0755'
 
 - name: Ensure systemd override directory exists
   file:
@@ -57,6 +110,7 @@
       [Service]
       ExecStart=
       ExecStart=-/sbin/agetty --skip-login --nonewline --noissue --autologin {{ kiosk_user }} --noclear %I $TERM
+      Type=idle
     mode: '0644'
 
 - name: Reload systemd
@@ -75,6 +129,8 @@
       This means:
       - The machine will automatically start in kiosk mode on boot, as {{ kiosk_user }}
       - It will display the web interface at {{ webapp_url }}
+      - Both GNOME and KDE Plasma are supported
+      - A fallback to Openbox is configured if needed
 
       If you no longer want to run in kiosk mode, it can be removed by running
       the Neon AI Hub Installer script and indicating you do not want to install it.
