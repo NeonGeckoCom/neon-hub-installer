@@ -1,80 +1,19 @@
 ---
-- name: Detect current display manager and DE
-  block:
-    - name: Check for installed display managers
-      stat:
-        path: "{{ item }}"
-      register: dm_check
-      loop:
-        - /etc/gdm3
-        - /etc/sddm.conf.d
-        - /etc/lightdm
+- name: Install browser
+  apt:
+    name: "{{ browser_package }}"
+    state: present
+    update_cache: yes
 
-    - name: Detect desktop environments
-      command: "dpkg -l"
-      register: installed_des
-      changed_when: false
-
-    - name: Set facts about environment
-      set_fact:
-        has_gdm: "{{ dm_check.results[0].stat.exists }}"
-        has_sddm: "{{ dm_check.results[1].stat.exists }}"
-        has_lightdm: "{{ dm_check.results[2].stat.exists }}"
-        has_plasma: "{{ 'plasma-desktop' in installed_des.stdout }}"
-        has_gnome: "{{ 'gnome-shell' in installed_des.stdout }}"
-
-- name: Create kiosk user with necessary groups
+- name: Create kiosk user
   user:
     name: "{{ kiosk_user }}"
     create_home: yes
     shell: /bin/bash
-    groups: kiosk,video,render,audio,input
+    password: ""
+    groups: kiosk,audio,video,render,input
     append: yes
 
-# GDM Configuration
-- name: Configure GDM autologin
-  block:
-    - name: Set GDM configuration
-      copy:
-        dest: /etc/gdm3/custom.conf
-        content: |
-          [daemon]
-          AutomaticLoginEnable=true
-          AutomaticLogin={{ kiosk_user }}
-          WaylandEnable=true
-  when: has_gdm
-
-# SDDM Configuration
-- name: Configure SDDM autologin
-  block:
-    - name: Create SDDM config directory
-      file:
-        path: /etc/sddm.conf.d
-        state: directory
-        mode: '0755'
-
-    - name: Set SDDM configuration
-      copy:
-        dest: /etc/sddm.conf.d/autologin.conf
-        content: |
-          [Autologin]
-          User={{ kiosk_user }}
-          Session=
-          Relogin=true
-  when: has_sddm
-
-# LightDM Configuration (fallback)
-- name: Configure LightDM autologin
-  copy:
-    dest: /etc/lightdm/lightdm.conf
-    content: |
-      [Seat:*]
-      autologin-user={{ kiosk_user }}
-      autologin-user-timeout=0
-      user-session=default
-  when: has_lightdm
-
-# Common setup regardless of DE/DM
 - name: Ensure autostart directory exists
   file:
     path: "/home/{{ kiosk_user }}/.config/autostart"
@@ -91,25 +30,29 @@
     group: "{{ kiosk_user }}"
     mode: '0755'
 
-# PAM Configuration - works for all DMs
-- name: Configure PAM for autologin
-  block:
-    - name: Add PAM rule for kiosk user
-      lineinfile:
-        path: "/etc/pam.d/{{ item }}"
-        line: "auth sufficient pam_succeed_if.so user = {{ kiosk_user }}"
-        insertbefore: "@include common-auth"
-      loop:
-        - gdm-autologin
-        - sddm-autologin
-        - lightdm-autologin
-      ignore_errors: yes
+- name: Configure GDM autologin
+  blockinfile:
+    path: /etc/gdm3/daemon.conf
+    block: |
+      # Enabling automatic login
+      AutomaticLoginEnable = true
+      AutomaticLogin = {{ kiosk_user }}
+    insertafter: '^\[daemon\]'
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - KIOSK AUTOLOGIN"
 
-# Ensure proper ownership
-- name: Set kiosk home directory ownership
-  file:
-    path: "/home/{{ kiosk_user }}"
-    owner: "{{ kiosk_user }}"
-    group: "{{ kiosk_user }}"
-    recurse: yes
-    mode: '0755'
+- name: Create README file with warning
+  copy:
+    dest: /home/neon/KIOSK-MODE-README.txt
+    owner: "neon"
+    group: "neon"
+    mode: "0644"
+    content: |
+      IMPORTANT: This system is configured to run in dedicated kiosk mode.
+
+      This means:
+      - The machine will automatically start in kiosk mode on boot, as {{ kiosk_user }}
+      - It will display the web interface at {{ webapp_url }}
+
+      If you no longer want to run in kiosk mode, it can be removed by running
+      the Neon AI Hub Installer script and indicating you do not want to install it.
+      The script will remove the user and files it created.

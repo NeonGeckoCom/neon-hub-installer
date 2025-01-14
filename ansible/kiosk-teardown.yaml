@@ -1,18 +1,9 @@
 ---
-- name: Remove systemd autologin configuration
-  file:
-    path: /etc/systemd/system/getty@tty1.service.d/override.conf
+- name: Remove GDM autologin configuration
+  blockinfile:
+    path: /etc/gdm3/daemon.conf
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - KIOSK AUTOLOGIN"
     state: absent
-
-- name: Remove systemd autologin directory if empty
-  file:
-    path: /etc/systemd/system/getty@tty1.service.d
-    state: absent
-  ignore_errors: yes  # Directory might not be empty
-
-- name: Reload systemd
-  systemd:
-    daemon_reload: yes
 
 - name: Remove browser autostart file
   file:
