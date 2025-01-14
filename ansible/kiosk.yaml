@@ -5,6 +5,11 @@
     state: present
     update_cache: yes
 
+- name: Create kiosk group
+  ansible.builtin.group:
+    name: kiosk
+    system: yes
+
 - name: Create kiosk user
   user:
     name: "{{ kiosk_user }}"
