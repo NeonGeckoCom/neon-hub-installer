@@ -5,6 +5,28 @@
     marker: "# {mark} ANSIBLE MANAGED BLOCK - KIOSK AUTOLOGIN"
     state: absent
 
+- name: Stop GDM
+  systemd:
+    name: gdm
+    state: stopped
+  ignore_errors: yes
+
+- name: Terminate kiosk user session
+  command: loginctl terminate-user {{ kiosk_user }}
+  ignore_errors: yes
+
+- name: Wait for processes to stop
+  wait_for:
+    timeout: 5
+
+- name: Force kill any remaining kiosk processes
+  shell: "pkill -9 -u {{ kiosk_user }}"
+  ignore_errors: yes
+
+- name: Wait for processes to be killed
+  wait_for:
+    timeout: 2
+
 - name: Remove browser autostart file
   file:
     path: "/home/{{ kiosk_user }}/.config/autostart/browser.desktop"
@@ -31,3 +53,9 @@
   file:
     path: "/home/neon/KIOSK-MODE-README.txt"
     state: absent
+
+- name: Restart GDM
+  systemd:
+    name: gdm
+    state: started
+  ignore_errors: yes
