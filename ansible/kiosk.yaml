@@ -1,4 +1,3 @@
----
 - name: Install browser
   apt:
     name: "{{ browser_package }}"
@@ -35,7 +34,13 @@
     group: "{{ kiosk_user }}"
     mode: '0755'
 
-- name: Configure GDM autologin
+- name: Detect desktop environment
+  command: echo $XDG_CURRENT_DESKTOP
+  register: desktop_environment
+  changed_when: false
+  ignore_errors: yes
+
+- name: Configure GDM autologin (Gnome)
   blockinfile:
     path: /etc/gdm3/daemon.conf
     block: |
@@ -44,6 +49,18 @@
       AutomaticLogin = {{ kiosk_user }}
     insertafter: '^\[daemon\]'
     marker: "# {mark} ANSIBLE MANAGED BLOCK - KIOSK AUTOLOGIN"
+  when: "'GNOME' in desktop_environment.stdout|upper"
+
+- name: Configure SDDM autologin (KDE)
+  blockinfile:
+    path: /etc/sddm.conf.d/autologin.conf
+    create: yes
+    block: |
+      [Autologin]
+      User={{ kiosk_user }}
+      Session=plasma.desktop
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - KIOSK AUTOLOGIN"
+  when: "'KDE' in desktop_environment.stdout|upper"
 
 - name: Create README file with warning
   copy:
