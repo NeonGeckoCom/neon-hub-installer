@@ -49,7 +49,7 @@
     secrets_file: "{{ playbook_dir }}/neon_hub_secrets.yaml"
     # Neon Node GUI variables, only used if install_neon_node_gui is true
     kiosk_user: kiosk
-    webapp_url: "https://iris-websat{{ common_name }}"
+    webapp_url: "https://iris-websat.{{ common_name }}"
     browser_package: firefox-esr
     # Docker - this will change rarely
     docker_user: "{{ ansible_user | default(lookup('env', 'USER')) }}"

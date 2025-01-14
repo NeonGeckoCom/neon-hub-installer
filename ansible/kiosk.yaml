@@ -36,12 +36,12 @@
 
 - name: Configure systemd autologin
   copy:
-    dest: /etc/systemd/system/getty@tty1.service.d/override.conf
+    dest: /etc/systemd/logind.conf
     content: |
-      [Service]
-      Type=simple
-      ExecStart=
-      ExecStart=-/lib/systemd/systemd-logind --autologin {{ kiosk_user }}
+      [Login]
+      NAutoVTs=6
+      ReserveVT=6
+      AutoLogin={{ kiosk_user }}
     mode: '0644'
 
 - name: Reload systemd
