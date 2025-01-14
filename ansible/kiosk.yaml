@@ -28,20 +28,19 @@
     group: "{{ kiosk_user }}"
     mode: '0755'
 
-- name: Configure systemd autologin directory
+- name: Ensure systemd override directory exists
   file:
     path: /etc/systemd/system/getty@tty1.service.d
     state: directory
     mode: '0755'
 
-- name: Configure systemd autologin
+- name: Configure automatic login
   copy:
-    dest: /etc/systemd/logind.conf
+    dest: /etc/systemd/system/getty@tty1.service.d/override.conf
     content: |
-      [Login]
-      NAutoVTs=6
-      ReserveVT=6
-      AutoLogin={{ kiosk_user }}
+      [Service]
+      ExecStart=
+      ExecStart=-/sbin/agetty --skip-login --nonewline --noissue --autologin {{ kiosk_user }} --noclear %I $TERM
     mode: '0644'
 
 - name: Reload systemd
@@ -59,7 +58,7 @@
 
       This means:
       - The machine will automatically start in kiosk mode on boot, as {{ kiosk_user }}
-      - It will display the web interface at https://iris-websat.{{ common_name }}
+      - It will display the web interface at {{ webapp_url }}
 
       If you no longer want to run in kiosk mode, it can be removed by running
       the Neon Hub Installer script and indicating you do not want to install it.
