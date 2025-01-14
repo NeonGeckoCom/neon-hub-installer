@@ -5,12 +5,6 @@
     marker: "# {mark} ANSIBLE MANAGED BLOCK - KIOSK AUTOLOGIN"
     state: absent
 
-- name: Stop GDM
-  systemd:
-    name: gdm
-    state: stopped
-  ignore_errors: yes
-
 - name: Terminate kiosk user session
   command: loginctl terminate-user {{ kiosk_user }}
   ignore_errors: yes
@@ -53,9 +47,3 @@
   file:
     path: "/home/neon/KIOSK-MODE-README.txt"
     state: absent
-
-- name: Restart GDM
-  systemd:
-    name: gdm
-    state: started
-  ignore_errors: yes
