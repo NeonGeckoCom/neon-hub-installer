@@ -32,14 +32,14 @@
 
 - name: Configure browser autostart for Gnome/KDE
   template:
-    src: templates/browser.desktop.j2
+    src: templates/neon-hub-kiosk.desktop.j2
     dest: "{{ item }}"
     owner: "{{ kiosk_user }}"
     group: "{{ kiosk_user }}"
     mode: '0755'
   loop:
-    - "/home/{{ kiosk_user }}/.config/autostart/browser.desktop"
-    - "/home/{{ kiosk_user }}/.config/plasma-workspace/autostart/browser.desktop"
+    - "/home/{{ kiosk_user }}/.config/autostart/neon-hub-kiosk.desktop"
+    - "/home/{{ kiosk_user }}/.config/plasma-workspace/autostart/neon-hub-kiosk.desktop"
 
 - name: Detect desktop environment
   command: echo $XDG_CURRENT_DESKTOP
