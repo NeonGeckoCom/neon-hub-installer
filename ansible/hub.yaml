@@ -221,6 +221,20 @@
       delay: 3
       environment:
         DOCKER_TIMEOUT: "900"
+    - name: Configure Neon Hub subdomains
+      blockinfile:
+        path: /etc/hosts
+        marker: "# {mark} ANSIBLE MANAGED BLOCK - NEON HUB SUBDOMAINS"
+        block: |
+          127.0.0.1    fasterwhisper.{{ common_name }}
+          127.0.0.1    coqui.{{ common_name }}
+          127.0.0.1    hana.{{ common_name }}
+          127.0.0.1    iris.{{ common_name }}
+          127.0.0.1    iris-websat.{{ common_name }}
+          127.0.0.1    yacht.{{ common_name }}
+          127.0.0.1    rmq-admin.{{ common_name }}
+          127.0.0.1    config.{{ common_name }}
+          127.0.0.1    libretranslate.{{ common_name }}
     # Neon Node Client
     - name: Install Neon Node Client
       import_tasks: neon-node.yaml
