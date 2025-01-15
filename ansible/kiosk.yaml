@@ -18,21 +18,28 @@
     groups: kiosk,audio,video,render,input
     append: yes
 
-- name: Ensure autostart directory exists
+- name: Ensure autostart directories exist
   file:
-    path: "/home/{{ kiosk_user }}/.config/autostart"
+    path: "{{ item }}"
     state: directory
     owner: "{{ kiosk_user }}"
     group: "{{ kiosk_user }}"
     mode: '0755'
+  loop:
+    - "/home/{{ kiosk_user }}/.config/autostart"
+    - "/home/{{ kiosk_user }}/.kde/Autostart"  # KDE legacy path
+    - "/home/{{ kiosk_user }}/.config/plasma-workspace/autostart"  # Modern KDE path
 
-- name: Configure browser autostart
+- name: Configure browser autostart for Gnome/KDE
   template:
     src: templates/browser.desktop.j2
-    dest: "/home/{{ kiosk_user }}/.config/autostart/browser.desktop"
+    dest: "{{ item }}"
     owner: "{{ kiosk_user }}"
     group: "{{ kiosk_user }}"
     mode: '0755'
+  loop:
+    - "/home/{{ kiosk_user }}/.config/autostart/browser.desktop"
+    - "/home/{{ kiosk_user }}/.config/plasma-workspace/autostart/browser.desktop"
 
 - name: Detect desktop environment
   command: echo $XDG_CURRENT_DESKTOP

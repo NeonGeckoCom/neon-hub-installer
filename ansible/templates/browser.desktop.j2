@@ -8,8 +8,10 @@ Exec=chromium --kiosk {{ webapp_url }} --disable-pinch
 {% endif %}
 Terminal=false
 X-GNOME-Autostart-enabled=true
+X-KDE-Autostart-enabled=true
 NoDisplay=false
 Hidden=false
 X-GNOME-Autostart-Phase=Applications
 X-KDE-autostart-phase=2
+StartupNotify=true
 Comment=Neon Hub Web Interface - Alt+Tab to switch windows
