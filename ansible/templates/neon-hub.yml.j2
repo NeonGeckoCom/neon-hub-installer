@@ -285,6 +285,7 @@ services:
       - xdg:/xdg:rw
     environment:
       <<: *default-env-vars
+      OVOS_CONFIG_FILENAME: diana.yaml
   iris_websat:
     <<: *podman
     depends_on:
@@ -304,7 +305,8 @@ services:
       - xdg:/xdg:rw
     environment:
       <<: *default-env-vars
-      OVOS_DEFAULT_CONFIG: /xdg/config/neon/diana.yaml
+      # OVOS_DEFAULT_CONFIG: /xdg/config/neon/diana.yaml
+      OVOS_CONFIG_FILENAME: diana.yaml
   nginx:
     image: nginx:alpine
     container_name: neon-nginx
