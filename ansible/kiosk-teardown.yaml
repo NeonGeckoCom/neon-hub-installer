@@ -4,6 +4,7 @@
     path: /etc/gdm3/daemon.conf
     marker: "# {mark} ANSIBLE MANAGED BLOCK - KIOSK AUTOLOGIN"
     state: absent
+  ignore_errors: yes
 
 - name: Terminate kiosk user session
   command: loginctl terminate-user {{ kiosk_user }}
@@ -25,6 +26,7 @@
   file:
     path: "/home/{{ kiosk_user }}/.config/autostart/browser.desktop"
     state: absent
+  ignore_errors: yes
 
 - name: Remove autostart directory if empty
   file:
@@ -36,14 +38,17 @@
   file:
     path: "/home/{{ kiosk_user }}"
     state: absent
-    
+    ignore_errors: yes
+
 - name: Remove kiosk user
   user:
     name: "{{ kiosk_user }}"
     state: absent
     remove: yes  # This ensures home directory and mail spool are removed
+  ignore_errors: yes
 
 - name: Remove kiosk README
   file:
     path: "/home/neon/KIOSK-MODE-README.txt"
     state: absent
+  ignore_errors: yes
