@@ -38,7 +38,7 @@
   file:
     path: "/home/{{ kiosk_user }}"
     state: absent
-    ignore_errors: yes
+  ignore_errors: yes
 
 - name: Remove kiosk user
   user:
