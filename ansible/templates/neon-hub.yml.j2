@@ -291,8 +291,7 @@ services:
     depends_on:
       - rabbitmq
     container_name: neon-iris-websat
-    # image: ghcr.io/neongeckocom/neon-iris-websat:${HTTP_IMAGE_TAG}
-    image: ghcr.io/neongeckocom/neon-iris-websat:local
+    image: ghcr.io/neongeckocom/neon-iris-websat:${HTTP_IMAGE_TAG}
     restart: unless-stopped
     logging: *default-logging
     hostname: $HOSTNAME
