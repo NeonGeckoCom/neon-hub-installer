@@ -77,7 +77,7 @@ function required_packages() {
 
     case "$DISTRO_NAME" in
     debian | ubuntu | raspbian | linuxmint | zorin | Ubuntu)
-        UPDATE=1 apt_ensure python3 python3-dev python3-pip python3-venv python3-virtualenv whiptail jq git &>>"$LOG_FILE"
+        UPDATE=1 apt_ensure python3 python3-dev python3-pip python3-venv python3-virtualenv build-essential whiptail jq git &>>"$LOG_FILE"
         ;;
     fedora)
         echo "Neon Hub only supports Debian-based distributions at the moment." | tee -a "$LOG_FILE"
