@@ -1,1 +1,2 @@
 neon-nodes[voice-client]~=0.0
+tflite_runtime

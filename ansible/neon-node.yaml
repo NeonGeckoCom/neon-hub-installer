@@ -7,23 +7,14 @@
     owner: neon
     group: neon
   loop:
-    - { "src": "templates/neon-node/neon-node-requirements.j2.txt", "dest": "/home/neon/neon-node-requirements.txt"}
-    - { "src": "templates/neon-node/start-node.py", "dest": "/home/neon/start-node.py"}
-- name: Create Neon Node config folder
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: directory
-    mode: "2775" # Keeps the group sticky
-    owner: neon
-    group: neon
-  loop:
-    - /root/xdg/config
-    - /root/xdg/config/neon
-- name: Create symlinked neon.yaml
-  ansible.builtin.file:
-    src: /home/neon/xdg/config/neon/neon.yaml
-    dest: /root/xdg/config/neon/neon.yaml
-    state: link
+    - {
+        "src": "templates/neon-node/neon-node-requirements.j2.txt",
+        "dest": "/home/neon/neon-node-requirements.txt",
+      }
+    - {
+        "src": "templates/neon-node/start-node.py",
+        "dest": "/home/neon/start-node.py",
+      }
 - name: Install Neon Node voice client
   ansible.builtin.pip:
     requirements: "/home/neon/neon-node-requirements.txt"
@@ -38,7 +29,10 @@
     mode: 0644
     backup: true
   loop:
-    - { "src": "templates/neon-node/neon-node.service.j2", "dest": "/etc/systemd/system/neon-node.service" }
+    - {
+        "src": "templates/neon-node/neon-node.service.j2",
+        "dest": "/home/neon/.config/systemd/user/neon-node.service",
+      }
 - name: Enable and start Neon Node services
   ansible.builtin.systemd_service:
     name: "{{ item }}"
@@ -46,6 +40,6 @@
     force: true
     daemon_reload: true
     state: restarted
-  become: true
+    linger: true
   loop:
     - neon-node.service
