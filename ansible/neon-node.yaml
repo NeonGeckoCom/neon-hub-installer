@@ -44,6 +44,5 @@
     force: true
     daemon_reload: true
     state: restarted
-    linger: true
   loop:
     - neon-node.service
