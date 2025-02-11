@@ -15,6 +15,10 @@
         "src": "templates/neon-node/start-node.py",
         "dest": "/home/neon/start-node.py",
       }
+    - {
+        "src": "templates/neon-node/pipewire.conf",
+        "dest": "/home/neon/.config/pipewire.conf",
+      }
 - name: Install Neon Node voice client
   ansible.builtin.pip:
     requirements: "/home/neon/neon-node-requirements.txt"
