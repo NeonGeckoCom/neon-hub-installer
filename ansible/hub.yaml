@@ -21,6 +21,7 @@
       neon_llm_submind: {}
       neon_bot_facilitator: {}
       neon_llm_vllm: {}
+      neon_users_service: {}
     hana:
       access_token_secret: {}
       refresh_token_secret: {}
