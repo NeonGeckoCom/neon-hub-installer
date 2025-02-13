@@ -24,6 +24,9 @@
     requirements: "/home/neon/neon-node-requirements.txt"
     virtualenv: "/home/neon/.venvs/neon-node"
     extra_args: "--pre" # TODO: Remove after a stable release
+- name: Register uid of neon
+  command: id -u neon
+  register: uid
 - name: Set up Neon Node services
   ansible.builtin.template:
     src: "{{ item.src }}"
@@ -35,14 +38,9 @@
   loop:
     - {
         "src": "templates/neon-node/neon-node.service.j2",
-        "dest": "/home/neon/.config/systemd/user/neon-node.service",
+        "dest": "/usr/lib/systemd/system/neon-node.service",
       }
-- name: Register uid of neon
-  command: id -u neon
-  register: uid
 - name: Enable and start Neon Node services
-  become: true
-  become_user: neon
   ansible.builtin.systemd_service:
     name: "{{ item }}"
     enabled: true
