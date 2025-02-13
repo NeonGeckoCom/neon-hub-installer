@@ -47,7 +47,6 @@
     force: true
     daemon_reload: true
     state: restarted
-    scope: user
   environment:
     XDG_RUNTIME_DIR: "/run/user/${uid.stdout}"
   loop:
