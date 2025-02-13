@@ -3,6 +3,8 @@ Documentation=https://github.com/NeonGeckoCom/neon-nodes/blob/dev/README.md
 Description=Neon Node Voice Client
 
 [Service]
+User=neon
+Group=neon
 ExecStart=/home/neon/.venvs/neon-node/bin/python /home/neon/start-node.py
 ExecReload=/usr/bin/kill -HUP $MAINPID
 ExecStop=/usr/bin/kill -KILL $MAINPID

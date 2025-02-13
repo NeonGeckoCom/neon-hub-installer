@@ -37,7 +37,11 @@
         "src": "templates/neon-node/neon-node.service.j2",
         "dest": "/home/neon/.config/systemd/user/neon-node.service",
       }
+- name: Register uid of neon
+  command: id -u neon
+  register: uid
 - name: Enable and start Neon Node services
+  become_user: neon
   ansible.builtin.systemd_service:
     name: "{{ item }}"
     enabled: true
@@ -46,6 +50,6 @@
     state: restarted
     scope: user
   environment:
-    XDG_RUNTIME_DIR: "/run/user/1000"
+    XDG_RUNTIME_DIR: "/run/user/${uid.stdout}"
   loop:
     - neon-node.service
