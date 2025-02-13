@@ -77,7 +77,7 @@ function required_packages() {
 
     case "$DISTRO_NAME" in
     debian | ubuntu | raspbian | linuxmint | zorin | Ubuntu)
-        UPDATE=1 apt_ensure python3 python3-dev python3-pip python3-venv python3-virtualenv build-essential libpulse-dev portaudio19-dev whiptail jq git &>>"$LOG_FILE"
+        UPDATE=1 apt_ensure python3 python3-dev python3-pip python3-venv python3-virtualenv build-essential libpulse-dev portaudio19-dev whiptail jq git curl &>>"$LOG_FILE"
         ;;
     fedora)
         echo "Neon Hub only supports Debian-based distributions at the moment." | tee -a "$LOG_FILE"
@@ -186,9 +186,9 @@ function apt_ensure() {
     # Install the packages if any are missing
     if [ "${#MISS_PKGS[@]}" -gt 0 ]; then
         if [ "${UPDATE}" != "" ]; then
-            $_SUDO apt update -y
+            $_SUDO apt-get update -y
         fi
-        DEBIAN_FRONTEND=noninteractive $_SUDO apt install --no-install-recommends -y "${MISS_PKGS[@]}"
+        DEBIAN_FRONTEND=noninteractive $_SUDO apt-get install --no-install-recommends -y "${MISS_PKGS[@]}"
     else
         echo "No missing packages"
     fi
