@@ -11,7 +11,7 @@ RestartSec=5s
 Environment="OVOS_CONFIG_BASE_FOLDER=neon"
 Environment="OVOS_CONFIG_FILENAME=neon.yaml"
 Environment="XDG_CONFIG_HOME=/home/neon/xdg/config"
-Environment="XDG_RUNTIME_DIR=/run/user/{{ uid.stdout | 1000 }}"
+Environment="XDG_RUNTIME_DIR=/run/user/{{ uid.stdout | '1000' }}"
 
 [Install]
 WantedBy=multi-user.target
