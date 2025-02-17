@@ -87,7 +87,7 @@
     # Prepare
     - name: Ensure package prerequisites are installed
       ansible.builtin.package:
-        name: openssl,python3-docker,python3-jsondiff
+        name: openssl,python3-docker,python3-jsondiff,ffmpeg
         state: present
     - name: Get primary IP address
       ansible.builtin.set_fact:
