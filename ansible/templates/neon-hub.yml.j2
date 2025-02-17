@@ -212,7 +212,7 @@ services:
     ports:
       - 8082:8080
     volumes:
-      - xdg:/xdg/config:rw
+      - xdg:/xdg:rw
     environment:
       <<: *default-env-vars
   neon_libretranslate:
