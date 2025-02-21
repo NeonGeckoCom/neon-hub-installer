@@ -151,6 +151,7 @@ esac
 echo "Installing Neon Hub. This may take some time, take a break and relax."
 echo "You can find installation logs at $LOG_FILE."
 
+hostnamectl set-hostname $HOSTNAME
 export ANSIBLE_CONFIG=ansible.cfg
 ansible-playbook -i 127.0.0.1 -e "xdg_dir=$XDG_DIR common_name=$HOSTNAME install_neon_node=$INSTALL_NODE_VOICE_CLIENT \
 install_neon_node_gui=$INSTALL_NODE_KIOSK" "${ansible_debug[@]}" ansible/hub.yaml | tee -a $ANSIBLE_LOG_FILE
