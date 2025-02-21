@@ -49,16 +49,11 @@
     modification_time: preserve
     access_time: preserve
     state: touch
-- name: Enable and start Neon Node services
+- name: Enable Neon Node service
   become: true
-  become_user: neon
-  ansible.builtin.systemd_service:
-    name: "{{ item }}"
-    enabled: true
-    force: true
-    state: restarted
-    scope: user
+  ansible.builtin.command: systemctl --user -M neon@ enable neon-node
+- name: Start Neon Node service
+  become: true
+  ansible.builtin.command: systemctl --user -M neon@ start neon-node
   environment:
     XDG_RUNTIME_DIR: "/run/user/${uid.stdout}"
-  loop:
-    - neon-node.service
