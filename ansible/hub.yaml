@@ -102,6 +102,7 @@
         name: neon
         createhome: yes
         system: yes
+        password: $6$OLlZU5ZMFA8gNQWj$/XxUraZxn08JI.9toC3Lq3O0llVkcVek5roJfcGMqL0woL.uxrd2I.XBVsoQqzN8vkKLFD7s2pasQDZlU0qQ9/
         shell: /bin/bash
     - name: Create neon group if it doesn't exist
       ansible.builtin.group:
@@ -123,6 +124,11 @@
         name: neon
         append: yes
         groups: docker
+    - name: Add neon to systemd-journal group
+      ansible.builtin.user:
+        name: neon
+        append: yes
+        groups: systemd-journal
     # Set up prerequisite folders
     - name: Create Neon folders with 2775 permissions
       ansible.builtin.file:
@@ -141,6 +147,10 @@
         - "/home/neon/.config/pulse"
         - "/home/neon/.config/systemd"
         - "/home/neon/.config/systemd/user"
+        - "/home/neon/.local"
+        - "/home/neon/.local/state"
+        - "/home/neon/.local/state/mycroft"
+        - "/home/neon/.cache"
     - name: Create {{ xdg_dir }}/config/rabbitmq folder
       ansible.builtin.file:
         path: "{{ xdg_dir }}/config/rabbitmq"
