@@ -116,6 +116,23 @@
       "tags": [
         "administrator"
       ]
+    },
+    {
+      "name": "neon_llm_vllm",
+      "password": "{{ users.neon_llm_vllm.password }}",
+      "tags": [
+        "backend",
+        "llm",
+        "vllm"
+      ]
+    },
+    {
+      "name": "neon_users_service",
+      "password": "{{ users.neon_users_service.password }}",
+      "tags": [
+        "backend",
+        "service"
+      ]
     }
   ],
   "vhosts": [
@@ -148,6 +165,9 @@
     },
     {
       "name": "/chatbots"
+    },
+    {
+      "name": "/neon_users"
     }
   ],
   "permissions": [
@@ -171,6 +191,13 @@
       "configure": "chat_gpt_.*",
       "write": "chat_gpt_.*|amq\\.default",
       "read": "chat_gpt_.*"
+    },
+    {
+      "user": "neon_llm_vllm",
+      "vhost": "/llm",
+      "configure": "vllm_.*",
+      "write": "vllm_.*|amq\\.default",
+      "read": "vllm_.*"
     },
     {
       "user": "neon_llm_fastchat",
@@ -308,6 +335,27 @@
     {
       "user": "chat_observer",
       "vhost": "/translation",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "neon_api_utils",
+      "vhost": "/neon_users",
+      "configure": "./*",
+      "write": "./*",
+      "read": "./*"
+    },
+    {
+      "user": "neon_users_service",
+      "vhost": "/neon_users",
+      "configure": "./*",
+      "write": "./*",
+      "read": "./*"
+    },
+    {
+      "user": "chat_observer",
+      "vhost": "/llm",
       "configure": ".*",
       "write": ".*",
       "read": ".*"
