@@ -108,32 +108,22 @@
       ansible.builtin.group:
         name: neon
         system: yes
-    - name: Add current user to neon group
+    - name: Add current user to neon and docker groups
       become: no
       ansible.builtin.user:
         name: "{{ ansible_user | default(lookup('env', 'USER')) }}"
         append: yes
-        groups: neon
-    - name: Add current user to docker group
-      ansible.builtin.user:
-        name: "{{ ansible_user | default(lookup('env', 'USER'))}}"
-        append: yes
-        groups: docker
-    - name: Add neon to audio group
+        groups:
+         - neon
+         - docker
+    - name: Add neon to audio, docker, and systemd-journal groups
       ansible.builtin.user:
         name: neon
         append: yes
-        groups: audio
-    - name: Add neon to docker group
-      ansible.builtin.user:
-        name: neon
-        append: yes
-        groups: docker
-    - name: Add neon to systemd-journal group
-      ansible.builtin.user:
-        name: neon
-        append: yes
-        groups: systemd-journal
+        groups:
+         - audio
+         - docker
+         - systemd-journal
     # Set up prerequisite folders
     - name: Create Neon folders with 2775 permissions
       ansible.builtin.file:
