@@ -31,3 +31,40 @@ microphone: # Required if using Neon Node
 #     api_key: CUSTOM_KEY_HERE
 #   wolfram_alpha:
 #     api_key: CUSTOM_KEY_HERE
+MQ:
+  port: 5672
+  server: neon-rabbitmq
+  users:
+    chat_api_proxy:
+      password: "{{ users.neon_core.password }}"
+      user: neon_core
+    chat_observer:
+      password: "{{ users.chat_observer.password }}"
+      user: chat_observer
+    mq-libre-translate:
+      password: "{{ users.neon_libretranslate.password }}"
+      user: neon_libretranslate
+    neon_api_connector:
+      password: "{{ users.neon_api.password }}"
+      user: neon_api
+    neon_coupon_connector:
+      password: "{{ users.neon_coupons.password }}"
+      user: neon_coupons
+    neon_email_proxy:
+      password: "{{ users.neon_email.password }}"
+      user: neon_email
+    neon_llm_chatgpt:
+      password: "{{ users.neon_llm_chatgpt.password }}"
+      user: neon_llm_chatgpt
+    neon_llm_fastchat:
+      password: "{{ users.neon_llm_fastchat.password }}"
+      user: neon_llm_fastchat
+    neon_metrics_connector:
+      password: "{{ users.neon_metrics.password }}"
+      user: neon_metrics
+    neon_script_parser_service:
+      password: "{{ users.neon_script_parser.password }}"
+      user: neon_script_parser
+    neon_chat_api:
+      password: "{{ users.neon_core.password }}"
+      user: neon_core

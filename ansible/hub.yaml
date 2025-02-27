@@ -114,6 +114,11 @@
         name: "{{ ansible_user | default(lookup('env', 'USER')) }}"
         append: yes
         groups: neon
+    - name: Add current user to docker group
+      ansible.builtin.user:
+        name: "{{ ansible_user | default(lookup('env', 'USER'))}}"
+        append: yes
+        groups: docker
     - name: Add neon to audio group
       ansible.builtin.user:
         name: neon
