@@ -18,6 +18,26 @@ http {
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers off;
 
+    # Neon Hub Config
+    server {
+        listen 443 ssl;
+        server_name config.{{ common_name }};
+
+        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
+        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
+
+        location / {
+            proxy_pass http://neon-hub-config;
+            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @fallback;
+        }
+
+        location @fallback {
+            return 503 "Service temporarily unavailable";
+        }
+    }
+
     # STT
     server {
         listen 443 ssl;
@@ -197,25 +217,6 @@ server {
 
         location / {
             proxy_pass http://yacht:8000;
-            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
-            proxy_intercept_errors on;
-            error_page 502 503 504 = @fallback;
-        }
-
-        location @fallback {
-            return 503 "Service temporarily unavailable";
-        }
-    }
-    # Neon Hub Config
-    server {
-        listen 443 ssl;
-        server_name config.{{ common_name }};
-
-        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
-        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
-
-        location / {
-            proxy_pass http://neon-hub-config;
             proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
             proxy_intercept_errors on;
             error_page 502 503 504 = @fallback;
