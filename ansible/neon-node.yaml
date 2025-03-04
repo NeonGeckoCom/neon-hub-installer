@@ -49,11 +49,22 @@
     modification_time: preserve
     access_time: preserve
     state: touch
+- name: Reload systemd
+  become: true
+  ansible.builtin.command:
+    cmd: systemctl --user -M neon@ daemon-reload
+- name: Enable lingering for neon via loginctl
+  become: true
+  ansible.builtin.command:
+    cmd: loginctl enable-linger neon
 - name: Enable Neon Node service
   become: true
   ansible.builtin.command: systemctl --user -M neon@ enable neon-node
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/${uid.stdout}"
 - name: Start Neon Node service
   become: true
-  ansible.builtin.command: systemctl --user -M neon@ start neon-node
+  ansible.builtin.command: |
+    systemctl --user -M neon@ start neon-node
   environment:
     XDG_RUNTIME_DIR: "/run/user/${uid.stdout}"

@@ -153,8 +153,7 @@ echo "You can find installation logs at $LOG_FILE."
 
 hostnamectl set-hostname $HOSTNAME
 export ANSIBLE_CONFIG=ansible.cfg
-ansible-playbook -i 127.0.0.1 -e "xdg_dir=$XDG_DIR common_name=$HOSTNAME install_neon_node=$INSTALL_NODE_VOICE_CLIENT \
-install_neon_node_gui=$INSTALL_NODE_KIOSK" "${ansible_debug[@]}" ansible/hub.yaml | tee -a $ANSIBLE_LOG_FILE
+script -q -c "ansible-playbook -i 127.0.0.1 -e 'xdg_dir=$XDG_DIR common_name=$HOSTNAME install_neon_node=$INSTALL_NODE_VOICE_CLIENT install_neon_node_gui=$INSTALL_NODE_KIOSK' ${ansible_debug[@]} ansible/hub.yaml" $ANSIBLE_LOG_FILE
 
 if [ "${PIPESTATUS[0]}" -eq 0 ]; then
     show_message "Neon Hub has been successfully installed!"

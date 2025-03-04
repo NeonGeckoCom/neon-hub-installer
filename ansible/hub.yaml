@@ -104,6 +104,7 @@
         system: yes
         password: $6$OLlZU5ZMFA8gNQWj$/XxUraZxn08JI.9toC3Lq3O0llVkcVek5roJfcGMqL0woL.uxrd2I.XBVsoQqzN8vkKLFD7s2pasQDZlU0qQ9/
         shell: /bin/bash
+        update_password: on_create
     - name: Create neon group if it doesn't exist
       ansible.builtin.group:
         name: neon
@@ -254,10 +255,23 @@
       import_tasks: kiosk-teardown.yaml
       when:
         - install_neon_node_gui == "0"
-        - previous_install.stat.exists
+        - previous_install.stat.exists  
     # Finish
     - name: Create file indicating successful deployment
       ansible.builtin.file:
         path: "{{ xdg_dir }}/neon-installed"
         state: touch
         mode: "2775"
+    - name: Ask the user if they want to reboot
+      ansible.builtin.pause:
+        prompt: "Do you want to reboot the system? Recommended after first installation. (yes/no)"
+      register: reboot_answer
+    - name: Reboot the system if user says yes
+      ansible.builtin.command:
+        cmd: /sbin/reboot
+      when: reboot_answer.user_input | lower in ['yes', 'y']
+      become: true
+    - name: Inform the user that reboot has been triggered
+      ansible.builtin.debug:
+        msg: "Rebooting the system now, as requested."
+      when: reboot_answer.user_input | lower in ['yes', 'y']
