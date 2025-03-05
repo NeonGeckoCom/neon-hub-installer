@@ -12,6 +12,7 @@ Environment="OVOS_CONFIG_BASE_FOLDER=neon"
 Environment="OVOS_CONFIG_FILENAME=neon.yaml"
 Environment="XDG_CONFIG_HOME=/home/neon/xdg/config"
 Environment="XDG_RUNTIME_DIR=/run/user/{{ uid.stdout }}"
+StandardError=file:/home/neon/.local/state/neon-nodes.err
 
 [Install]
 WantedBy=default.target

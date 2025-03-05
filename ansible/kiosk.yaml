@@ -29,8 +29,9 @@
     - "/home/{{ kiosk_user }}/.config/autostart"
     - "/home/{{ kiosk_user }}/.kde/Autostart"  # KDE legacy path
     - "/home/{{ kiosk_user }}/.config/plasma-workspace/autostart"  # Modern KDE path
+    - "/home/{{ kiosk_user }}/.config/unity/autostart"  # Unity-specific path
 
-- name: Configure browser autostart for Gnome/KDE
+- name: Configure browser autostart for Gnome/KDE/Unity
   template:
     src: templates/neon-hub-kiosk.desktop.j2
     dest: "{{ item }}"
@@ -40,6 +41,7 @@
   loop:
     - "/home/{{ kiosk_user }}/.config/autostart/neon-hub-kiosk.desktop"
     - "/home/{{ kiosk_user }}/.config/plasma-workspace/autostart/neon-hub-kiosk.desktop"
+    - "/home/{{ kiosk_user }}/.config/unity/autostart/neon-hub-kiosk.desktop"  # Unity autostart
 
 - name: Detect desktop environment
   command: echo $XDG_CURRENT_DESKTOP
@@ -49,14 +51,29 @@
 
 - name: Configure GDM autologin (Gnome)
   blockinfile:
-    path: /etc/gdm3/daemon.conf
+    path: "{{ item }}"
+    create: yes
     block: |
       # Enabling automatic login
       AutomaticLoginEnable = true
       AutomaticLogin = {{ kiosk_user }}
     insertafter: '^\[daemon\]'
     marker: "# {mark} ANSIBLE MANAGED BLOCK - KIOSK AUTOLOGIN"
-  when: "'GNOME' in desktop_environment.stdout|upper"
+  when: "'GNOME' in desktop_environment.stdout|upper or 'UNITY' in desktop_environment.stdout|upper"
+  loop:
+    - /etc/gdm3/daemon.conf
+    - /etc/gdm3/custom.conf
+
+- name: Configure LightDM autologin (Unity)
+  blockinfile:
+    path: /etc/lightdm/lightdm.conf.d/10-autologin.conf
+    create: yes
+    block: |
+      [SeatDefaults]
+      autologin-user={{ kiosk_user }}
+      autologin-session=unity
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - KIOSK AUTOLOGIN"
+  when: "'UNITY' in desktop_environment.stdout|upper"
 
 - name: Configure SDDM autologin (KDE)
   blockinfile:
