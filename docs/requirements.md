@@ -8,7 +8,7 @@
 
 ~25GB for Docker images, 7GB for OS, the rest for data.
 
-Neon Hub runs on both x86 and ARM CPUs.
+Neon Hub currently runs only on both x86_64 CPUs. Some of its third-party dependencies are not available for ARM CPUs.
 
 ## Approximate Docker image sizes (subject to change)
 

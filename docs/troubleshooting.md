@@ -19,3 +19,17 @@ Sometimes the Docker installation fails. If this happens, you can try the follow
 `sudo rm /etc/apt/sources.list.d/docker*`
 
 Then re-run the installer.
+
+## Neon Node client not running
+
+Try restarting the Neon Node service:
+
+```bash
+systemctl --user -M neon@ restart neon-node
+```
+
+If the service does not start, check the logs:
+
+```bash
+journalctl --user -M neon@ -xleu neon-node
+```
