@@ -20,10 +20,13 @@
       neon_bot_submind: {}
       neon_llm_submind: {}
       neon_bot_facilitator: {}
+      neon_llm_vllm: {}
+      neon_users_service: {}
     hana:
       access_token_secret: {}
       refresh_token_secret: {}
       node_pw: {}
+
   tasks:
     - name: Check if secrets file exists
       stat:
@@ -43,7 +46,13 @@
     # Hub
     xdg_dir: /home/neon/xdg
     common_name: neon-hub.local
+    install_neon_node: "0"
+    install_neon_node_gui: "0"
     secrets_file: "{{ playbook_dir }}/neon_hub_secrets.yaml"
+    # Neon Node GUI variables, only used if install_neon_node_gui is true
+    kiosk_user: kiosk
+    webapp_url: "https://iris-websat.{{ common_name }}"
+    browser_package: firefox-esr
     # Docker - this will change rarely
     docker_user: "{{ ansible_user | default(lookup('env', 'USER')) }}"
     container_count: 4
@@ -66,44 +75,56 @@
   roles:
     - geerlingguy.docker
 
+  pre_tasks:
+    - name: Validate installation options
+      fail:
+        msg: "Only one installation type can be selected. Set either install_neon_node OR install_neon_node_gui to true, not both."
+      when:
+        - install_neon_node | bool
+        - install_neon_node_gui | bool
+
   tasks:
-    # TODO: Loops, move neon.yaml to /opt/neon/config, create user neon.yaml with templating
-    # TODO: Time zone config, 12/24 hr time config
-    # TODO: Debug config
     # Prepare
     - name: Ensure package prerequisites are installed
       ansible.builtin.package:
-        name: openssl,python3-docker,python3-jsondiff
+        name: openssl,python3-docker,python3-jsondiff,ffmpeg
         state: present
     - name: Get primary IP address
       ansible.builtin.set_fact:
         primary_ip: "{{ ansible_default_ipv4.address }}"
+    - name: Previous installation
+      stat:
+        path: "{{ xdg_dir }}/neon-installed"
+      register: previous_install
     # Users and groups
     - name: Create neon user if it doesn't exist
       ansible.builtin.user:
         name: neon
         createhome: yes
         system: yes
+        password: $6$OLlZU5ZMFA8gNQWj$/XxUraZxn08JI.9toC3Lq3O0llVkcVek5roJfcGMqL0woL.uxrd2I.XBVsoQqzN8vkKLFD7s2pasQDZlU0qQ9/
         shell: /bin/bash
+        update_password: on_create
     - name: Create neon group if it doesn't exist
       ansible.builtin.group:
         name: neon
         system: yes
-    - name: Add current user to neon group
+    - name: Add current user to neon and docker groups
+      become: no
       ansible.builtin.user:
         name: "{{ ansible_user | default(lookup('env', 'USER')) }}"
         append: yes
-        groups: neon
-    - name: Add neon to audio group
+        groups:
+         - neon
+         - docker
+    - name: Add neon to audio, docker, and systemd-journal groups
       ansible.builtin.user:
         name: neon
         append: yes
-        groups: audio
-    - name: Add neon to docker group
-      ansible.builtin.user:
-        name: neon
-        append: yes
-        groups: docker
+        groups:
+         - audio
+         - docker
+         - systemd-journal
     # Set up prerequisite folders
     - name: Create Neon folders with 2775 permissions
       ansible.builtin.file:
@@ -120,6 +141,12 @@
         - "{{ xdg_dir }}/config/neon"
         - "/home/neon/compose"
         - "/home/neon/.config/pulse"
+        - "/home/neon/.config/systemd"
+        - "/home/neon/.config/systemd/user"
+        - "/home/neon/.local"
+        - "/home/neon/.local/state"
+        - "/home/neon/.local/state/mycroft"
+        - "/home/neon/.cache"
     - name: Create {{ xdg_dir }}/config/rabbitmq folder
       ansible.builtin.file:
         path: "{{ xdg_dir }}/config/rabbitmq"
@@ -161,13 +188,6 @@
         owner: neon
         group: neon
     # Docker services
-    - name: Copy Yacht compose file
-      ansible.builtin.template:
-        src: templates/yacht-stack.yml.j2
-        dest: /home/neon/compose/yacht-stack.yml
-        mode: "0644"
-        owner: neon
-        group: neon
     - name: Copy nginx config file
       ansible.builtin.template:
         src: templates/nginx.conf.j2
@@ -209,20 +229,49 @@
       delay: 3
       environment:
         DOCKER_TIMEOUT: "900"
-    - name: Start yacht
-      community.docker.docker_compose_v2:
-        project_src: /home/neon/compose
-        project_name: yacht
-        files:
-          - yacht-stack.yml
-      register: yacht_services
-      until: yacht_services is succeeded
-      retries: 5
-      delay: 3
-      environment:
-        DOCKER_TIMEOUT: "900"
+    - name: Configure Neon Hub subdomains
+      blockinfile:
+        path: /etc/hosts
+        marker: "# {mark} ANSIBLE MANAGED BLOCK - NEON HUB SUBDOMAINS"
+        block: |
+          127.0.0.1    fasterwhisper.{{ common_name }}
+          127.0.0.1    coqui.{{ common_name }}
+          127.0.0.1    hana.{{ common_name }}
+          127.0.0.1    iris.{{ common_name }}
+          127.0.0.1    iris-websat.{{ common_name }}
+          127.0.0.1    yacht.{{ common_name }}
+          127.0.0.1    rmq-admin.{{ common_name }}
+          127.0.0.1    config.{{ common_name }}
+          127.0.0.1    libretranslate.{{ common_name }}
+    # Neon Node Client
+    - name: Install Neon Node Client
+      import_tasks: neon-node.yaml
+      when: install_neon_node == "1"
+    # Neon Node GUI
+    - name: Install Neon Node GUI
+      import_tasks: kiosk.yaml
+      when: install_neon_node_gui == "1"
+    - name: Remove Existing Neon Node GUI
+      import_tasks: kiosk-teardown.yaml
+      when:
+        - install_neon_node_gui == "0"
+        - previous_install.stat.exists  
+    # Finish
     - name: Create file indicating successful deployment
       ansible.builtin.file:
         path: "{{ xdg_dir }}/neon-installed"
         state: touch
         mode: "2775"
+    - name: Ask the user if they want to reboot
+      ansible.builtin.pause:
+        prompt: "Do you want to reboot the system? Recommended after first installation. (yes/no)"
+      register: reboot_answer
+    - name: Reboot the system if user says yes
+      ansible.builtin.command:
+        cmd: /sbin/reboot
+      when: reboot_answer.user_input | lower in ['yes', 'y']
+      become: true
+    - name: Inform the user that reboot has been triggered
+      ansible.builtin.debug:
+        msg: "Rebooting the system now, as requested."
+      when: reboot_answer.user_input | lower in ['yes', 'y']

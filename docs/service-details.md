@@ -10,6 +10,12 @@ For more usage information, [see the Yacht documentation](https://yacht.sh/docs/
 
 If you'd like to disable default services, this is the place to do it. This is your Hub - use only what you want!
 
+## Configuration tool
+
+Neon Hub ships with a configuration tool that simplifies common tasks such as changing log levels, adding your own API keys for external services, and customizing other services. This tool is available at `https://neon-hub.local`.
+
+The default username/password is `neon:neon`.
+
 ## Speech-To-Text (STT)
 
 Also known as Automatic Speech Recognition (ASR), this is what enables the assistant to take your recorded voice and turn it into text that it can parse.
@@ -43,6 +49,13 @@ In order to fully leverage the Iris websat, you must either enable HTTPS and acc
 - hana: `http://neon-hub.local:8082`
 - iris: `http://neon-hub.local:7860`
 - iris-websat: `http://neon-hub.local:8001`
+
+## Translation
+
+Neon Hub ships with a [LibreTranslate](https://github.com/NeonGeckoCom/neon-libretranslate) service that can be used to translate text between languages. This service is available at `http://neon-hub.local:5000`.
+
+!!!note
+    At this time, translation is only supported from English to other languages. If you need other language support, please let us know and it can be prioritized in the `neon-libretranslate` repo.
 
 ### Custom SSL certificate
 

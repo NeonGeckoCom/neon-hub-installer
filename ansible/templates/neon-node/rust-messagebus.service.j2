@@ -1,0 +1,13 @@
+[Unit]
+Documentation=https://github.com/OscillateLabsLLC/ovos-rust-messagebus/blob/main/README.md
+Description=Neon Rust Messagebus
+
+[Service]
+ExecStart=/home/neon/ovos_messagebus-x86_64-unknown-linux-gnu
+ExecReload=/usr/bin/kill -HUP $MAINPID
+ExecStop=/usr/bin/kill -KILL $MAINPID
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

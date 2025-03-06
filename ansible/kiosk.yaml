@@ -1,0 +1,104 @@
+- name: Install browser
+  apt:
+    name: "{{ browser_package }}"
+    state: present
+    update_cache: yes
+
+- name: Create kiosk group
+  ansible.builtin.group:
+    name: kiosk
+    system: yes
+
+- name: Create kiosk user
+  user:
+    name: "{{ kiosk_user }}"
+    create_home: yes
+    shell: /bin/bash
+    password: ""
+    groups: kiosk,audio,video,render,input
+    append: yes
+
+- name: Ensure autostart directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ kiosk_user }}"
+    group: "{{ kiosk_user }}"
+    mode: '0755'
+  loop:
+    - "/home/{{ kiosk_user }}/.config/autostart"
+    - "/home/{{ kiosk_user }}/.kde/Autostart"  # KDE legacy path
+    - "/home/{{ kiosk_user }}/.config/plasma-workspace/autostart"  # Modern KDE path
+    - "/home/{{ kiosk_user }}/.config/unity/autostart"  # Unity-specific path
+
+- name: Configure browser autostart for Gnome/KDE/Unity
+  template:
+    src: templates/neon-hub-kiosk.desktop.j2
+    dest: "{{ item }}"
+    owner: "{{ kiosk_user }}"
+    group: "{{ kiosk_user }}"
+    mode: '0755'
+  loop:
+    - "/home/{{ kiosk_user }}/.config/autostart/neon-hub-kiosk.desktop"
+    - "/home/{{ kiosk_user }}/.config/plasma-workspace/autostart/neon-hub-kiosk.desktop"
+    - "/home/{{ kiosk_user }}/.config/unity/autostart/neon-hub-kiosk.desktop"  # Unity autostart
+
+- name: Detect desktop environment
+  command: echo $XDG_CURRENT_DESKTOP
+  register: desktop_environment
+  changed_when: false
+  ignore_errors: yes
+
+- name: Configure GDM autologin (Gnome)
+  blockinfile:
+    path: "{{ item }}"
+    create: yes
+    block: |
+      # Enabling automatic login
+      AutomaticLoginEnable = true
+      AutomaticLogin = {{ kiosk_user }}
+    insertafter: '^\[daemon\]'
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - KIOSK AUTOLOGIN"
+  when: "'GNOME' in desktop_environment.stdout|upper or 'UNITY' in desktop_environment.stdout|upper"
+  loop:
+    - /etc/gdm3/daemon.conf
+    - /etc/gdm3/custom.conf
+
+- name: Configure LightDM autologin (Unity)
+  blockinfile:
+    path: /etc/lightdm/lightdm.conf.d/10-autologin.conf
+    create: yes
+    block: |
+      [SeatDefaults]
+      autologin-user={{ kiosk_user }}
+      autologin-session=unity
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - KIOSK AUTOLOGIN"
+  when: "'UNITY' in desktop_environment.stdout|upper"
+
+- name: Configure SDDM autologin (KDE)
+  blockinfile:
+    path: /etc/sddm.conf.d/autologin.conf
+    create: yes
+    block: |
+      [Autologin]
+      User={{ kiosk_user }}
+      Session=plasma.desktop
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - KIOSK AUTOLOGIN"
+  when: "'KDE' in desktop_environment.stdout|upper"
+
+- name: Create README file with warning
+  copy:
+    dest: /home/neon/KIOSK-MODE-README.txt
+    owner: "neon"
+    group: "neon"
+    mode: "0644"
+    content: |
+      IMPORTANT: This system is configured to run in dedicated kiosk mode.
+
+      This means:
+      - The machine will automatically start in kiosk mode on boot, as {{ kiosk_user }}
+      - It will display the web interface at {{ webapp_url }}
+
+      If you no longer want to run in kiosk mode, it can be removed by running
+      the Neon AI Hub Installer script and indicating you do not want to install it.
+      The script will remove the user and files it created.

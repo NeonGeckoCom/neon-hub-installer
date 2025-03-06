@@ -10,7 +10,7 @@
       -keyout /home/neon/{{ common_name }}.key 
       -out /home/neon/{{ common_name }}.crt 
       -subj "/C={{ country }}/ST={{ state }}/L={{ location }}/O={{ organization }}/OU={{ organizational_unit }}/CN={{ common_name }}"
-      -addext "subjectAltName = DNS:{{ common_name }},IP:{{ primary_ip }}"
+      -addext "subjectAltName = DNS:{{ common_name }},DNS:*.{{ common_name }},IP:{{ primary_ip }}"
   become: yes
   when: not cert_file.stat.exists
 - name: Set proper permissions for key and certificate

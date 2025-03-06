@@ -27,8 +27,14 @@ get_yesno() {
     whiptail --title "Neon Hub Installer" --yesno "$1" 10 78 3>&1 1>&2 2>&3
 }
 
+# Set up error handling
+set -eE
+trap 'echo "Error on line $LINENO. Check $LOG_FILE for details." >&2; exit 1' ERR
+
+# Source the common functions - Fix the path to be relative to the script location
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # shellcheck source=scripts/common.sh
-source scripts/common.sh
+source "${SCRIPT_DIR}/scripts/common.sh"
 
 # Function to run command, log output, and handle errors
 run_step() {
@@ -42,16 +48,33 @@ run_step() {
     fi
 }
 
-# Set up error handling
-set -eE
-trap 'echo "Error on line $LINENO. Check $LOG_FILE for details." >&2; exit 1' ERR
-
 # Run each step
-run_step "User detection" "detect_user"
-run_step "OS information gathering" "get_os_information"
-run_step "Required packages installation" "required_packages"
-run_step "Python virtual environment creation" "create_python_venv"
-run_step "Ansible installation" "install_ansible"
+run_step "User detection" detect_user
+run_step "OS information gathering" get_os_information
+run_step "Required packages installation" required_packages
+run_step "Python virtual environment creation" create_python_venv
+
+case $DISTRO_NAME in
+ubuntu | Ubuntu)
+    export BROWSER_PACKAGE="firefox"
+    ;;
+debian)
+    export BROWSER_PACKAGE="firefox-esr"
+    ;;
+default)
+    export BROWSER_PACKAGE="chromium"
+    ;;
+esac
+
+# Source the virtualenv before installing Ansible
+if [ -f "$VENV_PATH/bin/activate" ]; then
+    # shellcheck source=/dev/null
+    source "$VENV_PATH/bin/activate"
+    run_step "Ansible installation" install_ansible
+else
+    echo "Error: Virtual environment not found at $VENV_PATH" >&2
+    exit 1
+fi
 
 # Disable error handling after this section
 set +eE
@@ -110,12 +133,39 @@ case $HOSTNAME_CHOICE in
         ;;
 esac
 
+INSTALL_NODE_VOICE_CLIENT_CHOICE=$(whiptail --title "Neon Hub Installer" --menu "Install the Neon Node Voice Client? This allows you to treat your Hub as a Node, so you can speak to it directly." 15 78 3 \
+"1" "Yes (default)" \
+"2" "No" 3>&1 1>&2 2>&3)
+
+case $INSTALL_NODE_VOICE_CLIENT_CHOICE in
+    1)
+        INSTALL_NODE_VOICE_CLIENT=1
+        ;;
+    2)
+        INSTALL_NODE_VOICE_CLIENT=0
+        ;;
+esac
+
+INSTALL_NODE_KIOSK_CHOICE=$(whiptail --title "Neon Hub Installer" --menu "Install the Neon Node Kiosk experience? A browser window with the Neon Iris Web Satellite will automatically start in fullscreen each time you boot. Can only choose if you didn't choose to install the Neon Node Voice Client." 15 78 3 \
+"1" "No (default)" \
+"2" "Yes" 3>&1 1>&2 2>&3)
+
+case $INSTALL_NODE_KIOSK_CHOICE in
+    1)
+        INSTALL_NODE_KIOSK=0
+        ;;
+    2)
+        INSTALL_NODE_KIOSK=1
+        ;;
+esac
+
 # Installation
 echo "Installing Neon Hub. This may take some time, take a break and relax."
 echo "You can find installation logs at $LOG_FILE."
 
+hostnamectl set-hostname $HOSTNAME
 export ANSIBLE_CONFIG=ansible.cfg
-ansible-playbook -i 127.0.0.1 -e "xdg_dir=$XDG_DIR common_name=$HOSTNAME" "${ansible_debug[@]}" ansible/hub.yaml | tee $ANSIBLE_LOG_FILE
+script -q -c "ansible-playbook -i 127.0.0.1 -e 'xdg_dir=$XDG_DIR common_name=$HOSTNAME install_neon_node=$INSTALL_NODE_VOICE_CLIENT install_neon_node_gui=$INSTALL_NODE_KIOSK browser_package=$BROWSER_PACKAGE' ${ansible_debug[@]} ansible/hub.yaml" $ANSIBLE_LOG_FILE
 
 if [ "${PIPESTATUS[0]}" -eq 0 ]; then
     show_message "Neon Hub has been successfully installed!"
@@ -142,6 +192,6 @@ Neon Hub is ready to use! To begin, say \"Hey Neon\" and ask a question such as 
 
 show_message "You can check your Neon Hub services by navigating to https://yacht.${HOSTNAME} in your preferred web browser. It is also available at http://$IP:8000. The default credentials are admin@yacht.local:pass.
 
-Please note that the first time you access the web interface, you will need to accept the self-signed SSL certificate. You can do this in most browsers by clicking \"Advanced\" and then \"Proceed to ${HOSTNAME}\".
+Please note that the first time you access the web interface, you will need to accept the self-signed SSL certificate. You can do this in most browsers by clicking \"Advanced\" and then \"Proceed to ${HOSTNAME}\"."
 
-Congratulations on setting up your Neon Hub! Enjoy your new AI server!"
+show_message "Congratulations on setting up your Neon Hub! Enjoy your new AI server!"

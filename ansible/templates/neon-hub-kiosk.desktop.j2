@@ -1,0 +1,22 @@
+[Desktop Entry]
+Categories=Network;WebBrowser
+Type=Application
+Name=Neon Hub Interface
+{% if browser_package == 'firefox-esr' %}
+Exec=firefox-esr --kiosk {{ webapp_url }} --allow-shortcuts
+{% elif browser_package == 'firefox' %}
+Exec=firefox --kiosk {{ webapp_url }} --allow-shortcuts
+{% elif browser_package == 'chromium' %}
+Exec=chromium --kiosk {{ webapp_url }} --disable-pinch
+{% endif %}
+Terminal=false
+X-GNOME-Autostart-enabled=true
+X-KDE-Autostart-enabled=true
+NoDisplay=false
+Hidden=false
+X-GNOME-Autostart-Phase=Applications
+X-KDE-SubstituteUID=false
+X-KDE-Username=
+X-MultipleArgs=false
+StartupNotify=true
+Comment=Neon Hub Web Interface - Alt+Tab to switch windows

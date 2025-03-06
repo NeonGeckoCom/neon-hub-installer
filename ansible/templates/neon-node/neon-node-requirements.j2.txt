@@ -1,0 +1,4 @@
+neon-nodes[voice-client]~=0.0
+tflite_runtime;python_version < "3.12"
+ai-edge-litert;python_version >= "3.12"
+tensorflow;python_version >= "3.12"

@@ -44,6 +44,9 @@ volumes:
   neon_gui_files:
     name: neon_gui_files
     driver: local
+  yacht_config:
+    driver: local
+    name: yacht_config
 
 services:
   # Core
@@ -112,50 +115,6 @@ services:
       <<: *default-env-vars
       DBUS_SESSION_BUS_ADDRESS: unix:path=${XDG_RUNTIME_DIR}/bus
     devices:
-      - /dev/snd
-  gui:
-    <<: *podman
-    logging: *default-logging
-    restart: unless-stopped
-    depends_on:
-      - messagebus
-    image: ghcr.io/neongeckocom/neon_gui:${NEON_IMAGE_TAG}
-    container_name: neon-gui
-    networks:
-      neon-core:
-        aliases:
-          - neon-gui
-    volumes:
-      - xdg:/home/neon:rw
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
-      - ${NEON_CONFIG_FOLDER}:/xdg/config:ro
-      - ${XDG_RUNTIME_DIR}:${XDG_RUNTIME_DIR}:ro
-      - ${XDG_RUNTIME_DIR}/bus:${XDG_RUNTIME_DIR}/bus:ro
-      - neon_gui_files:/xdg/cache/gui_files
-      - /run/udev/data:/run/udev/data:ro
-    environment:
-      <<: *default-env-vars
-      DBUS_SESSION_BUS_ADDRESS: unix:path=${XDG_RUNTIME_DIR}/bus
-      DISPLAY: $DISPLAY
-      QML2_IMPORT_PATH: /usr/lib/qml
-      QT_QPA_PLATFORM: $QT_QPA_PLATFORM
-      QT_QPA_EGLFS_HIDECURSOR: 1
-      QT_QPA_EGLFS_KMS_ATOMIC: 1
-      QT_QPA_EGLFS_INTEGRATION: $QT_QPA_EGLFS_INTEGRATION
-      QT_QPA_EGLFS_KMS_CONFIG: $QT_QPA_EGLFS_KMS_CONFIG
-      QT_QPA_PLATFORMTHEME: qt5ct
-      QT_PLUGIN_PATH: /usr/lib/qt/plugins:/usr/lib/plugins:/usr/lib/plugins/kf5
-      QT_FILE_SELECTORS: ovos
-      QT_FONT_DPI: 120
-      QT_IM_MODULE: qtvirtualkeyboard
-      QT_QUICK_CONTROLS_STYLE: OpenVoiceStyle
-      WAYLAND_DISPLAY: $WAYLAND_DISPLAY
-      XDG_CURRENT_DESKTOP: kde
-      XDG_RUNTIME_DIR: $XDG_RUNTIME_DIR
-    devices:
-      - /dev/input
-      - /dev/dri
       - /dev/snd
   enclosure:
     <<: *podman
@@ -253,9 +212,27 @@ services:
     ports:
       - 8082:8080
     volumes:
-      - xdg:/etc/xdg:rw
+      - xdg:/xdg:rw
     environment:
       <<: *default-env-vars
+  neon_libretranslate:
+    <<: *podman
+    container_name: neon-libretranslate
+    image: ghcr.io/neongeckocom/libretranslate:latest
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: $HOSTNAME
+    networks:
+      neon-core:
+        aliases:
+          - libretranslate
+    ports:
+      - 5000:5000
+    volumes:
+      - xdg:/xdg:rw
+    environment:
+      <<: *default-env-vars
+      ARGOS_PACKAGE_INDEX: https://raw.githubusercontent.com/argosopentech/argospm-index/802ad83594e3244e3f908ab0fefc56eef146a5da
   tts_coqui:
     <<: *podman
     container_name: neon-tts-coqui
@@ -308,12 +285,12 @@ services:
       - xdg:/xdg:rw
     environment:
       <<: *default-env-vars
+      OVOS_CONFIG_FILENAME: diana.yaml
   iris_websat:
     <<: *podman
     depends_on:
       - rabbitmq
     container_name: neon-iris-websat
-    user: root
     image: ghcr.io/neongeckocom/neon-iris-websat:${HTTP_IMAGE_TAG}
     restart: unless-stopped
     logging: *default-logging
@@ -326,12 +303,15 @@ services:
       - 8001:8000
     volumes:
       - xdg:/xdg:rw
-      - /home/neon/xdg/config:/home/neon/.config:ro
     environment:
       <<: *default-env-vars
+      # OVOS_DEFAULT_CONFIG: /xdg/config/neon/diana.yaml
+      OVOS_CONFIG_FILENAME: diana.yaml
   nginx:
     image: nginx:alpine
     container_name: neon-nginx
+    logging: *default-logging
+    restart: unless-stopped
     networks:
       neon-core:
     ports:
@@ -341,3 +321,39 @@ services:
       - /home/neon/compose/nginx.conf:/etc/nginx/nginx.conf:ro
       - /home/neon/{{ common_name }}.crt:/etc/ssl/certs/{{ common_name }}.crt:ro
       - /home/neon/{{ common_name }}.key:/etc/ssl/private/{{ common_name }}.key:ro
+  yacht:
+    image: selfhostedpro/yacht
+    container_name: yacht
+    logging: *default-logging
+    restart: unless-stopped
+    networks:
+      neon-core:
+        aliases:
+          - yacht
+    ports:
+      - 8000:8000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - yacht_config:/config
+  hub_config:
+    <<: *podman
+    logging: *default-logging
+    restart: unless-stopped
+    depends_on:
+      - hana
+    image: ghcr.io/oscillatelabsllc/neon-hub-config:main # TODO: Move to NeonGeckoCom
+    environment:
+      DIANA_PATH: /root/.config/neon/diana.yaml
+      NEON_PATH: /root/.config/neon/neon.yaml
+    container_name: neon-hub-config
+    user: root
+    networks:
+      neon-core:
+        aliases:
+          - neon-hub-config
+    ports:
+      - 8005:80
+    volumes:
+      - ${NEON_CONFIG_FOLDER}:/root/.config
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
