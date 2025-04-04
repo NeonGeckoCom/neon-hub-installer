@@ -1,0 +1,193 @@
+---
+# Prepare
+- name: Ensure package prerequisites are installed
+  become: true
+  ansible.builtin.package:
+    name: "{{ system_packages }}"
+    state: present
+
+- name: Previous installation
+  stat:
+    path: "{{ xdg_dir }}/neon-installed"
+  register: previous_install
+
+# Users and groups
+- name: Create neon user if it doesn't exist
+  ansible.builtin.user:
+    name: neon
+    createhome: yes
+    system: yes
+    password: "{{ neon_user_password }}"
+    shell: /bin/bash
+    update_password: on_create
+
+- name: Create neon group if it doesn't exist
+  ansible.builtin.group:
+    name: neon
+    system: yes
+
+- name: Check if docker group exists
+  ansible.builtin.command: getent group docker
+  register: docker_group_check
+  changed_when: false
+  failed_when: false
+
+- name: Add current user to neon and docker groups
+  become: yes
+  ansible.builtin.user:
+    name: "{{ 'neon' if packer_build_name is defined else docker_user }}"
+    append: yes
+    groups:
+      - neon
+      - docker
+  ignore_errors: "{{ docker_group_check.rc != 0 }}"
+  register: add_user_result
+
+- name: Add neon to audio, docker, and systemd-journal groups
+  ansible.builtin.user:
+    name: neon
+    append: yes
+    groups:
+      - audio
+      - docker
+      - systemd-journal
+  ignore_errors: "{{ docker_group_check.rc != 0 }}"
+
+# Set up prerequisite folders
+- name: Create Neon folders with {{ neon_dir_mode }} permissions
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "{{ neon_dir_mode }}"
+    owner: neon
+    group: neon
+  loop:
+    - "{{ xdg_dir }}"
+    - "{{ xdg_dir }}/local"
+    - "{{ xdg_dir }}/share"
+    - "{{ xdg_dir }}/config"
+    - "{{ xdg_dir }}/config/neon"
+    - "/home/neon/compose"
+    - "/home/neon/.config/pulse"
+    - "/home/neon/.config/systemd"
+    - "/home/neon/.config/systemd/user"
+    - "/home/neon/.local"
+    - "/home/neon/.local/state"
+    - "/home/neon/.local/state/mycroft"
+    - "/home/neon/.cache"
+
+- name: Create {{ xdg_dir }}/config/rabbitmq folder
+  ansible.builtin.file:
+    path: "{{ xdg_dir }}/config/rabbitmq"
+    state: directory
+    mode: "{{ rabbitmq_dir_mode }}"
+    owner: "{{ rabbitmq_uid }}"
+    group: "{{ rabbitmq_gid }}"
+
+# Generate configs
+- name: Load secrets
+  include_vars:
+    file: "{{ secrets_file }}"
+  # no_log: true
+
+- name: Create rabbitmq files
+  loop:
+    - rabbitmq.json
+    - rabbitmq.conf
+    - enabled_plugins
+  ansible.builtin.template:
+    src: "templates/{{ item }}.j2"
+    dest: "{{ xdg_dir }}/config/rabbitmq/{{ item }}"
+    mode: "0644"
+    owner: "{{ rabbitmq_uid }}"
+    group: "{{ rabbitmq_gid }}"
+
+- name: Create neon.yaml
+  ansible.builtin.template:
+    src: templates/neon.yaml.j2
+    dest: "{{ xdg_dir }}/config/neon/neon.yaml"
+    mode: "0644"
+    owner: neon
+    group: neon
+
+- name: Create diana.yaml
+  ansible.builtin.template:
+    src: templates/diana.yaml.j2
+    dest: "{{ xdg_dir }}/config/neon/diana.yaml"
+    mode: "0644"
+    owner: neon
+    group: neon
+
+# Docker services
+- name: Copy nginx config file
+  ansible.builtin.template:
+    src: templates/nginx.conf.j2
+    dest: /home/neon/compose/nginx.conf
+    mode: "0644"
+    owner: neon
+    group: neon
+
+- name: Copy environment variables file with user-provided values
+  ansible.builtin.template:
+    src: templates/.env.j2
+    dest: /home/neon/compose/.env
+    mode: "0644"
+    owner: neon
+    group: neon
+
+- name: Read .env file
+  ansible.builtin.slurp:
+    src: /home/neon/compose/.env
+  register: env_file
+
+- name: Parse .env file
+  ansible.builtin.set_fact:
+    env_vars: "{{ (env_file['content'] | b64decode).split('\n') | select('match', '^(?!#).*=.*') | list }}"
+
+- name: Copy compose file from template
+  ansible.builtin.template:
+    src: templates/neon-hub.yml.j2
+    dest: /home/neon/compose/neon-hub.yml
+    mode: "0644"
+    owner: neon
+    group: neon
+
+# Deploy
+- name: Download and Start Core and Hub
+  community.docker.docker_compose_v2:
+    project_src: /home/neon/compose
+    project_name: neon
+    files:
+      - neon-hub.yml
+  register: neon_services
+  until: neon_services is succeeded
+  retries: 5
+  delay: 3
+  environment:
+    DOCKER_TIMEOUT: "{{ docker_timeout }}"
+
+- name: Configure Neon Hub subdomains
+  become: true
+  blockinfile:
+    path: /etc/hosts
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - NEON HUB SUBDOMAINS"
+    block: |
+      127.0.0.1    fasterwhisper.{{ common_name }}
+      127.0.0.1    coqui.{{ common_name }}
+      127.0.0.1    hana.{{ common_name }}
+      127.0.0.1    iris.{{ common_name }}
+      127.0.0.1    iris-websat.{{ common_name }}
+      127.0.0.1    yacht.{{ common_name }}
+      127.0.0.1    rmq-admin.{{ common_name }}
+      127.0.0.1    config.{{ common_name }}
+      127.0.0.1    libretranslate.{{ common_name }}
+
+# Neon Node Client
+- name: Install Neon Node Client
+  import_tasks: ../../neon_node/tasks/neon-node.yaml
+  when: install_neon_node == "1"
+
+# Neon Node GUI
+- name: Install Neon Node GUI
+  import_tasks: ../../kiosk/tasks/kiosk.yaml
+  when: install_neon_node_gui == "1"

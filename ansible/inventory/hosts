@@ -1,0 +1,11 @@
+[all]
+localhost ansible_connection=local
+
+[neon_hub]
+localhost ansible_connection=local
+
+[kiosk]
+localhost ansible_connection=local
+
+[neon_node]
+localhost ansible_connection=local 

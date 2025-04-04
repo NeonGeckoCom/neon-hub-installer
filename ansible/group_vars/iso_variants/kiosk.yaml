@@ -1,0 +1,18 @@
+---
+# Kiosk ISO configuration
+install_neon_node: "0"
+install_neon_node_gui: "1"
+container_count: 4
+docker_edition: "ce"
+docker_packages:
+  - "docker-{{ docker_edition }}"
+  - "docker-{{ docker_edition }}-cli"
+  - "docker-{{ docker_edition }}-rootless-extras"
+docker_packages_state: present
+docker_install_compose: true
+docker_add_repo: true
+
+# Kiosk-specific configuration
+kiosk_user: kiosk
+webapp_url: "https://iris-websat.{{ common_name }}"
+browser_package: firefox-esr

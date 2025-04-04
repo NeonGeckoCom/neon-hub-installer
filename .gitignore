@@ -3,3 +3,8 @@ neon_hub_secrets.yaml
 xdg/
 .DS_Store
 .venv/
+output/
+output-base/
+ansible/roles/geerlingguy.docker/
+
+*.retry

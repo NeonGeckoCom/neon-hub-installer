@@ -1,0 +1,26 @@
+---
+# Hub configuration
+xdg_dir: "/home/neon/xdg"
+common_name: "neon-hub.local"
+install_neon_node: "0"
+install_neon_node_gui: "0"
+browser_package: "firefox-esr"
+
+# Docker configuration
+docker_user: "{{ ansible_user | default(lookup('env', 'USER')) }}"
+container_count: 4
+docker_edition: "ce"
+docker_packages:
+  - "docker-{{ docker_edition }}"
+  - "docker-{{ docker_edition }}-cli"
+  - "docker-{{ docker_edition }}-rootless-extras"
+docker_packages_state: present
+docker_install_compose: true
+docker_add_repo: true
+
+# Certificate configuration
+country: US
+state: Washington
+location: Bellevue
+organization: Neon
+organizational_unit: Neon

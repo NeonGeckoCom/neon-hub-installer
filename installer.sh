@@ -6,6 +6,42 @@ export INSTALLER_VENV_NAME="neon-hub-installer"
 export OS_RELEASE=/etc/os-release
 export USER_ID="$EUID"
 
+# Parse command line arguments
+NON_INTERACTIVE=false
+XDG_DIR="/home/neon/xdg"
+HOSTNAME="neon-hub.local"
+INSTALL_NODE_VOICE_CLIENT=1
+INSTALL_NODE_KIOSK=0
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --non-interactive)
+      NON_INTERACTIVE=true
+      shift
+      ;;
+    --xdg-dir)
+      XDG_DIR="$2"
+      shift 2
+      ;;
+    --hostname)
+      HOSTNAME="$2"
+      shift 2
+      ;;
+    --install-node)
+      INSTALL_NODE_VOICE_CLIENT="$2"
+      shift 2
+      ;;
+    --install-kiosk)
+      INSTALL_NODE_KIOSK="$2"
+      shift 2
+      ;;
+    *)
+      echo "Unknown option: $1"
+      exit 1
+      ;;
+  esac
+done
+
 # Enable debug/verbosity for Bash and Ansible
 if [ "$DEBUG" == "true" ]; then
   set -x
@@ -14,17 +50,29 @@ fi
 
 # Function to display a message box
 show_message() {
-    whiptail --title "Neon Hub Installer" --msgbox "$1" 20 78
+    if [ "$NON_INTERACTIVE" = true ]; then
+        echo "Neon Hub Installer: $1"
+    else
+        whiptail --title "Neon Hub Installer" --msgbox "$1" 20 78
+    fi
 }
 
 # Function to get user input
 get_input() {
-    whiptail --title "Neon Hub Installer" --inputbox "$1" 10 78 "$2" 3>&1 1>&2 2>&3
+    if [ "$NON_INTERACTIVE" = true ]; then
+        echo "$2"
+    else
+        whiptail --title "Neon Hub Installer" --inputbox "$1" 10 78 "$2" 3>&1 1>&2 2>&3
+    fi
 }
 
 # Function to get yes/no input
 get_yesno() {
-    whiptail --title "Neon Hub Installer" --yesno "$1" 10 78 3>&1 1>&2 2>&3
+    if [ "$NON_INTERACTIVE" = true ]; then
+        return 0
+    else
+        whiptail --title "Neon Hub Installer" --yesno "$1" 10 78 3>&1 1>&2 2>&3
+    fi
 }
 
 # Set up error handling
@@ -80,106 +128,46 @@ fi
 set +eE
 trap - ERR
 
-# Welcome message
-show_message "Welcome to the Neon Hub installer! 
+if [ "$NON_INTERACTIVE" = false ]; then
+    # Welcome message
+    show_message "Welcome to the Neon Hub installer! 
 
-Neon Hub is a central server for artificial intelligence, powered by Neon AI®. It is designed to be a private, offline, and secure alternative to cloud-based AI assistants like Alexa, Google Assistant, and Siri. 
+    Neon Hub is a central server for artificial intelligence, powered by Neon AI®. It is designed to be a private, offline, and secure alternative to cloud-based AI assistants like Alexa, Google Assistant, and Siri. 
 
-This installer will guide you through the process of setting up a Neon Hub on your computer. You will need to have a working internet connection and a computer running Linux. The installer will install all necessary dependencies, set up a Docker environment, and configure Neon Hub to run as services.
+    This installer will guide you through the process of setting up a Neon Hub on your computer. You will need to have a working internet connection and a computer running Linux. The installer will install all necessary dependencies, set up a Docker environment, and configure Neon Hub to run as services.
 
-If you are unsure about any of the options, you can press enter to use the default value."
+    If you are unsure about any of the options, you can press enter to use the default value."
+fi
 
-# Set default values
-XDG_DIR=""
-HOSTNAME=""
-
-# Ask about XDG directory
-XDG_DIR_CHOICE=$(whiptail --title "Neon Hub Installer" --menu "Where would you like to store Neon Hub's persistent data?" 15 78 3 \
-"1" "/home/neon/xdg (default)" \
-"2" "Choose a different location" 3>&1 1>&2 2>&3)
-
-case $XDG_DIR_CHOICE in
-    1)
-        XDG_DIR="/home/neon/xdg"
-        ;;
-    2)
-        XDG_DIR=$(get_input "Please enter the path to the persistent data directory:" "$XDG_DIR")
-        ;;
-esac
-
-while [ ! -d "$XDG_DIR" ]; do
-    if (get_yesno "The directory $XDG_DIR does not exist. Would you like to create it?" ); then
-        mkdir -p $XDG_DIR
-    else
-        XDG_DIR=$(get_input "Please enter the path to the persistent data directory:" "$XDG_DIR")
-    fi
-done
-
-# Ask about hostname
-HOSTNAME_CHOICE=$(whiptail --title "Neon Hub Installer" --menu "Choose a hostname for Neon Hub to use:" 15 78 3 \
-"1" "Use default (neon-hub.local)" \
-"2" "Use server's existing hostname" \
-"3" "Enter a new hostname" 3>&1 1>&2 2>&3)
-
-case $HOSTNAME_CHOICE in
-    1)
-        HOSTNAME="neon-hub.local"
-        ;;
-    2)
-        HOSTNAME=$(hostname)
-        ;;
-    3)
-        HOSTNAME=$(get_input "Please enter the new hostname:" "$HOSTNAME")
-        ;;
-esac
-
-INSTALL_NODE_VOICE_CLIENT_CHOICE=$(whiptail --title "Neon Hub Installer" --menu "Install the Neon Node Voice Client? This allows you to treat your Hub as a Node, so you can speak to it directly." 15 78 3 \
-"1" "Yes (default)" \
-"2" "No" 3>&1 1>&2 2>&3)
-
-case $INSTALL_NODE_VOICE_CLIENT_CHOICE in
-    1)
-        INSTALL_NODE_VOICE_CLIENT=1
-        ;;
-    2)
-        INSTALL_NODE_VOICE_CLIENT=0
-        ;;
-esac
-
-INSTALL_NODE_KIOSK_CHOICE=$(whiptail --title "Neon Hub Installer" --menu "Install the Neon Node Kiosk experience? A browser window with the Neon Iris Web Satellite will automatically start in fullscreen each time you boot. Can only choose if you didn't choose to install the Neon Node Voice Client." 15 78 3 \
-"1" "No (default)" \
-"2" "Yes" 3>&1 1>&2 2>&3)
-
-case $INSTALL_NODE_KIOSK_CHOICE in
-    1)
-        INSTALL_NODE_KIOSK=0
-        ;;
-    2)
-        INSTALL_NODE_KIOSK=1
-        ;;
-esac
+# Create XDG directory if it doesn't exist
+if [ ! -d "$XDG_DIR" ]; then
+    mkdir -p "$XDG_DIR"
+fi
 
 # Installation
 echo "Installing Neon Hub. This may take some time, take a break and relax."
 echo "You can find installation logs at $LOG_FILE."
 
-hostnamectl set-hostname $HOSTNAME
+hostnamectl set-hostname "$HOSTNAME"
 export ANSIBLE_CONFIG=ansible.cfg
-script -q -c "ansible-playbook -i 127.0.0.1 -e 'xdg_dir=$XDG_DIR common_name=$HOSTNAME install_neon_node=$INSTALL_NODE_VOICE_CLIENT install_neon_node_gui=$INSTALL_NODE_KIOSK browser_package=$BROWSER_PACKAGE' ${ansible_debug[@]} ansible/hub.yaml" $ANSIBLE_LOG_FILE
+script -q -c "ansible-playbook -i 127.0.0.1 -e 'xdg_dir=$XDG_DIR common_name=$HOSTNAME install_neon_node=$INSTALL_NODE_VOICE_CLIENT install_neon_node_gui=$INSTALL_NODE_KIOSK browser_package=$BROWSER_PACKAGE' ${ansible_debug[*]} ansible/hub.yaml" "$ANSIBLE_LOG_FILE"
 
 if [ "${PIPESTATUS[0]}" -eq 0 ]; then
     show_message "Neon Hub has been successfully installed!"
 else
     cat "$ANSIBLE_LOG_FILE" >> "$LOG_FILE"
-    if ask_optin; then
-        DEBUG_URL="$(curl -sF 'content=<-' https://dpaste.com/api/v2/ <"$LOG_FILE")"
-        show_message "An error occurred during installation. The installer logs are available at $DEBUG_URL.
-        Need help? Email us this link at support@neon.ai"
+    if [ "$NON_INTERACTIVE" = true ]; then
+        echo "An error occurred during installation. Please check $LOG_FILE for more details."
     else
-        echo -e "Unable to continue the process, please check $LOG_FILE for more details."
-        show_message "An error occurred during installation. Please check $LOG_FILE for more details."
+        if ask_optin; then
+            DEBUG_URL="$(curl -sF 'content=<-' https://dpaste.com/api/v2/ <"$LOG_FILE")"
+            show_message "An error occurred during installation. The installer logs are available at $DEBUG_URL.
+            Need help? Email us this link at support@neon.ai"
+        else
+            echo -e "Unable to continue the process, please check $LOG_FILE for more details."
+            show_message "An error occurred during installation. Please check $LOG_FILE for more details."
+        fi
     fi
-
     exit 1
 fi
 

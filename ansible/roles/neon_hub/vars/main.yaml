@@ -1,0 +1,46 @@
+---
+# User configuration
+users:
+  neon_core: {}
+  chat_observer: {}
+  neon_libretranslate: {}
+  neon_api: {}
+  neon_coupons: {}
+  neon_email: {}
+  neon_llm_chatgpt: {}
+  neon_llm_fastchat: {}
+  neon_metrics: {}
+  neon_script_parser: {}
+  neon_bot_submind: {}
+  neon_llm_submind: {}
+  neon_bot_facilitator: {}
+  neon_llm_vllm: {}
+  neon_users_service: {}
+
+# HANA configuration
+hana:
+  access_token_secret: {}
+  refresh_token_secret: {}
+  node_pw: {}
+
+# File paths
+secrets_file: "{{ playbook_dir }}/neon_hub_secrets.yaml"
+
+# System user configuration
+neon_user_password: "$6$OLlZU5ZMFA8gNQWj$/XxUraZxn08JI.9toC3Lq3O0llVkcVek5roJfcGMqL0woL.uxrd2I.XBVsoQqzN8vkKLFD7s2pasQDZlU0qQ9/"
+
+# Docker configuration
+docker_timeout: "900"
+
+# Directory permissions
+neon_dir_mode: "2775" # Keeps the group sticky
+rabbitmq_dir_mode: "2775"
+rabbitmq_uid: 999
+rabbitmq_gid: 999
+
+# Required system packages
+system_packages:
+  - openssl
+  - python3-docker
+  - python3-jsondiff
+  - ffmpeg
