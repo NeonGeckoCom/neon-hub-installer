@@ -152,6 +152,21 @@
     owner: neon
     group: neon
 
+# Systemd service for first boot startup
+- name: Create neon-hub-init systemd service file
+  become: true
+  ansible.builtin.template:
+    src: templates/neon-hub-init.service.j2
+    dest: /etc/systemd/system/neon-hub-init.service
+    mode: "0644"
+
+- name: Enable neon-hub-init systemd service
+  become: true
+  ansible.builtin.systemd:
+    name: neon-hub-init
+    enabled: yes
+    daemon_reload: yes
+
 # Deploy
 - name: Download and Start Core and Hub
   community.docker.docker_compose_v2:
@@ -165,6 +180,7 @@
   delay: 3
   environment:
     DOCKER_TIMEOUT: "{{ docker_timeout }}"
+  when: start_neon_hub_services | default(true)
 
 - name: Configure Neon Hub subdomains
   become: true

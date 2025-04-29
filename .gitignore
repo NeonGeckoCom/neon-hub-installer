@@ -8,3 +8,5 @@ output-base/
 ansible/roles/geerlingguy.docker/
 
 *.retry
+*.img
+*.gz

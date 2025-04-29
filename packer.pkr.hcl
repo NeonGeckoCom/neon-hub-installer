@@ -64,6 +64,10 @@ source "qemu" "debian" {
   cpus             = var.cpus
   headless         = true
   
+  # UEFI boot configuration
+  firmware         = "uefi"
+  efi_boot         = true
+  
   ssh_username     = "neon"
   ssh_password     = "neon"
   ssh_timeout      = "60m"
@@ -101,7 +105,8 @@ build {
       "-e", "hostname=neon-hub.local",
       "-e", "install_neon_node=0",
       "-e", "install_neon_node_gui=0",
-      "-e", "browser_package=firefox-esr"
+      "-e", "browser_package=firefox-esr",
+      "-e", "start_neon_hub_services=false"
     ]
     ansible_env_vars = [
       "ANSIBLE_FORCE_COLOR=1",

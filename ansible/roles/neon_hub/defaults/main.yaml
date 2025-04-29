@@ -5,6 +5,7 @@ common_name: "neon-hub.local"
 install_neon_node: "0"
 install_neon_node_gui: "0"
 browser_package: "firefox-esr"
+start_neon_hub_services: "true"
 
 # Docker configuration
 docker_user: "{{ ansible_user | default(lookup('env', 'USER')) }}"

@@ -1,0 +1,176 @@
+{{- $image := or .image "debian-uefi.img" -}} # Changed image name
+architecture: amd64
+
+actions:
+  - action: debootstrap
+    suite: bookworm
+    components:
+      - main
+      - contrib
+      - non-free-firmware
+    mirror: https://deb.debian.org/debian
+    variant: buildd # minbase | buildd | fakechroot
+
+  - action: apt
+    packages:
+      - apt-transport-https
+      - ca-certificates
+      - systemd-resolved
+      - systemd-timesyncd
+      - locales
+
+  - action: overlay
+    source: overlays/base
+
+  - action: run
+    chroot: true
+    command: apt-get update
+
+  - action: apt
+    description: Install base packages and UEFI bootloader support
+    packages:
+      - sudo
+      - openssh-server
+      - vim
+      - bash-completion
+      - curl
+      - wget
+      - htop
+      - git
+      - net-tools
+      - network-manager
+      - linux-image-amd64   # Kernel
+      - grub-efi
+
+  # Clean cache before installing large DE packages
+  - action: run
+    chroot: true
+    command: apt-get clean
+
+  # --- Test: Install libllvm15 separately ---
+  - action: apt
+    description: Install libllvm15 test
+    packages:
+      - libllvm15
+  # ----------------------------------------
+
+  # --- Clean up before Plasma install ---
+  - action: run
+    description: Clean apt cache and /tmp before Plasma
+    chroot: true
+    command: |
+      set -eux
+      apt-get clean
+      rm -rf /tmp/*
+  # ------------------------------------
+
+  - action: apt
+    description: Install KDE Plasma Desktop Environment
+    packages:
+      - sddm
+      - plasma-desktop
+      - konsole
+      - dolphin
+      - breeze # Add breeze theme package explicitly
+
+  # --- Apply System Configurations Overlay (after packages) ---
+  - action: overlay
+    source: overlays/system-config
+  # ---------------------------------------------------------
+
+  # Define image structure *before* deploying filesystem
+  - action: image-partition
+    imagename: {{ $image }}
+    imagesize: 8GB
+    partitiontype: gpt
+    mountpoints:
+      - mountpoint: /
+        partition: root
+      - mountpoint: /boot/efi  # Mount EFI after root
+        partition: efi
+        flags: [ boot ]       # Flag needed for ESP
+    partitions:
+      - name: efi           # For UEFI boot
+        fs: vfat
+        start: 0%
+        end: 256MB
+        # Removed options: [ x-systemd.automount ] - belongs in mountpoints if needed
+      - name: root          # Root filesystem
+        fs: ext4
+        start: 256MB
+        end: 100%
+
+  # Deploy the filesystem created by debootstrap/apt/overlay actions
+  - action: filesystem-deploy
+    description: Deploying filesystem to image partitions
+
+  # --- Actions below run *after* filesystem deployment ---
+  # --- They operate on the mounted image partitions ---
+
+  # Add grub configuration overlay
+  - action: overlay
+    source: overlays/grub
+
+  # Install GRUB to the EFI partition
+  - action: run
+    chroot: true
+    command: update-grub
+
+  - action: run
+    chroot: true
+    # Refined grub-install command
+    command: grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=debian --no-nvram --removable
+
+  # Apply auto-login overlay
+  - action: overlay
+    description: Log automatically on the serial console
+    source: overlays/auto-login
+
+  # Configure system (users, ssh, services)
+  - action: run
+    description: System configuration
+    chroot: true
+    script: |
+      set -eux
+
+      # User setup
+      useradd -m -s /bin/bash neon
+      echo 'neon:neon' | chpasswd
+      usermod -aG sudo neon
+      echo 'neon ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/neon
+      chmod 440 /etc/sudoers.d/neon
+
+      # Configure SSH
+      sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+      sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+      sed -i 's/^PermitRootLogin .*/#PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
+
+      # --- Generate Locale (after overlay) ---
+      echo "Generating locale..."
+      locale-gen
+      # ------------------------------------
+
+      # Enable services
+      echo "Enabling services..."
+      systemctl enable ssh
+      systemctl enable NetworkManager
+      systemctl enable systemd-resolved
+      systemctl enable systemd-timesyncd
+      systemctl enable sddm
+
+  - action: run
+    chroot: true
+    command: echo neon-hub > /etc/hostname
+
+  # Clean apt cache
+  - action: run
+    description: Clean apt cache
+    chroot: true
+    command: apt-get clean
+
+  # --- Trim filesystem before potential packing ---
+  - action: run
+    description: Discard unused blocks
+    chroot: true
+    command: fstrim -v /
+  # ---------------------------------------------
