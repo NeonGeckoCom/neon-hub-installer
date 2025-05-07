@@ -1,0 +1,59 @@
+# Base Debian System Setup Recipe
+architecture: {{ or .architecture "amd64" }}
+
+actions:
+  - action: debootstrap
+    suite: {{ or .suite "bookworm" }}
+    mirror: {{ or .mirror "https://deb.debian.org/debian" }}
+    variant: {{ or .variant "minbase" }}
+    components:
+      - main
+      - contrib
+      - non-free-firmware
+
+  # --- Check generated sources.list ---
+  - action: run
+    description: Check sources.list
+    chroot: true
+    command: cat /etc/apt/sources.list
+  # -----------------------------------
+
+  - action: run
+    description: Initial package list update
+    chroot: true
+    command: apt-get update -y
+
+  - action: apt
+    description: Install essential packages
+    packages:
+      - apt-transport-https
+      - ca-certificates
+      - systemd-resolved
+      - systemd-timesyncd
+      - locales
+
+  - action: overlay
+    description: Apply base overlay
+    source: ../overlays/base
+
+  - action: run
+    description: Update package list after base overlay
+    chroot: true
+    command: apt-get update -y
+
+  - action: apt
+    description: Install common tools and kernel
+    packages:
+      - sudo
+      - openssh-server
+      - vim
+      - bash-completion
+      - curl
+      - wget
+      - htop
+      - git
+      - iproute2
+      - net-tools
+      - network-manager
+      - linux-image-amd64   # Kernel
+      # Note: grub-efi is moved to efi-boot recipe 

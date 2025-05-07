@@ -1,0 +1,102 @@
+# Main configuration for the Neon Hub Debian UEFI image
+# Uses recipes for modularity
+
+architecture: amd64
+
+# Define variables used by recipes and specific steps
+variables:
+  suite: bookworm
+  mirror: https://deb.debian.org/debian
+  variant: minbase
+  img_name: debian-uefi.img
+  img_size: 8GB
+  user_name: neon
+  host_name: neon-hub
+
+actions:
+  # --- Apply static resolv.conf overlay ---
+  # Applied early before network operations in base recipe
+  - action: overlay
+    source: overlays/resolv-fix
+  # ---------------------------------------
+
+  # --- Include Base System ---
+  - action: recipe
+    recipe: recipes/base-debian.yaml
+    variables:
+      suite: bookworm
+      mirror: https://deb.debian.org/debian
+      variant: minbase
+      architecture: amd64 # Pass global arch
+  # ---------------------------
+
+  # --- Include Common Firmware ---
+  - action: recipe
+    recipe: recipes/firmware-common.yaml
+    variables:
+      architecture: amd64 # Explicitly pass architecture
+  # -----------------------------
+
+  # --- Test: Install libllvm15 separately ---
+  # Specific package for this build
+  - action: apt
+    description: Install libllvm15 test
+    packages:
+      - libllvm15
+  # ----------------------------------------
+
+  # --- Include KDE Plasma Desktop ---
+  - action: recipe
+    recipe: recipes/kde-plasma.yaml
+    variables:
+      architecture: amd64
+  # --------------------------------
+
+  # --- Apply System Configurations Overlay (after packages) ---
+  # Specific overlay for this build, applied after DE install
+  - action: overlay
+    source: overlays/system-config
+  # ---------------------------------------------------------
+
+  # --- Include EFI Boot Setup ---
+  - action: recipe
+    recipe: recipes/efi-boot.yaml
+    variables:
+      architecture: amd64
+      imagename: debian-uefi.img
+      imagesize: 8GB
+  # ----------------------------
+
+  # --- Post-deployment specific configurations ---
+
+  # Apply auto-login overlay (specific to test builds, not ideal for customer-facing images)
+  - action: overlay
+    description: Log automatically on the serial console
+    source: overlays/auto-login
+
+  # --- Include User Configuration ---
+  - action: recipe
+    recipe: recipes/neon-user-config.yaml
+    variables:
+      username: neon
+      password: neon
+      architecture: amd64
+  # --------------------------------
+
+  # Set hostname
+  - action: run
+    chroot: true
+    command: "echo neon-hub > /etc/hostname"
+
+  # Enable SDDM (specific to KDE, enable after user setup)
+  - action: run
+    description: Enable SDDM service
+    chroot: true
+    command: systemctl enable sddm
+
+  # --- Include Final Cleanup ---
+  - action: recipe
+    recipe: recipes/cleanup.yaml
+    variables:
+      architecture: amd64
+  # ---------------------------

@@ -1,0 +1,30 @@
+architecture: {{ or .architecture "amd64" }}
+# KDE Plasma Desktop Environment Installation Recipe
+
+actions:
+  # --- Clean up before Plasma install ---
+  - action: run
+    description: Clean apt cache and /tmp before Plasma
+    chroot: true
+    command: |
+      set -eux
+      apt-get clean
+      rm -rf /tmp/*
+  # ------------------------------------
+
+  - action: apt
+    description: Install KDE Plasma Desktop Environment
+    packages:
+      - sddm
+      - kde-plasma-desktop
+      - plasma-workspace
+      - konsole
+      - dolphin
+      - breeze
+      - kwin-x11
+      - plasma-nm
+      - qml-module-org-kde-kitemmodels
+      - qml-module-org-kde-activities
+      - qml-module-qt-labs-platform
+      - qml-module-qtquick-controls2
+      - qml-module-qtquick-window2 

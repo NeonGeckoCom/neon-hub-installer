@@ -1,0 +1,14 @@
+# Common Firmware Installation Recipe
+architecture: {{ or .architecture "amd64" }}
+
+actions:
+  # --- Explicitly install firmware packages ---
+  - action: apt
+    description: Install common firmware packages
+    packages:
+      - firmware-linux-nonfree
+      - firmware-misc-nonfree
+      - firmware-iwlwifi
+      - firmware-realtek
+      - intel-microcode
+  # ------------------------------------------- 

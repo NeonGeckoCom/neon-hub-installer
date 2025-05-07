@@ -1,0 +1,57 @@
+# EFI Partitioning and Bootloader Installation Recipe
+# Variables expected:
+# - imagename: Name for the output image file
+# - imagesize: Size of the image (e.g., 8GB)
+
+architecture: {{ or .architecture "amd64" }}
+
+actions:
+  # Install grub-efi package needed for bootloader setup
+  - action: apt
+    description: Install EFI bootloader package
+    packages:
+      - grub-efi
+
+  # Define image structure *before* deploying filesystem
+  - action: image-partition
+    imagename: {{ or .imagename "default-efi.img" }}
+    imagesize: {{ or .imagesize "8GB" }}
+    partitiontype: gpt
+    mountpoints:
+      - mountpoint: /
+        partition: root
+      - mountpoint: /boot/efi  # Mount EFI after root
+        partition: efi
+        flags: [ boot ]       # Flag needed for ESP
+    partitions:
+      - name: efi           # For UEFI boot
+        fs: vfat
+        start: 0%
+        end: 256MB
+      - name: root          # Root filesystem
+        fs: ext4
+        start: 256MB
+        end: 100%
+
+  # Deploy the filesystem created by debootstrap/apt/overlay actions
+  - action: filesystem-deploy
+    description: Deploying filesystem to image partitions
+
+  # --- Actions below run *after* filesystem deployment ---
+  # --- They operate on the mounted image partitions ---
+
+  # Add grub configuration overlay
+  - action: overlay
+    source: ../overlays/grub
+
+  # Install GRUB to the EFI partition
+  - action: run
+    description: Update GRUB configuration
+    chroot: true
+    command: update-grub
+
+  - action: run
+    description: Install GRUB bootloader for EFI
+    chroot: true
+    # Refined grub-install command
+    command: grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=debian --no-nvram --removable 
