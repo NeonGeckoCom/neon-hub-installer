@@ -95,4 +95,5 @@ actions:
         -e 'install_neon_node_gui=0' \
         -e 'browser_package=firefox-esr' \
         -e 'start_neon_hub_services=false' \
-        ansible/hub.yaml
+        -e 'packer_build_name=debos' \
+        ../../ansible/site.yaml
