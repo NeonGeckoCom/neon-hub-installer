@@ -1,5 +1,5 @@
 # Neon Hub installation recipe
-architecture: {{ or .architecture "amd64" }}
+architecture: { { or .architecture "amd64" } }
 
 actions:
   - action: apt
@@ -25,6 +25,11 @@ actions:
       - openssl
       - ca-certificates
 
+  - action: copy
+    description: Copy ansible directory
+    src: ../../ansible
+    dst: /ansible
+
   - action: run
     description: Setup Python environment and install Ansible
     chroot: true
@@ -41,7 +46,7 @@ actions:
       ANSIBLE_VERSION="9.2.0"
       pip3 install --upgrade pip setuptools
       pip3 install ansible=="$ANSIBLE_VERSION" docker==7.1.0 requests==2.31.0
-      ansible-galaxy install -r ../../ansible/requirements.yml
+      ansible-galaxy install -r /ansible/requirements.yml
 
       # Set permissions
       chown -R neon:neon /home/neon/.venvs
@@ -96,4 +101,4 @@ actions:
         -e 'browser_package=firefox-esr' \
         -e 'start_neon_hub_services=false' \
         -e 'packer_build_name=debos' \
-        ../../ansible/site.yaml
+        /ansible/site.yaml
