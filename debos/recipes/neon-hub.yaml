@@ -41,7 +41,7 @@ actions:
       ANSIBLE_VERSION="9.2.0"
       pip3 install --upgrade pip setuptools
       pip3 install ansible=="$ANSIBLE_VERSION" docker==7.1.0 requests==2.31.0
-      ansible-galaxy install -r ansible/requirements.yml
+      ansible-galaxy install -r ../../ansible/requirements.yml
 
       # Set permissions
       chown -R neon:neon /home/neon/.venvs
