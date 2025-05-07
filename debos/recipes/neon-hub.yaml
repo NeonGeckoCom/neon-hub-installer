@@ -29,13 +29,13 @@ actions:
     description: Setup Python environment and install Ansible
     chroot: true
     command: |
-      #!/bin/bash
+      #!/bin/sh
       set -e
 
       # Create and activate virtualenv
       mkdir -p /home/neon/.venvs
       python3 -m venv /home/neon/.venvs/neon-hub
-      source /home/neon/.venvs/neon-hub/bin/activate
+      . /home/neon/.venvs/neon-hub/bin/activate
 
       # Install Ansible and dependencies
       ANSIBLE_VERSION="9.2.0"
@@ -50,7 +50,7 @@ actions:
     description: Generate and install self-signed certificate
     chroot: true
     command: |
-      #!/bin/bash
+      #!/bin/sh
       set -e
 
       # Create certificate directory
@@ -75,7 +75,7 @@ actions:
     description: Run Neon Hub installation
     chroot: true
     command: |
-      #!/bin/bash
+      #!/bin/sh
       set -e
 
       # Set environment variables
@@ -87,7 +87,7 @@ actions:
       mkdir -p /home/neon/xdg
 
       # Run Ansible playbook
-      source /home/neon/.venvs/neon-hub/bin/activate
+      . /home/neon/.venvs/neon-hub/bin/activate
       ansible-playbook -i 127.0.0.1 \
         -e 'xdg_dir=/home/neon/xdg' \
         -e 'common_name=neon-hub.local' \
