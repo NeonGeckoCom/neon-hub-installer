@@ -94,6 +94,13 @@ actions:
     chroot: true
     command: systemctl enable sddm
 
+  # --- Include Neon Hub Installation ---
+  - action: recipe
+    recipe: recipes/neon-hub.yaml
+    variables:
+      architecture: amd64
+  # ----------------------------
+
   # --- Include Final Cleanup ---
   - action: recipe
     recipe: recipes/cleanup.yaml
