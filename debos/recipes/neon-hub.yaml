@@ -28,8 +28,8 @@ actions:
   - action: overlay
     description: Copy ansible directory
     origin: recipe
-    source: ../../ansible
-    destination: /ansible
+    source: ../overlays/ansible
+    destination: /home/neon/ansible
 
   - action: run
     description: Setup Python environment and install Ansible
@@ -47,7 +47,7 @@ actions:
       ANSIBLE_VERSION="9.2.0"
       pip3 install --upgrade pip setuptools
       pip3 install ansible=="$ANSIBLE_VERSION" docker==7.1.0 requests==2.31.0
-      ansible-galaxy install -r /ansible/requirements.yml
+      ansible-galaxy install -r /home/neon/ansible/requirements.yml
 
       # Set permissions
       chown -R neon:neon /home/neon/.venvs
@@ -102,4 +102,4 @@ actions:
         -e 'browser_package=firefox-esr' \
         -e 'start_neon_hub_services=false' \
         -e 'packer_build_name=debos' \
-        /ansible/site.yaml
+        /home/neon/ansible/site.yaml
