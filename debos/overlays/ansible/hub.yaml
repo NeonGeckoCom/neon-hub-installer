@@ -281,9 +281,9 @@
     - name: Reboot the system if user says yes
       ansible.builtin.command:
         cmd: /sbin/reboot
-      when: reboot_answer.user_input | lower in ['yes', 'y']
+      when: start_neon_hub_services == "1" and reboot_answer.user_input | lower in ['yes', 'y']
       become: true
     - name: Inform the user that reboot has been triggered
       ansible.builtin.debug:
         msg: "Rebooting the system now, as requested."
-      when: reboot_answer.user_input | lower in ['yes', 'y']
+      when: start_neon_hub_services == "1" and reboot_answer.user_input | lower in ['yes', 'y']
