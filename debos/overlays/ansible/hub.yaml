@@ -64,7 +64,7 @@
     docker_packages_state: present
     docker_install_compose: true
     docker_add_repo: true
-    docker_service_state: started # Use service module instead of systemd
+    docker_service_state: enabled
     start_neon_hub_services: "1"
     # Certificate - this will change rarely
     primary_ip: "{{ ansible_default_ipv4.address }}"
