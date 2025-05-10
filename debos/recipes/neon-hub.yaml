@@ -101,5 +101,5 @@ actions:
         -e 'install_neon_node_gui=0' \
         -e 'browser_package=firefox-esr' \
         -e 'start_neon_hub_services=false' \
-        -e 'packer_build_name=debos' \
-        /home/neon/ansible/site.yaml
+        -e 'trust_self_signed_cert=true' \
+        /home/neon/ansible/hub.yaml

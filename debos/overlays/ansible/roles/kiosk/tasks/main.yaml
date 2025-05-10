@@ -1,6 +1,0 @@
----
-- name: Include kiosk setup tasks
-  ansible.builtin.import_tasks: kiosk.yaml
-
-- name: Include kiosk teardown tasks
-  ansible.builtin.import_tasks: kiosk-teardown.yaml

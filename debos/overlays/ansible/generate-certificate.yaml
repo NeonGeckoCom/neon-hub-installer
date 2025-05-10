@@ -3,13 +3,7 @@
   ansible.builtin.stat:
     path: /home/neon/{{ common_name }}.crt
   register: cert_file
-
-- name: Debug primary IP
-  ansible.builtin.debug:
-    msg: "Using primary IP: {{ primary_ip }}"
-
 - name: Generate self-signed certificate for {{ common_name }} and primary IP
-  become: true
   ansible.builtin.command:
     cmd: >
       openssl req -x509 -nodes -days 365 -newkey rsa:2048 
@@ -17,27 +11,9 @@
       -out /home/neon/{{ common_name }}.crt 
       -subj "/C={{ country }}/ST={{ state }}/L={{ location }}/O={{ organization }}/OU={{ organizational_unit }}/CN={{ common_name }}"
       -addext "subjectAltName = DNS:{{ common_name }},DNS:*.{{ common_name }},IP:{{ primary_ip }}"
+  become: yes
   when: not cert_file.stat.exists
-  register: cert_gen_result
-  failed_when: cert_gen_result.rc != 0
-
-- name: Debug certificate generation result
-  ansible.builtin.debug:
-    var: cert_gen_result
-  when: not cert_file.stat.exists
-
-- name: Check certificate exists after generation
-  ansible.builtin.stat:
-    path: /home/neon/{{ common_name }}.crt
-  register: cert_check
-
-- name: Fail if certificate wasn't generated
-  ansible.builtin.fail:
-    msg: "Certificate generation failed, file doesn't exist"
-  when: not cert_check.stat.exists
-
 - name: Set proper permissions for key and certificate
-  become: true
   ansible.builtin.file:
     path: "{{ item }}"
     owner: neon
@@ -46,13 +22,25 @@
   loop:
     - /home/neon/{{ common_name }}.key
     - /home/neon/{{ common_name }}.crt
-
+  become: yes
+# Copy certificate to system trust store
+- name: Copy certificate to system trust store
+  ansible.builtin.copy:
+    src: /home/neon/{{ common_name }}.crt
+    dest: /usr/local/share/ca-certificates/{{ common_name }}.crt
+    mode: "0644"
+  become: yes
+  when: trust_self_signed_cert == "1"
+- name: Update system trust store
+  ansible.builtin.command:
+    cmd: update-ca-certificates
+  become: yes
+  when: trust_self_signed_cert == "1"
 - name: Display certificate information
   ansible.builtin.command:
     cmd: openssl x509 -in /home/neon/{{ common_name }}.crt -text -noout
   register: cert_info
   changed_when: false
-
 - name: Show certificate details
   ansible.builtin.debug:
     var: cert_info.stdout_lines

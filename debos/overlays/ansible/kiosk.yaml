@@ -1,18 +1,15 @@
 - name: Install browser
-  become: true
   apt:
     name: "{{ browser_package }}"
     state: present
     update_cache: yes
 
 - name: Create kiosk group
-  become: true
   ansible.builtin.group:
     name: kiosk
     system: yes
 
 - name: Create kiosk user
-  become: true
   user:
     name: "{{ kiosk_user }}"
     create_home: yes
@@ -27,12 +24,12 @@
     state: directory
     owner: "{{ kiosk_user }}"
     group: "{{ kiosk_user }}"
-    mode: "0755"
+    mode: '0755'
   loop:
     - "/home/{{ kiosk_user }}/.config/autostart"
-    - "/home/{{ kiosk_user }}/.kde/Autostart" # KDE legacy path
-    - "/home/{{ kiosk_user }}/.config/plasma-workspace/autostart" # Modern KDE path
-    - "/home/{{ kiosk_user }}/.config/unity/autostart" # Unity-specific path
+    - "/home/{{ kiosk_user }}/.kde/Autostart"  # KDE legacy path
+    - "/home/{{ kiosk_user }}/.config/plasma-workspace/autostart"  # Modern KDE path
+    - "/home/{{ kiosk_user }}/.config/unity/autostart"  # Unity-specific path
 
 - name: Configure browser autostart for Gnome/KDE/Unity
   template:
@@ -40,11 +37,11 @@
     dest: "{{ item }}"
     owner: "{{ kiosk_user }}"
     group: "{{ kiosk_user }}"
-    mode: "0755"
+    mode: '0755'
   loop:
     - "/home/{{ kiosk_user }}/.config/autostart/neon-hub-kiosk.desktop"
     - "/home/{{ kiosk_user }}/.config/plasma-workspace/autostart/neon-hub-kiosk.desktop"
-    - "/home/{{ kiosk_user }}/.config/unity/autostart/neon-hub-kiosk.desktop" # Unity autostart
+    - "/home/{{ kiosk_user }}/.config/unity/autostart/neon-hub-kiosk.desktop"  # Unity autostart
 
 - name: Detect desktop environment
   command: echo $XDG_CURRENT_DESKTOP
@@ -53,7 +50,6 @@
   ignore_errors: yes
 
 - name: Configure GDM autologin (Gnome)
-  become: true
   blockinfile:
     path: "{{ item }}"
     create: yes
@@ -69,7 +65,6 @@
     - /etc/gdm3/custom.conf
 
 - name: Configure LightDM autologin (Unity)
-  become: true
   blockinfile:
     path: /etc/lightdm/lightdm.conf.d/10-autologin.conf
     create: yes
@@ -81,7 +76,6 @@
   when: "'UNITY' in desktop_environment.stdout|upper"
 
 - name: Configure SDDM autologin (KDE)
-  become: true
   blockinfile:
     path: /etc/sddm.conf.d/autologin.conf
     create: yes

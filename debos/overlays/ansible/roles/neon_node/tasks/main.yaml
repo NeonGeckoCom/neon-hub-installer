@@ -1,3 +1,0 @@
----
-- name: Include neon node setup tasks
-  ansible.builtin.include_tasks: neon-node.yaml
