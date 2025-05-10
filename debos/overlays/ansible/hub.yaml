@@ -86,12 +86,6 @@
         - install_neon_node | bool
         - install_neon_node_gui | bool
 
-    - name: Ensure systemd is properly initialized
-      ansible.builtin.systemd:
-        name: systemd
-        state: started
-        daemon_reload: yes
-
   tasks:
     # Prepare
     - name: Ensure package prerequisites are installed
