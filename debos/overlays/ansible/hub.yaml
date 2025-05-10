@@ -64,6 +64,7 @@
     docker_packages_state: present
     docker_install_compose: true
     docker_add_repo: true
+    docker_service_override: false # Skip systemd service management in chroot
     start_neon_hub_services: "1"
     # Certificate - this will change rarely
     primary_ip: "{{ ansible_default_ipv4.address }}"
@@ -84,6 +85,12 @@
       when:
         - install_neon_node | bool
         - install_neon_node_gui | bool
+
+    - name: Ensure systemd is properly initialized
+      ansible.builtin.systemd:
+        name: systemd
+        state: started
+        daemon_reload: yes
 
   tasks:
     # Prepare
