@@ -65,6 +65,7 @@
     docker_install_compose: true
     docker_add_repo: true
     docker_service_state: enabled
+    docker_service_manage: "0"
     start_neon_hub_services: "1"
     # Certificate - this will change rarely
     primary_ip: "{{ ansible_default_ipv4.address }}"
@@ -77,6 +78,12 @@
 
   roles:
     - geerlingguy.docker
+
+  post_tasks:
+    - name: Manually enable Docker service for boot
+      ansible.builtin.command:
+        cmd: systemctl enable docker
+      become: yes
 
   pre_tasks:
     - name: Validate installation options
