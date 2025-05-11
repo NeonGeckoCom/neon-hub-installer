@@ -55,5 +55,14 @@ actions:
       - iproute2
       - net-tools
       - network-manager
-      - linux-image-amd64   # Kernel
-      # Note: grub-efi is moved to efi-boot recipe 
+      - wpasupplicant # For WPA/WPA2 authentication
+      - firmware-iwlwifi # Firmware for Intel wireless cards
+      - firmware-realtek # Firmware for Realtek wireless cards
+      - firmware-atheros # Firmware for Atheros wireless cards
+      - firmware-brcm80211 # Firmware for Broadcom wireless cards
+      - linux-image-amd64 # Kernel
+      # Note: grub-efi is moved to efi-boot recipe
+
+  - action: recipe
+    description: Install audio packages
+    recipe: audio-debian.yaml
