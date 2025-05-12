@@ -94,6 +94,13 @@ actions:
     chroot: true
     command: systemctl enable sddm
 
+  # --- Audio setup ---
+  - action: recipe
+    recipe: recipes/audio-debian.yaml
+    variables:
+      architecture: amd64
+  # ----------------------------
+
   # --- Include Neon Hub Installation ---
   - action: recipe
     recipe: recipes/neon-hub.yaml
