@@ -59,7 +59,6 @@ actions:
       - git
       - iproute2
       - net-tools
-      - ping
       - pciutils
       - kmod
       - iw
@@ -72,7 +71,6 @@ actions:
       - firmware-brcm80211 # Firmware for Broadcom wireless cards
       - linux-image-amd64 # Kernel
       # Note: grub-efi is moved to efi-boot recipe
-
-  - action: recipe
-    description: Install audio packages
-    recipe: audio-debian.yaml
+# TODO: Validate everything is installed properly
+# TODO: Expand filesystem on first boot
+# TODO: First-boot experience to get connected to the internet and download/start Hub Docker services
