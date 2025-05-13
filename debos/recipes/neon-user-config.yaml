@@ -1,5 +1,5 @@
 # User Setup and Base System Configuration Recipe
-architecture: {{ or .architecture "amd64" }}
+architecture: { { or .architecture "amd64" } }
 
 actions:
   - action: run
@@ -35,4 +35,13 @@ actions:
       systemctl enable NetworkManager
       systemctl enable systemd-resolved
       systemctl enable systemd-timesyncd
-      # Note: sddm enable is handled separately after DE install 
+      # Note: sddm enable is handled separately after DE install
+
+  - action: overlay
+    description: Apply first-boot Hub setup overlay
+    source: ../overlays/first-boot-hub-setup
+
+  - action: run
+    description: Make first-boot Hub setup scripts executable
+    chroot: true
+    command: "chmod +x /usr/local/bin/neon-hub-*"
