@@ -69,8 +69,15 @@ actions:
       - firmware-realtek # Firmware for Realtek wireless cards
       - firmware-atheros # Firmware for Atheros wireless cards
       - firmware-brcm80211 # Firmware for Broadcom wireless cards
+      - cloud-guest-utils # For growpart script
       - linux-image-amd64 # Kernel
-      # Note: grub-efi is moved to efi-boot recipe
-# TODO: Validate everything is installed properly
-# TODO: Expand filesystem on first boot
+
+  - action: overlay
+    description: Apply first-boot resize overlay
+    source: ../overlays/first-boot-resize
+
+  - action: run
+    description: Enable first-boot resize service
+    chroot: true
+    command: systemctl enable growpart-and-resizefs-root.service
 # TODO: First-boot experience to get connected to the internet and download/start Hub Docker services

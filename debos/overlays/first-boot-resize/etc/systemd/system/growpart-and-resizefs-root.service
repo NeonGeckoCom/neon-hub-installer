@@ -1,0 +1,19 @@
+[Unit]
+Description=Resize root partition and filesystem on first boot
+DefaultDependencies=no
+After=systemd-remount-fs.service systemd-fsck-root.service local-fs-pre.target
+Before=local-fs.target shutdown.target
+ConditionFirstBoot=yes
+
+[Service]
+Type=oneshot
+# Determine the root device and partition number dynamically
+# Assumes root (/) is on a partition like /dev/sdXN or /dev/nvmeXnYpN
+# Adjust the grep pattern if your device naming is different (e.g., mmcblk)
+ExecStart=/bin/sh -c 'ROOT_DEV=$(findmnt -n -o SOURCE /); ROOT_DISK=$(lsblk -n -o PKNAME "$ROOT_DEV"); ROOT_PART_NUM=$(echo "$ROOT_DEV" | grep -oE "[0-9]+$"); /usr/bin/growpart "/dev/$ROOT_DISK" "$ROOT_PART_NUM" && /sbin/resize2fs "$ROOT_DEV"'
+RemainAfterExit=yes
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=local-fs.target 
