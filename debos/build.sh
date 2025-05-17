@@ -11,4 +11,9 @@ docker run \
 --tmpfs /tmp:exec,size=8G \
 godebos/debos -vvvv -m 12G hub-efi.yaml
 
-gzip debian-uefi.img
+export TIMESTAMP=$(date +%s)
+export IMG_NAME="neon-hub-amd64_${TIMESTAMP}.img"
+mv debian-uefi.img "${IMG_NAME}"
+gzip "${IMG_NAME}"
+
+echo "Image built: ${IMG_NAME}.gz"

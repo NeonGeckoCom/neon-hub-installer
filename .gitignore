@@ -10,3 +10,10 @@ ansible/roles/geerlingguy.docker/
 *.retry
 *.img
 *.gz
+*.tar
+*.iso
+*.img.xz
+*.img.zst
+*.img.bz2
+*.img.lz4
+*.img.lzma

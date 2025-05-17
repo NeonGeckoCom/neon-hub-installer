@@ -14,7 +14,7 @@ This repository contains the configuration files to build a custom Debian Bookwo
 3.  Run `debos` using the provided YAML configuration file:
 
     ```bash
-    sudo debos hub-efi.yaml
+    sudo debos hub-efi.yaml # sudo can be omitted if your user is in the kvm group
     ```
 
     This command will:
@@ -26,7 +26,7 @@ This repository contains the configuration files to build a custom Debian Bookwo
     *   Install and configure the GRUB UEFI bootloader.
     *   Perform system configuration (user setup, SSH, services).
 
-4.  The resulting image file (`debian-uefi.img` by default) will be created in the current directory.
+4.  The resulting image file (`neon-hub-amd64_{timestamp}.img` by default) will be created in the current directory.
 
 ## Image Features
 
