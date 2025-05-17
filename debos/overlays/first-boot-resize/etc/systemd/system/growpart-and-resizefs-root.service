@@ -3,7 +3,6 @@ Description=Resize root partition and filesystem on first boot
 DefaultDependencies=no
 After=systemd-remount-fs.service systemd-fsck-root.service local-fs-pre.target
 Before=local-fs.target shutdown.target
-ConditionFirstBoot=yes
 
 [Service]
 Type=oneshot
