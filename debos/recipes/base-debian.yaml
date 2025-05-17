@@ -81,8 +81,3 @@ actions:
     description: Enable first-boot resize service
     chroot: true
     command: systemctl enable growpart-and-resizefs-root.service
-
-  - action: run
-    description: Make first-boot Hub setup scripts executable
-    chroot: true
-    command: find /usr/local/bin/neon-hub-* /etc/profile.d/99-neon-hub-setup.sh -type f -exec chmod +x {} \;

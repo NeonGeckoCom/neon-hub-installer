@@ -40,8 +40,3 @@ actions:
   - action: overlay
     description: Apply first-boot Hub setup overlay
     source: ../overlays/first-boot-hub-setup
-
-  - action: run
-    description: Make first-boot Hub setup scripts executable
-    chroot: true
-    command: "chmod +x /usr/local/bin/neon-hub-*"
