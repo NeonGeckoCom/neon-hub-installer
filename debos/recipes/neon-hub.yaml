@@ -1,5 +1,5 @@
 # Neon Hub installation recipe
-architecture: { { or .architecture "amd64" } }
+architecture: {{ or .architecture "amd64" }}
 
 actions:
   - action: apt
