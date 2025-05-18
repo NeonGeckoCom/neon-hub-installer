@@ -1,5 +1,5 @@
 # User Setup and Base System Configuration Recipe
-architecture: { { or .architecture "amd64" } }
+architecture: {{ or .architecture "amd64" }}
 
 actions:
   - action: run
