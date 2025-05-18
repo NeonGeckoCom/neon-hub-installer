@@ -64,6 +64,7 @@ actions:
       - kmod
       - iw
       - rfkill
+      - fbi
       - network-manager
       - wpasupplicant # For WPA/WPA2 authentication
       - firmware-iwlwifi # Firmware for Intel wireless cards
