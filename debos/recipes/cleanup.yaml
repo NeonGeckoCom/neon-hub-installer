@@ -8,9 +8,14 @@ actions:
     chroot: true
     command: apt-get clean
 
+  - action: run
+    description: Restore home permissions
+    chroot: true
+    command: chown -R neon:neon /home/neon
+
   # --- Trim filesystem before potential packing ---
   - action: run
     description: Discard unused blocks
     chroot: true
     command: fstrim -v /
-  # --------------------------------------------- 
+  # ---------------------------------------------

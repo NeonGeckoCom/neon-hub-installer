@@ -1,11 +1,11 @@
 # Base Debian System Setup Recipe
-architecture: {{ or .architecture "amd64" }}
+architecture: { { or .architecture "amd64" } }
 
 actions:
   - action: debootstrap
-    suite: {{ or .suite "bookworm" }}
-    mirror: {{ or .mirror "https://deb.debian.org/debian" }}
-    variant: {{ or .variant "standard" }}
+    suite: { { or .suite "bookworm" } }
+    mirror: { { or .mirror "https://deb.debian.org/debian" } }
+    variant: { { or .variant "standard" } }
     components:
       - main
       - contrib
@@ -59,6 +59,7 @@ actions:
       - git
       - iproute2
       - net-tools
+      - iputils-ping
       - pciutils
       - kmod
       - iw
