@@ -29,13 +29,13 @@ while true; do
   fi
 done
 
-kdialog --title "$DEFAULT_TITLE" --msgbox "Starting Neon Hub setup...you will receive a notification when it is complete."
+kdialog --title "$DEFAULT_TITLE" --msgbox "Starting Neon Hub setup...\n\nThis will take some time. You will receive a notification when it is complete."
 declare -i RESULT
-RESULT=$(docker compose -f /home/neon/neon-hub/docker-compose.yml up -d)
+RESULT=$(docker compose -f /home/neon/compose/neon-hub.yml up)
 
 if [ "$RESULT" = "0" ]; then
   kdialog --title "Setup Complete" --msgbox "Your system has been successfully configured!\n\nWelcome to your new Neon Hub.\n\nMore information can be found at https://neongeckocom.github.io/neon-hub-installer/"
-  mv /home/neon/.local/share/applications/neon-hub-setup.desktop /home/neon/.config/autostart/neon-hub-setup.desktop.done
+  mv /home/neon/.config/autostart/neon-hub-setup.desktop /home/neon/.config/autostart/neon-hub-setup.desktop.done
 else
   kdialog --title "Setup Warning" --sorry "There was an issue completing setup.\n\nMore information available at $WRAPPER_DEBUG_LOG.\n\nSetup can be run again by restarting the system."
 fi
