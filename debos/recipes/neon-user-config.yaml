@@ -1,5 +1,5 @@
 # User Setup and Base System Configuration Recipe
-architecture: {{ or .architecture "amd64" }}
+architecture: { { or .architecture "amd64" } }
 
 actions:
   - action: run
@@ -40,3 +40,7 @@ actions:
   - action: overlay
     description: Apply first-boot Hub setup overlay
     source: ../overlays/first-boot-hub-setup
+
+  - action: overlay
+    description: Apply splash screen overlay
+    source: ../overlays/007-splash-screen
