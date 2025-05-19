@@ -18,3 +18,23 @@ Neon Hub is perfect for:
 Detailed documentation is available at [https://neongeckocom.github.io/neon-hub-installer](https://neongeckocom.github.io/neon-hub-installer).
 
 It can be accessed locally by [installing mkdocs](https://www.mkdocs.org/getting-started/) and running `mkdocs serve` in the root of the repository.
+
+## Neon Hub Image
+
+Official Neon Hub images can be built using the [`build.sh`](./debos/build.sh) script in the `debos` folder of the repository.
+
+```bash
+./debos/build.sh
+```
+
+You will need to have Docker installed to build the image, and the user you run the script with needs to have access to the Docker socket and the `sudo` command. Alternately, your user can be in the `kvm` group to avoid the need for `sudo`.
+
+The script will build the image and save it as `neon-hub-amd64_<date>.img.gz`.
+
+The Hub image is a fairly minimal Debian 12 image with KDE Plasma installed. It is simpler to load your preferred version of Ubuntu or Debian and use the installer tool to create a Hub, and _this is the recommended approach_.
+
+If you choose to build the image yourself, it will be a bootable image that can be burned to a USB drive using a tool like [balenaEtcher](https://www.balena.io/etcher/). This can be a great way to test Neon Hub before installing on your preferred hardware.
+
+To install on your preferred hardware, Neon recommends [a Debian live install image](https://www.debian.org/CD/live/) along with the Hub image. Boot from the live image and use `dd` to write the Hub image to your preferred hardware's primary storage device.
+
+**WARNING:** Improperly using `dd` can result in data loss on your preferred hardware. Please ensure you have made proper backups of any data on the hardware before proceeding. Again, for most users, it is recommended to use the installer tool to create a Hub or purchase hardware with Neon Hub pre-installed (not yet available).

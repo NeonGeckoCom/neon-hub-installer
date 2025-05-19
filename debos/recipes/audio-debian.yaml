@@ -6,7 +6,6 @@ actions:
     description: Install PipeWire and ALSA audio packages
     packages:
       - pipewire
-      - kpipewire
       - pipewire-pulse # For PulseAudio compatibility
       - pipewire-alsa # For ALSA compatibility
       - wireplumber # Session manager for PipeWire
