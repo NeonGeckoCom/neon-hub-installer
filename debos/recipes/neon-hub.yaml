@@ -107,4 +107,4 @@ actions:
   - action: overlay
     description: Copy desktop files for Neon Hub in KDE Plasma
     origin: recipe
-    source: ../overlays/kde-plasma
+    source: ../overlays/neon-hub-desktop-files
