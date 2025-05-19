@@ -44,6 +44,7 @@ actions:
   - action: apt
     description: Install common tools and kernel
     packages:
+      - apt-utils
       - sudo
       - openssh-server
       - vim

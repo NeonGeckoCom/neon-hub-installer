@@ -44,3 +44,9 @@ actions:
   - action: overlay
     description: Apply splash screen overlay
     source: ../overlays/007-splash-screen
+
+  - action: run
+    chroot: true
+    command: |-
+      systemctl enable splashscreen.service
+      systemctl enable --user -M neon@ wallpaper.service

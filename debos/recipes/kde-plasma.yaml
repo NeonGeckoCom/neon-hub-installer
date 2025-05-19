@@ -11,7 +11,6 @@ actions:
       apt-get clean
       rm -rf /tmp/*
   # ------------------------------------
-
   - action: apt
     description: Install KDE Plasma Desktop Environment
     packages:
@@ -30,4 +29,18 @@ actions:
       - qml-module-org-kde-activities
       - qml-module-qt-labs-platform
       - qml-module-qtquick-controls2
-      - qml-module-qtquick-window2 
+      - qml-module-qtquick-window2
+      - plasma-discover
+      - kio-admin
+      - kio-extras
+      - kio-fuse
+      - maliit-keyboard
+      - orca
+      - power-profiles-daemon
+      - switcheroo-control
+      - xdg-desktop-portal-gtk
+      - xsettingsd
+      - plasma-firewall
+      - plasma-nm
+      - plasma-vault
+      - systemsettings

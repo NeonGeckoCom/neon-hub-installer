@@ -5,7 +5,7 @@ After=local-fs.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/plasma-apply-wallpaperimage /opt/neon/splashscreen.png
+ExecStart=/usr/bin/plasma-apply-wallpaperimage /opt/neon/splashscreen.png && /usr/bin/lookandfeeltool -a org.kde.breezedark.desktop
 RemainAfterExit=yes
 StandardOutput=journal+console
 StandardError=journal+console
