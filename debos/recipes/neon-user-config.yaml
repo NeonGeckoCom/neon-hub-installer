@@ -49,4 +49,6 @@ actions:
     chroot: true
     command: |-
       systemctl enable splashscreen.service
-      systemctl enable --user -M neon@ wallpaper.service
+      mkdir -p /home/neon/.config/systemd/user/default.target.wants
+      ln -sf /home/neon/.config/systemd/user/wallpaper.service /home/neon/.config/systemd/user/default.target.wants/wallpaper.service
+      chown -R neon:neon /home/neon/.config
