@@ -1,14 +1,15 @@
 [Unit]
 Description=Set Neon splash screen as user wallpaper
 DefaultDependencies=no
-After=local-fs.target
+After=plasma-workspace.target
+Requires=plasma-workspace.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/plasma-apply-wallpaperimage /opt/neon/splashscreen.png && /usr/bin/lookandfeeltool -a org.kde.breezedark.desktop
+ExecStart=/usr/bin/plasma-apply-wallpaperimage /opt/neon/splashscreen.png
 RemainAfterExit=yes
 StandardOutput=journal+console
 StandardError=journal+console
 
 [Install]
-WantedBy=local-fs.target
+WantedBy=plasma-workspace.target

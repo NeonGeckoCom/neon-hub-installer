@@ -3,9 +3,6 @@ Description=Splash screen
 DefaultDependencies=no
 Requires=systemd-udev-settle.service
 After=systemd-udev-settle.service
-# Ensure it runs before and is stopped by the main graphical environment
-Before=graphical.target display-manager.service
-Conflicts=graphical.target display-manager.service
 
 [Service]
 # Type=simple is default, fbi should keep running displaying the image
