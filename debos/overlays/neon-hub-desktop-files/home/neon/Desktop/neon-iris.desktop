@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Link
+Name=Iris (Neon Hub)
+Comment=Access the Iris service on Neon Hub
+URL=https://iris.neon-hub.local
+Icon=web-browser
+Categories=Network;WebBrowser;X-NeonHub;
+Terminal=false
+StartupNotify=false 

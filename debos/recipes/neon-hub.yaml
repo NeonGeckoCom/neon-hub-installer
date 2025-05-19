@@ -103,3 +103,8 @@ actions:
         -e 'start_neon_hub_services=false' \
         -e 'trust_self_signed_cert=true' \
         /home/neon/ansible/hub.yaml
+
+  - action: overlay
+    description: Copy desktop files for Neon Hub in KDE Plasma
+    origin: recipe
+    source: ../overlays/kde-plasma

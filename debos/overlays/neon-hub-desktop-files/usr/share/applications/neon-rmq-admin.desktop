@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=RabbitMQ Admin (Neon Hub)
+Comment=Access the RabbitMQ Admin service on Neon Hub
+Exec=firefox-esr https://rmq-admin.neon-hub.local
+URL=https://rmq-admin.neon-hub.local
+Icon=web-browser
+Categories=Network;WebBrowser;X-NeonHub;
+Terminal=false
+StartupNotify=false 

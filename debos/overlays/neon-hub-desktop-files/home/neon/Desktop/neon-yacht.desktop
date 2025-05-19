@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Link
+Name=Yacht (Neon Hub)
+Comment=Access the Yacht service on Neon Hub
+URL=https://yacht.neon-hub.local
+Icon=web-browser
+Categories=Network;WebBrowser;X-NeonHub;
+Terminal=false
+StartupNotify=false 
