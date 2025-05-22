@@ -108,6 +108,13 @@ actions:
       architecture: amd64
   # ----------------------------
 
+  # --- Include Update Clock ---
+  - action: recipe
+    recipe: recipes/update-clock.yaml
+    variables:
+      architecture: amd64
+  # ----------------------------
+
   # --- Include Final Cleanup ---
   - action: recipe
     recipe: recipes/cleanup.yaml

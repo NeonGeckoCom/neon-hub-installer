@@ -4,6 +4,10 @@ For more technical users, you can access the RabbitMQ management console at `htt
 
 You can also use Neon's `mana` command to interact with the Neon AI system. It is installed in the neon-messagebus container. To use it, run `docker exec -it $(docker ps -q -f name=neon-messagebus) mana -h`.
 
+## Docker container log access and troubleshooting
+
+For debugging issues with the Docker containers, use `http://yacht.neon-hub.local` to access the Yacht container manager. The default username and password are `admin@yacht.local` and `pass` respectively.
+
 ## Updating Neon Hub fails with `General error: Error response from daemon: Conflict.`
 
 Sometimes you need to remove the existing containers to update. You can do so with the following commands. Please note that it will remove ALL running and saved containers, so if you are running containers besides from Neon Hub, they will also be shut down:

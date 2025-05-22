@@ -108,3 +108,13 @@ actions:
     description: Copy desktop files for Neon Hub in KDE Plasma
     origin: recipe
     source: ../overlays/neon-hub-desktop-files
+
+  - action: run
+    description: Set RabbitMQ permissions
+    chroot: true
+    command: |
+      #!/bin/sh
+      set -e
+
+      # Set permissions
+      chown -R 999:999 /home/neon/xdg/config/rabbitmq

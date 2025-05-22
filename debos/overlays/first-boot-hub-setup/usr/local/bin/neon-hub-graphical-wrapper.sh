@@ -4,6 +4,10 @@ WRAPPER_DEBUG_DIR="/tmp/neon-hub-logs"
 mkdir -p "$WRAPPER_DEBUG_DIR"
 WRAPPER_DEBUG_LOG="$WRAPPER_DEBUG_DIR/graphical-wrapper.log"
 
+if [ -f /home/neon/.config/autostart/neon-hub-setup.done ]; then
+  exit 0
+fi
+
 # Log start time and environment
 echo "===========================================" > "$WRAPPER_DEBUG_LOG"
 echo "$(date): GRAPHICAL WRAPPER STARTED" >> "$WRAPPER_DEBUG_LOG"
@@ -57,5 +61,5 @@ done
 
 if [ "$RESULT" = "0" ]; then
   kdialog --title "Setup Complete" --msgbox "Your system has been successfully configured!\n\nWelcome to your new Neon Hub.\n\nMore information can be found at https://neongeckocom.github.io/neon-hub-installer/"
-  mv /home/neon/.config/autostart/neon-hub-setup.desktop /home/neon/.config/autostart/neon-hub-setup.desktop.done
+  touch /home/neon/.config/autostart/neon-hub-setup.done
 fi

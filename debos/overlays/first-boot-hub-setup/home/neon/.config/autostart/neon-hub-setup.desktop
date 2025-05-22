@@ -4,3 +4,4 @@ Name=Neon Hub Initial Setup
 Comment=Performs initial setup for Neon Hub Docker services
 Exec=/usr/local/bin/neon-hub-graphical-wrapper.sh
 Icon=/home/neon/.icons/neon.ico
+Terminal=true

@@ -24,12 +24,15 @@ It can be accessed locally by [installing mkdocs](https://www.mkdocs.org/getting
 Official Neon Hub images can be built using the [`build.sh`](./debos/build.sh) script in the `debos` folder of the repository.
 
 ```bash
-./debos/build.sh
+cd debos
+./build.sh
 ```
 
 You will need to have Docker installed to build the image, and the user you run the script with needs to have access to the Docker socket and the `sudo` command. Alternately, your user can be in the `kvm` group to avoid the need for `sudo`.
 
-The script will build the image and save it as `neon-hub-amd64_<date>.img.gz`.
+The script will build the image and save it as `neon-hub-amd64_<date>.img.gz`. The image can only be used with UEFI secure boot disabled at this time.
+
+Some users have reported errors on first boot, specifically: `startkde: Could not start Plasma session.` This can be worked around by rebooting the system.
 
 The Hub image is a fairly minimal Debian 12 image with KDE Plasma installed. It is simpler to load your preferred version of Ubuntu or Debian and use the installer tool to create a Hub, and _this is the recommended approach_.
 
