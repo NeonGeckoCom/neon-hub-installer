@@ -15,6 +15,6 @@ Yacht Docker Management and Logs: https://yacht.neon-hub.local
 Libretranslate Translation Service: https://libretranslate.neon-hub.local
 RabbitMQ Administration Page: https://rmq-admin.neon-hub.local
 
-The two IRIS services require additional setup. See the official documentation for instructions for more technical users: hhttps://neongeckocom.github.io/neon-hub-installer/service-details/#custom-ssl-certificate
+The two IRIS services require additional setup. See the official documentation for instructions for more technical users: https://neongeckocom.github.io/neon-hub-installer/service-details/#custom-ssl-certificate
 Neon IRIS: https://iris.neon-hub.local
 Neon IRIS Web Satellite: https://iris-websat.neon-hub.local
