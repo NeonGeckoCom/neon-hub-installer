@@ -27,3 +27,4 @@ EnvironmentFile=-/etc/default/locale
 
 [Install]
 Alias=display-manager.service
+WantedBy=graphical.target
