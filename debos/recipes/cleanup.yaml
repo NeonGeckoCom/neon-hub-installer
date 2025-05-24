@@ -13,6 +13,11 @@ actions:
     chroot: true
     command: chown -R neon:neon /home/neon
 
+  - action: run
+    description: Restore RabbitMQ permissions
+    chroot: true
+    command: chown -R 999:999 /home/neon/xdg/config/rabbitmq
+
   # --- Trim filesystem before potential packing ---
   - action: run
     description: Discard unused blocks

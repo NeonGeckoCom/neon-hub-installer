@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Set Default Wallpaper
+Exec=/usr/local/bin/set-default-wallpaper.sh
+Hidden=false
+X-KDE-autostart-condition=rcfile
