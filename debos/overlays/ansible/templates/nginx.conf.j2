@@ -117,6 +117,10 @@ http {
             proxy_set_header X-Forwarded-Proto $scheme;
             add_header X-Debug-Host $host;
             add_header X-Debug-Server-Name $server_name;
+
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Upgrade $http_upgrade;
+
             proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
             proxy_intercept_errors on;
             error_page 502 503 504 = @fallback;
