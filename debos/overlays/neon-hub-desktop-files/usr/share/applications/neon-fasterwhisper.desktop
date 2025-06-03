@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Fasterwhisper (Neon Hub)
+Comment=Access the Fasterwhisper service on Neon Hub
+Exec=firefox-esr https://fasterwhisper.neon-hub.local
+URL=https://fasterwhisper.neon-hub.local
+Icon=/home/neon/.icons/neon.ico
+Categories=Network;WebBrowser;X-NeonHub;
+Terminal=false
+StartupNotify=false 

@@ -1,0 +1,14 @@
+architecture: {{ .architecture }}
+
+actions:
+  - action: overlay
+    description: Overlay final services
+    source: ../overlays/027-update-clock
+    destination: /
+
+  - action: run
+    description: Enable clock reset service
+    chroot: true
+    command: |
+      chmod ugo+x /opt/neon/check_clock
+      systemctl enable update-clock

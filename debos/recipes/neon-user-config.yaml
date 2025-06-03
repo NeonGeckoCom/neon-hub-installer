@@ -1,0 +1,54 @@
+# User Setup and Base System Configuration Recipe
+architecture: {{ or .architecture "amd64" }}
+
+actions:
+  - action: run
+    description: System configuration (user, ssh, locale, base services)
+    chroot: true
+    script: |
+      # Shebang removed as it might cause issues within recipes
+      set -eux
+
+      USERNAME={{ or .username "neon" }}
+      PASSWORD={{ or .password "neon" }}
+
+      # User setup
+      useradd -m -s /bin/bash "$USERNAME"
+      echo "$USERNAME:$PASSWORD" | chpasswd
+      usermod -aG sudo "$USERNAME"
+      echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/"$USERNAME"
+      chmod 440 /etc/sudoers.d/"$USERNAME"
+
+      # Configure SSH
+      sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+      sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+      sed -i 's/^PermitRootLogin .*/#PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
+
+      # --- Generate Locale (after overlay) ---
+      echo "Generating locale..."
+      locale-gen
+      # ------------------------------------
+
+      # Enable base services
+      echo "Enabling base services..."
+      systemctl enable ssh
+      systemctl enable NetworkManager
+      systemctl enable systemd-resolved
+      systemctl enable systemd-timesyncd
+      # Note: sddm enable is handled separately after DE install
+
+  - action: overlay
+    description: Apply first-boot Hub setup overlay
+    source: ../overlays/first-boot-hub-setup
+
+  - action: overlay
+    description: Apply splash screen overlay
+    source: ../overlays/007-splash-screen
+
+  - action: run
+    chroot: true
+    command: |-
+      systemctl enable splashscreen.service
+      mkdir -p /home/neon/.config/systemd/user/default.target.wants
+      ln -sf /home/neon/.config/systemd/user/wallpaper.service /home/neon/.config/systemd/user/default.target.wants/wallpaper.service
+      chown -R neon:neon /home/neon/.config

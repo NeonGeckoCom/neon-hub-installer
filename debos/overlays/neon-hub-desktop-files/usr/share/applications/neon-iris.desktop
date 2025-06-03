@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Iris (Neon Hub)
+Comment=Access the Iris service on Neon Hub
+Exec=firefox-esr https://iris.neon-hub.local
+URL=https://iris.neon-hub.local
+Icon=/home/neon/.icons/neon.ico
+Categories=Network;WebBrowser;X-NeonHub;
+Terminal=false
+StartupNotify=false 

@@ -1,0 +1,14 @@
+# Audio Support Recipe (PipeWire)
+architecture: {{ or .architecture "amd64" }}
+
+actions:
+  - action: apt
+    description: Install PipeWire and ALSA audio packages
+    packages:
+      - pipewire
+      - pipewire-pulse # For PulseAudio compatibility
+      - pipewire-alsa # For ALSA compatibility
+      - wireplumber # Session manager for PipeWire
+      - libspa-0.2-bluetooth # For Bluetooth audio support with PipeWire
+      - alsa-utils # Advanced Linux Sound Architecture utilities
+      - pavucontrol # PulseAudio Volume Control (works with PipeWire-Pulse)

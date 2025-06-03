@@ -64,6 +64,9 @@
     docker_packages_state: present
     docker_install_compose: true
     docker_add_repo: true
+    docker_service_state: enabled
+    docker_service_manage: "0"
+    start_neon_hub_services: "1"
     # Certificate - this will change rarely
     primary_ip: "{{ ansible_default_ipv4.address }}"
     country: US
@@ -71,9 +74,16 @@
     location: Bellevue
     organization: Neon
     organizational_unit: Neon
+    trust_self_signed_cert: "0"
 
   roles:
     - geerlingguy.docker
+
+  post_tasks:
+    - name: Manually enable Docker service for boot
+      ansible.builtin.command:
+        cmd: systemctl enable docker
+      become: yes
 
   pre_tasks:
     - name: Validate installation options
@@ -115,16 +125,16 @@
         name: "{{ ansible_user | default(lookup('env', 'USER')) }}"
         append: yes
         groups:
-         - neon
-         - docker
+          - neon
+          - docker
     - name: Add neon to audio, docker, and systemd-journal groups
       ansible.builtin.user:
         name: neon
         append: yes
         groups:
-         - audio
-         - docker
-         - systemd-journal
+          - audio
+          - docker
+          - systemd-journal
     # Set up prerequisite folders
     - name: Create Neon folders with 2775 permissions
       ansible.builtin.file:
@@ -218,6 +228,7 @@
         group: neon
     # Deploy
     - name: Download and Start Core and Hub
+      when: start_neon_hub_services == "1"
       community.docker.docker_compose_v2:
         project_src: /home/neon/compose
         project_name: neon
@@ -255,7 +266,7 @@
       import_tasks: kiosk-teardown.yaml
       when:
         - install_neon_node_gui == "0"
-        - previous_install.stat.exists  
+        - previous_install.stat.exists
     # Finish
     - name: Create file indicating successful deployment
       ansible.builtin.file:
@@ -266,12 +277,13 @@
       ansible.builtin.pause:
         prompt: "Do you want to reboot the system? Recommended after first installation. (yes/no)"
       register: reboot_answer
+      when: start_neon_hub_services == "1"
     - name: Reboot the system if user says yes
       ansible.builtin.command:
         cmd: /sbin/reboot
-      when: reboot_answer.user_input | lower in ['yes', 'y']
+      when: start_neon_hub_services == "1" and reboot_answer.user_input | lower in ['yes', 'y']
       become: true
     - name: Inform the user that reboot has been triggered
       ansible.builtin.debug:
         msg: "Rebooting the system now, as requested."
-      when: reboot_answer.user_input | lower in ['yes', 'y']
+      when: start_neon_hub_services == "1" and reboot_answer.user_input | lower in ['yes', 'y']

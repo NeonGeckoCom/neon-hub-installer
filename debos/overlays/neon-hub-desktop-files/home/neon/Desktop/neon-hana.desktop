@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Link
+Name=HANA (Neon Hub)
+Comment=Access the HANA service on Neon Hub
+URL=https://hana.neon-hub.local
+Icon=/home/neon/.icons/neon.ico
+Categories=Network;WebBrowser;X-NeonHub;
+Terminal=false
+StartupNotify=false 

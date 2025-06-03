@@ -3,3 +3,17 @@ neon_hub_secrets.yaml
 xdg/
 .DS_Store
 .venv/
+output/
+output-base/
+ansible/roles/geerlingguy.docker/
+
+*.retry
+*.img
+*.gz
+*.tar
+*.iso
+*.img.xz
+*.img.zst
+*.img.bz2
+*.img.lz4
+*.img.lzma

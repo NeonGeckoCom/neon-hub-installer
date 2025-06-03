@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=HANA (Neon Hub)
+Comment=Access the HANA service on Neon Hub
+Exec=firefox-esr https://hana.neon-hub.local
+URL=https://hana.neon-hub.local
+Icon=/home/neon/.icons/neon.ico
+Categories=Network;WebBrowser;X-NeonHub;
+Terminal=false
+StartupNotify=false 

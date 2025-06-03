@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Coqui TTS (Neon Hub)
+Comment=Access the Coqui TTS service on Neon Hub
+Exec=firefox-esr https://coqui.neon-hub.local
+URL=https://coqui.neon-hub.local
+Icon=/home/neon/.icons/neon.ico
+Categories=Network;WebBrowser;X-NeonHub;
+Terminal=false
+StartupNotify=false 

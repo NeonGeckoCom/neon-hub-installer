@@ -1,0 +1,86 @@
+# Base Debian System Setup Recipe
+architecture: {{ or .architecture "amd64" }}
+
+actions:
+  - action: debootstrap
+    suite: {{ or .suite "bookworm" }}
+    mirror: {{ or .mirror "https://deb.debian.org/debian" }}
+    variant: {{ or .variant "standard" }}
+    components:
+      - main
+      - contrib
+      - non-free-firmware
+
+  # --- Check generated sources.list ---
+  - action: run
+    description: Check sources.list
+    chroot: true
+    command: cat /etc/apt/sources.list
+  # -----------------------------------
+
+  - action: run
+    description: Initial package list update
+    chroot: true
+    command: apt-get update -y
+
+  - action: apt
+    description: Install essential packages
+    packages:
+      - apt-transport-https
+      - ca-certificates
+      - systemd-resolved
+      - systemd-timesyncd
+      - locales
+
+  - action: overlay
+    description: Apply base overlay
+    source: ../overlays/base
+
+  - action: run
+    description: Update package list after base overlay
+    chroot: true
+    command: apt-get update -y
+
+  - action: apt
+    description: Install common tools and kernel
+    packages:
+      - apt-utils
+      - sudo
+      - openssh-server
+      - vim
+      - bash-completion
+      - curl
+      - wget
+      - firefox-esr
+      - inxi # Great for system information
+      - lm-sensors
+      - smartmontools
+      - memtest86+
+      - htop
+      - git
+      - iproute2
+      - net-tools
+      - iputils-ping
+      - pciutils
+      - kmod
+      - iw
+      - rfkill
+      - fbi
+      - network-manager
+      - wpasupplicant # For WPA/WPA2 authentication
+      - firmware-iwlwifi # Firmware for Intel wireless cards
+      - firmware-realtek # Firmware for Realtek wireless cards
+      - firmware-atheros # Firmware for Atheros wireless cards
+      - firmware-brcm80211 # Firmware for Broadcom wireless cards
+      - kdialog # For graphical dialogs in scripts
+      - cloud-guest-utils # For growpart script
+      - linux-image-amd64 # Kernel
+
+  - action: overlay
+    description: Apply first-boot resize overlay
+    source: ../overlays/first-boot-resize
+
+  - action: run
+    description: Enable first-boot resize service
+    chroot: true
+    command: systemctl enable growpart-and-resizefs-root.service

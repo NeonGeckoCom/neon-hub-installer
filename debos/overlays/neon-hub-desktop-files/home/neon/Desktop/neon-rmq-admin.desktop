@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Link
+Name=RabbitMQ Admin (Neon Hub)
+Comment=Access the RabbitMQ Admin service on Neon Hub
+URL=https://rmq-admin.neon-hub.local
+Icon=/home/neon/.icons/neon.ico
+Categories=Network;WebBrowser;X-NeonHub;
+Terminal=false
+StartupNotify=false 

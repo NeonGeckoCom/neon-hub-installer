@@ -1,0 +1,26 @@
+architecture: {{ or .architecture "amd64" }}
+# Final Cleanup Recipe
+
+actions:
+  # Clean apt cache
+  - action: run
+    description: Clean apt cache
+    chroot: true
+    command: apt-get clean
+
+  - action: run
+    description: Restore home permissions
+    chroot: true
+    command: chown -R neon:neon /home/neon
+
+  - action: run
+    description: Restore RabbitMQ permissions
+    chroot: true
+    command: chown -R 999:999 /home/neon/xdg/config/rabbitmq
+
+  # --- Trim filesystem before potential packing ---
+  - action: run
+    description: Discard unused blocks
+    chroot: true
+    command: fstrim -v /
+  # ---------------------------------------------

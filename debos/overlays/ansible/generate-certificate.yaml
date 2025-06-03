@@ -23,6 +23,19 @@
     - /home/neon/{{ common_name }}.key
     - /home/neon/{{ common_name }}.crt
   become: yes
+# Copy certificate to system trust store
+- name: Copy certificate to system trust store
+  ansible.builtin.copy:
+    src: /home/neon/{{ common_name }}.crt
+    dest: /usr/local/share/ca-certificates/{{ common_name }}.crt
+    mode: "0644"
+  become: yes
+  when: trust_self_signed_cert == "1"
+- name: Update system trust store
+  ansible.builtin.command:
+    cmd: update-ca-certificates
+  become: yes
+  when: trust_self_signed_cert == "1"
 - name: Display certificate information
   ansible.builtin.command:
     cmd: openssl x509 -in /home/neon/{{ common_name }}.crt -text -noout

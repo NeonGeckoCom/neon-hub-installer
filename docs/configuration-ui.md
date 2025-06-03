@@ -1,6 +1,6 @@
 # Hub Configuration UI
 
-Neon Hub ships with a configuration UI. It is available on port 8005, or at `config.neon-hub.local` by default. The configuration UI allows you to set common configuration values without editing files in your Neon Hub system.
+Neon Hub ships with a configuration UI. It is available on port 8005, or at `config.neon-hub.local` by default. It is also the default web service for the Neon Hub, so you can access it at `https://neon-hub.local` by default. The configuration UI allows you to set common configuration values without editing files in your Neon Hub system.
 
 ## Authentication
 
@@ -42,7 +42,7 @@ To get an API key for each service, click on the link provided and follow their 
 
 For more information on what each setting does, please reference the Neon HANA repository link above.
 
-After making changes, be sure to restart the `neon-hana` service in [yacht](TODO:).
+After making changes, be sure to restart the `neon-hana` service in yacht.
 
 ### IRIS Configuration
 

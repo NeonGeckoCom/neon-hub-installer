@@ -1,0 +1,15 @@
+[Unit]
+Description=Resize root partition and filesystem on first boot
+DefaultDependencies=no
+After=systemd-remount-fs.service systemd-fsck-root.service local-fs-pre.target
+Before=local-fs.target shutdown.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/first-boot-resize.sh
+RemainAfterExit=yes
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=local-fs.target 

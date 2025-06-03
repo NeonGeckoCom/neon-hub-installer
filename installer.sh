@@ -6,6 +6,12 @@ export INSTALLER_VENV_NAME="neon-hub-installer"
 export OS_RELEASE=/etc/os-release
 export USER_ID="$EUID"
 
+# Parse command line arguments
+XDG_DIR="/home/neon/xdg"
+HOSTNAME="neon-hub.local"
+INSTALL_NODE_VOICE_CLIENT=0
+INSTALL_NODE_KIOSK=0
+
 # Enable debug/verbosity for Bash and Ansible
 if [ "$DEBUG" == "true" ]; then
   set -x
@@ -89,10 +95,6 @@ This installer will guide you through the process of setting up a Neon Hub on yo
 
 If you are unsure about any of the options, you can press enter to use the default value."
 
-# Set default values
-XDG_DIR=""
-HOSTNAME=""
-
 # Ask about XDG directory
 XDG_DIR_CHOICE=$(whiptail --title "Neon Hub Installer" --menu "Where would you like to store Neon Hub's persistent data?" 15 78 3 \
 "1" "/home/neon/xdg (default)" \
@@ -109,7 +111,7 @@ esac
 
 while [ ! -d "$XDG_DIR" ]; do
     if (get_yesno "The directory $XDG_DIR does not exist. Would you like to create it?" ); then
-        mkdir -p $XDG_DIR
+        mkdir -p "$XDG_DIR"
     else
         XDG_DIR=$(get_input "Please enter the path to the persistent data directory:" "$XDG_DIR")
     fi
@@ -163,9 +165,9 @@ esac
 echo "Installing Neon Hub. This may take some time, take a break and relax."
 echo "You can find installation logs at $LOG_FILE."
 
-hostnamectl set-hostname $HOSTNAME
+hostnamectl set-hostname "$HOSTNAME"
 export ANSIBLE_CONFIG=ansible.cfg
-script -q -c "ansible-playbook -i 127.0.0.1 -e 'xdg_dir=$XDG_DIR common_name=$HOSTNAME install_neon_node=$INSTALL_NODE_VOICE_CLIENT install_neon_node_gui=$INSTALL_NODE_KIOSK browser_package=$BROWSER_PACKAGE' ${ansible_debug[@]} ansible/hub.yaml" $ANSIBLE_LOG_FILE
+script -q -c "ansible-playbook -i 127.0.0.1 -e 'xdg_dir=$XDG_DIR common_name=$HOSTNAME install_neon_node=$INSTALL_NODE_VOICE_CLIENT install_neon_node_gui=$INSTALL_NODE_KIOSK browser_package=$BROWSER_PACKAGE' ${ansible_debug[*]} debos/overlays/ansible/hub.yaml" "$ANSIBLE_LOG_FILE"
 
 if [ "${PIPESTATUS[0]}" -eq 0 ]; then
     show_message "Neon Hub has been successfully installed!"
@@ -179,7 +181,6 @@ else
         echo -e "Unable to continue the process, please check $LOG_FILE for more details."
         show_message "An error occurred during installation. Please check $LOG_FILE for more details."
     fi
-
     exit 1
 fi
 

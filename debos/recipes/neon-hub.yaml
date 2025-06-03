@@ -1,0 +1,110 @@
+# Neon Hub installation recipe
+architecture: {{ or .architecture "amd64" }}
+
+actions:
+  - action: apt
+    description: Install Neon Hub dependencies
+    packages:
+      # Python core
+      - python3
+      - python3-dev
+      - python3-pip
+      - python3-venv
+      - python3-virtualenv
+
+      # Build dependencies
+      - build-essential
+      - libpulse-dev
+      - portaudio19-dev
+
+      # System utilities
+      - whiptail
+      - jq
+      - git
+      - curl
+      - openssl
+      - ca-certificates
+
+  - action: overlay
+    description: Copy ansible directory
+    origin: recipe
+    source: ../overlays/ansible
+    destination: /home/neon/ansible
+
+  - action: run
+    description: Setup Python environment and install Ansible
+    chroot: true
+    command: |
+      #!/bin/sh
+      set -e
+
+      # Create and activate virtualenv
+      mkdir -p /home/neon/.venvs
+      python3 -m venv /home/neon/.venvs/neon-hub
+      . /home/neon/.venvs/neon-hub/bin/activate
+
+      # Install Ansible and dependencies
+      ANSIBLE_VERSION="9.2.0"
+      pip3 install --upgrade pip setuptools
+      pip3 install ansible=="$ANSIBLE_VERSION" docker==7.1.0 requests==2.31.0
+      ansible-galaxy install -r /home/neon/ansible/requirements.yml
+
+      # Set permissions
+      chown -R neon:neon /home/neon/.venvs
+
+  - action: run
+    description: Generate and install self-signed certificate
+    chroot: true
+    command: |
+      #!/bin/sh
+      set -e
+
+      # Create certificate directory
+      mkdir -p /etc/neon-hub/certs
+
+      # Generate private key and certificate
+      openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+        -keyout /etc/neon-hub/certs/neon-hub.key \
+        -out /etc/neon-hub/certs/neon-hub.crt \
+        -subj "/CN=neon-hub.local" \
+        -addext "subjectAltName = DNS:neon-hub.local,DNS:*.neon-hub.local"
+
+      # Set proper permissions
+      chmod 644 /etc/neon-hub/certs/neon-hub.crt
+      chmod 600 /etc/neon-hub/certs/neon-hub.key
+
+      # Add certificate to system trust store
+      cp /etc/neon-hub/certs/neon-hub.crt /usr/local/share/ca-certificates/neon-hub.crt
+      update-ca-certificates
+
+  - action: run
+    description: Run Neon Hub installation
+    chroot: true
+    command: |
+      #!/bin/sh
+      set -e
+
+      # Set environment variables
+      export ANSIBLE_LOG_FILE=/var/log/neon-hub-ansible.log
+      export ANSIBLE_CONFIG=ansible.cfg
+      export BROWSER_PACKAGE="firefox-esr"
+
+      # Create XDG directory
+      mkdir -p /home/neon/xdg
+
+      # Run Ansible playbook
+      . /home/neon/.venvs/neon-hub/bin/activate
+      ansible-playbook -i 127.0.0.1 \
+        -e 'xdg_dir=/home/neon/xdg' \
+        -e 'common_name=neon-hub.local' \
+        -e 'install_neon_node=0' \
+        -e 'install_neon_node_gui=0' \
+        -e 'browser_package=firefox-esr' \
+        -e 'start_neon_hub_services=false' \
+        -e 'trust_self_signed_cert=true' \
+        /home/neon/ansible/hub.yaml
+
+  - action: overlay
+    description: Copy desktop files for Neon Hub in KDE Plasma
+    origin: recipe
+    source: ../overlays/neon-hub-desktop-files
