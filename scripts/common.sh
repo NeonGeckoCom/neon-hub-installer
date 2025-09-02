@@ -149,7 +149,7 @@ function install_ansible() {
     printf "➤ Installing Ansible requirements in Python virtualenv... "
     ANSIBLE_VERSION="9.2.0"
     $PIP_COMMAND install ansible=="$ANSIBLE_VERSION" docker==7.1.0 requests==2.31.0 &>>"$LOG_FILE"
-    ansible-galaxy install -r ansible/requirements.yml &>>"$LOG_FILE"
+    ansible-galaxy install -r debos/overlays/ansible/requirements.yml &>>"$LOG_FILE"
     printf "[%s]\n" "$done_format"
 }
 
