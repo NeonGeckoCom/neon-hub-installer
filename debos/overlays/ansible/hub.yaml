@@ -96,7 +96,7 @@
     # Prepare
     - name: Ensure package prerequisites are installed
       ansible.builtin.package:
-        name: openssl,python3-docker,python3-jsondiff,ffmpeg
+        name: openssl,python3-docker,python3-jsondiff,ffmpeg,avahi-daemon
         state: present
     - name: Get primary IP address
       ansible.builtin.set_fact:
@@ -251,6 +251,15 @@
           127.0.0.1    iris-websat.{{ common_name }}
           127.0.0.1    rmq-admin.{{ common_name }}
           127.0.0.1    config.{{ common_name }}
+    # mDNS service advertisement
+    - name: Copy Avahi service definition
+      ansible.builtin.template:
+        src: templates/neon-hub.service.j2
+        dest: /etc/avahi/services/neon-hub.service
+        mode: "0644"
+        owner: root
+        group: root
+      notify: Restart avahi-daemon
     # Neon Node Client
     - name: Install Neon Node Client
       import_tasks: neon-node.yaml
@@ -284,3 +293,10 @@
       ansible.builtin.debug:
         msg: "Rebooting the system now, as requested."
       when: start_neon_hub_services == "1" and reboot_answer.user_input | lower in ['yes', 'y']
+
+  handlers:
+    - name: Restart avahi-daemon
+      ansible.builtin.systemd:
+        name: avahi-daemon
+        state: restarted
+        enabled: true
