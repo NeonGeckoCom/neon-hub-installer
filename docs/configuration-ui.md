@@ -42,7 +42,7 @@ To get an API key for each service, click on the link provided and follow their 
 
 For more information on what each setting does, please reference the Neon HANA repository link above.
 
-After making changes, be sure to restart the `neon-hana` service.
+After making changes, be sure to restart the `neon-hana` service. The easiest way is through the Simple Docker Manager UI at `https://manager.neon-hub.local`.
 
 ### IRIS Configuration
 

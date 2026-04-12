@@ -7,14 +7,16 @@ Neon Hub comes with an nginx reverse proxy that routes traffic to the appropriat
 
 The following paths are available (friendly URLs will only work if you have set up your `/etc/hosts` file or DNS server):
 
-| Service       | Friendly URL                                                                 | URL with port                                              |
-| ------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Fasterwhisper | [https://fasterwhisper.neon-hub.local](https://fasterwhisper.neon-hub.local) | [http://neon-hub.local:8080](http://neon-hub.local:8080)   |
-| Coqui         | [https://coqui.neon-hub.local](https://coqui.neon-hub.local)                 | [http://neon-hub.local:9666](http://neon-hub.local:9666)   |
-| HANA          | [https://hana.neon-hub.local](https://hana.neon-hub.local)                   | [http://neon-hub.local:8082](http://neon-hub.local:8082)   |
-| Iris          | [https://iris.neon-hub.local](https://iris.neon-hub.local)                   | [http://neon-hub.local:7860](http://neon-hub.local:7860)   |
-| Iris-Websat   | [https://iris-websat.neon-hub.local](https://iris-websat.neon-hub.local)     | [http://neon-hub.local:8001](http://neon-hub.local:8001)   |
-| RMQ-Admin     | [https://rmq-admin.neon-hub.local](https://rmq-admin.neon-hub.local)         | [http://neon-hub.local:15672](http://neon-hub.local:15672) |
+| Service        | Friendly URL                                                                 | URL with port                                              |
+| -------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Fasterwhisper  | [https://fasterwhisper.neon-hub.local](https://fasterwhisper.neon-hub.local) | [http://neon-hub.local:8080](http://neon-hub.local:8080)   |
+| Coqui          | [https://coqui.neon-hub.local](https://coqui.neon-hub.local)                 | [http://neon-hub.local:9666](http://neon-hub.local:9666)   |
+| HANA           | [https://hana.neon-hub.local](https://hana.neon-hub.local)                   | [http://neon-hub.local:8082](http://neon-hub.local:8082)   |
+| Iris           | [https://iris.neon-hub.local](https://iris.neon-hub.local)                   | [http://neon-hub.local:7860](http://neon-hub.local:7860)   |
+| Iris-Websat    | [https://iris-websat.neon-hub.local](https://iris-websat.neon-hub.local)     | [http://neon-hub.local:8001](http://neon-hub.local:8001)   |
+| RMQ-Admin      | [https://rmq-admin.neon-hub.local](https://rmq-admin.neon-hub.local)         | [http://neon-hub.local:15672](http://neon-hub.local:15672) |
+| Docker Manager | [https://manager.neon-hub.local](https://manager.neon-hub.local)             | [http://neon-hub.local:3000](http://neon-hub.local:3000)   |
+| Skill Config   | [https://skill-config.neon-hub.local](https://skill-config.neon-hub.local)   | [http://neon-hub.local:8010](http://neon-hub.local:8010)   |
 
 Please note that the Iris-Websat service will only work with HTTPS, requiring additional configuration, although you can see your chat history and the Iris interface at `http://neon-hub.local:8001`. The Iris service at `http://neon-hub.local:7860` will work with HTTP.
 
@@ -25,7 +27,7 @@ Please note that the Iris-Websat service will only work with HTTPS, requiring ad
 Add the following to the `/etc/hosts` file on the computer you are using to access the Neon Hub (not on the Hub itself):
 
 ```bash
-10.10.10.10 neon-hub.local fasterwhisper.neon-hub.local coqui.neon-hub.local hana.neon-hub.local iris.neon-hub.local iris-websat.neon-hub.local rmq-admin.neon-hub.local
+10.10.10.10 neon-hub.local fasterwhisper.neon-hub.local coqui.neon-hub.local hana.neon-hub.local iris.neon-hub.local iris-websat.neon-hub.local rmq-admin.neon-hub.local manager.neon-hub.local skill-config.neon-hub.local
 ```
 
 Replace `10.10.10.10` with the IP address of your Neon Hub.
@@ -42,6 +44,8 @@ hana.neon-hub.local. IN A 10.10.10.10
 iris.neon-hub.local. IN A 10.10.10.10
 iris-websat.neon-hub.local. IN A 10.10.10.10
 rmq-admin.neon-hub.local. IN A 10.10.10.10
+manager.neon-hub.local. IN A 10.10.10.10
+skill-config.neon-hub.local. IN A 10.10.10.10
 ```
 
 Replace `10.10.10.10` with the IP address of your Neon Hub.

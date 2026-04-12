@@ -12,21 +12,23 @@ Neon Hub currently runs only on both x86_64 CPUs. Some of its third-party depend
 
 ## Approximate Docker image sizes (subject to change)
 
-| Service          | Size     |
-| ---------------- | -------- |
-| neon-gui         | 826MB    |
-| neon-enclosure   | 1.2GB    |
-| neon-audio       | 3GB      |
-| neon-skills      | 2.6GB    |
-| neon-speech      | 3.6GB    |
-| neon-messagebus  | 778MB    |
-| neon-api-proxy   | 746MB    |
-| neon-hana        | 443MB    |
-| neon-iris        | 1.78GB   |
-| neon-iris-websat | 1.61GB   |
-| coqui            | 1.3GB    |
-| fasterwhisper    | 1.94GB   |
-| **Total**        | 25GB |
+| Service                | Size     |
+| ---------------------- | -------- |
+| neon-gui               | 826MB    |
+| neon-enclosure         | 1.2GB    |
+| neon-audio             | 3GB      |
+| neon-skills            | 2.6GB    |
+| neon-speech            | 3.6GB    |
+| neon-messagebus        | 778MB    |
+| neon-api-proxy         | 746MB    |
+| neon-hana              | 443MB    |
+| neon-iris              | 1.78GB   |
+| neon-iris-websat       | 1.61GB   |
+| coqui                  | 1.3GB    |
+| fasterwhisper          | 1.94GB   |
+| simple-docker-manager  | 10.2MB   |
+| ovos-skill-config-tool | 142MB    |
+| **Total**              | 25.075GB |
 
 !!! note
     The total image size is greater than the actual disk space consumed due to shared dependencies.

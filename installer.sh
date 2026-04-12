@@ -191,8 +191,12 @@ show_message "Your message queue secrets and Neon Node secret are available in $
 
 Neon Hub is ready to use! To begin, say \"Hey Neon\" and ask a question such as \"What time is it?\" or \"What's the weather like today?\"."
 
-show_message "You can configure your Neon Hub by navigating to https://config.${HOSTNAME} in your preferred web browser.
+show_message "Your Neon Hub ships with these web interfaces:
 
-Please note that the first time you access the web interface, you will need to accept the self-signed SSL certificate. You can do this in most browsers by clicking \"Advanced\" and then \"Proceed to ${HOSTNAME}\"."
+- https://config.${HOSTNAME} — main configuration UI
+- https://manager.${HOSTNAME} — container management and logs (Simple Docker Manager)
+- https://skill-config.${HOSTNAME} — per-skill settings editor
+
+Please note that the first time you access any of these web interfaces, you will need to accept the self-signed SSL certificate. You can do this in most browsers by clicking \"Advanced\" and then \"Proceed to ${HOSTNAME}\"."
 
 show_message "Congratulations on setting up your Neon Hub! Enjoy your new AI server!"

@@ -44,6 +44,9 @@ volumes:
   neon_gui_files:
     name: neon_gui_files
     driver: local
+  sdm-data:
+    name: sdm-data
+    driver: local
 
 services:
   # Core
@@ -196,6 +199,53 @@ services:
     environment:
       <<: *default-env-vars
   # HTTP Services
+  docker_manager:
+    <<: *podman
+    container_name: neon-docker-manager
+    image: ghcr.io/oscillatelabsllc/simple-docker-manager:latest
+    user: "10001:10001"
+    group_add:
+      - "{{ docker_gid }}"
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: $HOSTNAME
+    networks:
+      neon-core:
+        aliases:
+          - neon-docker-manager
+    ports:
+      - 3000:3000
+    environment:
+      SDM_AUTH_USERNAME: neon
+      SDM_AUTH_PASSWORD: "{{ users.simple_docker_manager.password }}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - sdm-data:/data
+  skill_config:
+    <<: *podman
+    container_name: neon-skill-config
+    image: ghcr.io/oscillatelabsllc/ovos-skill-config-tool:latest
+    user: "0:0"
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: $HOSTNAME
+    networks:
+      neon-core:
+        aliases:
+          - neon-skill-config
+    ports:
+      - 8010:8000
+    volumes:
+      - ${NEON_CONFIG_FOLDER}:/home/appuser/.config:rw
+      - /home/neon/compose/neon-logo.png:/app/static/neon-logo.png:ro
+      - /home/neon/compose/neon-logo.png:/app/static/logo.png:ro
+      - /home/neon/compose/skill-config.json:/app/static/config.json:ro
+    environment:
+      <<: *default-env-vars
+      OVOS_CONFIG_USERNAME: neon
+      OVOS_CONFIG_PASSWORD: "{{ users.neon_skill_config.password }}"
+      OVOS_CONFIG_BASE_FOLDER: neon
+      XDG_CONFIG_HOME: /home/appuser/.config
   hana:
     <<: *podman
     depends_on:

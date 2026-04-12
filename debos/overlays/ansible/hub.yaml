@@ -21,6 +21,8 @@
       neon_bot_facilitator: {}
       neon_llm_vllm: {}
       neon_users_service: {}
+      simple_docker_manager: {}
+      neon_skill_config: {}
     hana:
       access_token_secret: {}
       refresh_token_secret: {}
@@ -134,6 +136,13 @@
           - audio
           - docker
           - systemd-journal
+    - name: Look up docker group GID
+      ansible.builtin.getent:
+        database: group
+        key: docker
+    - name: Set docker_gid fact
+      ansible.builtin.set_fact:
+        docker_gid: "{{ getent_group['docker'][1] }}"
     # Set up prerequisite folders
     - name: Create Neon folders with 2775 permissions
       ansible.builtin.file:
@@ -204,6 +213,20 @@
         mode: "0644"
         owner: neon
         group: neon
+    - name: Copy neon-logo.png for skill-config tool
+      ansible.builtin.copy:
+        src: files/neon-logo.png
+        dest: /home/neon/compose/neon-logo.png
+        mode: "0644"
+        owner: neon
+        group: neon
+    - name: Copy skill-config.json for skill-config tool
+      ansible.builtin.copy:
+        src: files/skill-config.json
+        dest: /home/neon/compose/skill-config.json
+        mode: "0644"
+        owner: neon
+        group: neon
     - name: Copy environment variables file with user-provided values
       ansible.builtin.template:
         src: templates/.env.j2
@@ -251,6 +274,8 @@
           127.0.0.1    iris-websat.{{ common_name }}
           127.0.0.1    rmq-admin.{{ common_name }}
           127.0.0.1    config.{{ common_name }}
+          127.0.0.1    manager.{{ common_name }}
+          127.0.0.1    skill-config.{{ common_name }}
     # mDNS service advertisement
     - name: Copy Avahi service definition
       ansible.builtin.template:
