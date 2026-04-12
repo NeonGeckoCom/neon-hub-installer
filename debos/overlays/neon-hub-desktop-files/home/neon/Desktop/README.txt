@@ -11,8 +11,6 @@ It is normal to see a browser warning about the pages being insecure. This can b
 FasterWhisper Speech-To-Text: https://fasterwhisper.neon-hub.local
 Coqui Text-To-Speech: https://coqui.neon-hub.local
 Neon HANA API: https://hana.neon-hub.local/docs
-Yacht Docker Management and Logs: https://yacht.neon-hub.local
-Libretranslate Translation Service: https://libretranslate.neon-hub.local
 RabbitMQ Administration Page: https://rmq-admin.neon-hub.local
 
 The two IRIS services require additional setup. See the official documentation for instructions for more technical users: https://neongeckocom.github.io/neon-hub-installer/service-details/#custom-ssl-certificate

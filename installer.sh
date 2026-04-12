@@ -191,7 +191,7 @@ show_message "Your message queue secrets and Neon Node secret are available in $
 
 Neon Hub is ready to use! To begin, say \"Hey Neon\" and ask a question such as \"What time is it?\" or \"What's the weather like today?\"."
 
-show_message "You can check your Neon Hub services by navigating to https://yacht.${HOSTNAME} in your preferred web browser. It is also available at http://$IP:8000. The default credentials are admin@yacht.local:pass.
+show_message "You can configure your Neon Hub by navigating to https://config.${HOSTNAME} in your preferred web browser.
 
 Please note that the first time you access the web interface, you will need to accept the self-signed SSL certificate. You can do this in most browsers by clicking \"Advanced\" and then \"Proceed to ${HOSTNAME}\"."
 

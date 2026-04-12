@@ -49,14 +49,6 @@
       ]
     },
     {
-      "name": "neon_libretranslate",
-      "password": "{{ users.neon_libretranslate.password }}",
-      "tags": [
-        "backend",
-        "service"
-      ]
-    },
-    {
       "name": "neon_llm_chatgpt",
       "password": "{{ users.neon_llm_chatgpt.password }}",
       "tags": [
@@ -155,9 +147,6 @@
       "name": "/neon_testing"
     },
     {
-      "name": "/translation"
-    },
-    {
       "name": "/llm"
     },
     {
@@ -212,13 +201,6 @@
       "configure": ".*",
       "write": ".*",
       "read": ".*(?!_input).*"
-    },
-    {
-      "user": "neon_libretranslate",
-      "vhost": "/translation",
-      "configure": ".*",
-      "write": ".*",
-      "read": ".*"
     },
     {
       "user": "neon_api_utils",
@@ -328,13 +310,6 @@
     {
       "user": "chat_observer",
       "vhost": "/chatbots",
-      "configure": ".*",
-      "write": ".*",
-      "read": ".*"
-    },
-    {
-      "user": "chat_observer",
-      "vhost": "/translation",
       "configure": ".*",
       "write": ".*",
       "read": ".*"

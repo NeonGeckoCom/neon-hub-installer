@@ -6,7 +6,7 @@ http {
     include mime.types;
     default_type application/octet-stream;
     server_tokens off;
-    
+
     # Basic settings
     sendfile on;
     tcp_nopush on;
@@ -28,6 +28,12 @@ http {
 
         location / {
             proxy_pass http://neon-hub-config;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host $server_name;
+            proxy_redirect off;
             proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
             proxy_intercept_errors on;
             error_page 502 503 504 = @fallback;
@@ -85,25 +91,6 @@ http {
     # HTTP Services
     server {
         listen 443 ssl;
-        server_name libretranslate.{{ common_name }};
-
-        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
-        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
-
-        location / {
-            proxy_pass http://libretranslate:5000;
-            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
-            proxy_intercept_errors on;
-            error_page 502 503 504 = @fallback;
-        }
-
-        location @fallback {
-            return 503 "Service temporarily unavailable";
-        }
-    }
-
-    server {
-        listen 443 ssl;
         server_name hana.{{ common_name }};
 
         ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
@@ -140,6 +127,12 @@ http {
 
         location / {
             proxy_pass http://iris:7860;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host $server_name;
+            proxy_redirect off;
             proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
             proxy_intercept_errors on;
             error_page 502 503 504 = @fallback;
@@ -150,47 +143,48 @@ http {
         }
     }
 
-server {
-    listen 443 ssl;
-    server_name iris-websat.{{ common_name }};
+    server {
+        listen 443 ssl;
+        server_name iris-websat.{{ common_name }};
 
-    ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
-    ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
+        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
+        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
 
-    location / {
-        proxy_pass http://iris-websat:8000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
-        proxy_intercept_errors on;
-        error_page 502 503 504 = @fallback;
+        location / {
+            proxy_pass http://iris-websat:8000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @fallback;
+        }
+
+        location /ws {
+            proxy_pass http://iris-websat:8000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @fallback;
+        }
+
+        location @fallback {
+            return 503 "Service temporarily unavailable";
+        }
     }
 
-    location /ws {
-        proxy_pass http://iris-websat:8000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
-        proxy_intercept_errors on;
-        error_page 502 503 504 = @fallback;
-    }
-
-    location @fallback {
-        return 503 "Service temporarily unavailable";
-    }
-}
     # RMQ Admin
     server {
         listen 443 ssl;
@@ -211,23 +205,4 @@ server {
         }
     }
 
-    # Yacht Container Management/Logs
-    server {
-        listen 443 ssl;
-        server_name yacht.{{ common_name }};
-
-        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
-        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
-
-        location / {
-            proxy_pass http://yacht:8000;
-            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
-            proxy_intercept_errors on;
-            error_page 502 503 504 = @fallback;
-        }
-
-        location @fallback {
-            return 503 "Service temporarily unavailable";
-        }
-    }
 }

@@ -9,7 +9,6 @@
     users:
       neon_core: {}
       chat_observer: {}
-      neon_libretranslate: {}
       neon_api: {}
       neon_coupons: {}
       neon_email: {}
@@ -250,10 +249,8 @@
           127.0.0.1    hana.{{ common_name }}
           127.0.0.1    iris.{{ common_name }}
           127.0.0.1    iris-websat.{{ common_name }}
-          127.0.0.1    yacht.{{ common_name }}
           127.0.0.1    rmq-admin.{{ common_name }}
           127.0.0.1    config.{{ common_name }}
-          127.0.0.1    libretranslate.{{ common_name }}
     # Neon Node Client
     - name: Install Neon Node Client
       import_tasks: neon-node.yaml
