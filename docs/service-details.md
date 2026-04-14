@@ -6,6 +6,37 @@ Neon Hub is more than just a voice assistant. It is a collection of services tha
 
 Neon Hub leverages Docker Compose for container management. Service start/stop/restart is handled via `docker compose` from `/home/neon/compose` on the Hub itself.
 
+## Network Discovery (mDNS)
+
+Neon Hub advertises itself on the local network using [Avahi](https://avahi.org/), an mDNS/DNS-SD service. This allows Neon Node apps to automatically discover available Hubs on the same network using the "Scan for Hubs" feature.
+
+The Hub advertises as service type `_neon-hub._tcp` on port 8082 (the HANA API endpoint).
+
+### Verifying discovery
+
+From a Linux machine on the same network:
+
+```bash
+avahi-browse -r _neon-hub._tcp
+```
+
+From a macOS machine:
+
+```bash
+dns-sd -B _neon-hub._tcp local.
+```
+
+You should see your Hub appear with its hostname and port.
+
+### Troubleshooting discovery
+
+If your Hub is not discoverable:
+
+1. Verify avahi-daemon is running: `systemctl status avahi-daemon`
+2. Check the service file exists: `ls /etc/avahi/services/neon-hub.service`
+3. Ensure your firewall allows mDNS traffic (UDP port 5353)
+4. Verify the Hub and the scanning device are on the same network/subnet
+
 ## Configuration tool
 
 Neon Hub ships with a configuration tool that simplifies common tasks such as changing log levels, adding your own API keys for external services, and customizing other services. This tool is available at `https://neon-hub.local`.
