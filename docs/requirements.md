@@ -26,7 +26,7 @@ Neon Hub currently runs only on both x86_64 CPUs. Some of its third-party depend
 | neon-iris-websat | 1.61GB   |
 | coqui            | 1.3GB    |
 | fasterwhisper    | 1.94GB   |
-| **Total**        | 24.923GB |
+| **Total**        | 25GB |
 
 !!! note
     The total image size is greater than the actual disk space consumed due to shared dependencies.
