@@ -237,7 +237,6 @@ services:
       - 8010:8000
     volumes:
       - ${NEON_CONFIG_FOLDER}:/home/appuser/.config:rw
-      - /home/neon/compose/neon-logo.png:/app/static/neon-logo.png:ro
       - /home/neon/compose/neon-logo.png:/app/static/logo.png:ro
       - /home/neon/compose/skill-config.json:/app/static/config.json:ro
     environment:
