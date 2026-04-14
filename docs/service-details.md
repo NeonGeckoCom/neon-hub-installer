@@ -1,14 +1,10 @@
 # Service Details
 
-Neon Hub is more than just a voice assistant. It is a collection of services that can be used independently or together to create a powerful AI server. Each service is a Docker container that can be managed with Yacht, a web-based Docker management tool.
+Neon Hub is more than just a voice assistant. It is a collection of services that can be used independently or together to create a powerful AI server. Each service is a Docker container managed with Docker Compose.
 
 ## Service management
 
-Neon Hub leverages Docker Compose for container management. For ease of viewing logs and managing services, Yacht is installed on the server at `http://neon-hub.local:8000/#/apps`. The default username and password is `admin@yacht.local` and `pass` respectively. You can change your password in the User Settings section of Yacht. For more information on [how to set your password, see the docs](https://yacht.sh/docs/Pages/User_Settings).
-
-For more usage information, [see the Yacht documentation](https://yacht.sh/docs/). The section on [applications](https://yacht.sh/docs/Pages/Applications) is particularly useful.
-
-If you'd like to disable default services, this is the place to do it. This is your Hub - use only what you want!
+Neon Hub leverages Docker Compose for container management. Service start/stop/restart is handled via `docker compose` from `/home/neon/compose` on the Hub itself.
 
 ## Configuration tool
 
@@ -50,13 +46,6 @@ In order to fully leverage the Iris websat, you must either enable HTTPS and acc
 - iris: `http://neon-hub.local:7860`
 - iris-websat: `http://neon-hub.local:8001`
 
-## Translation
-
-Neon Hub ships with a [LibreTranslate](https://github.com/NeonGeckoCom/neon-libretranslate) service that can be used to translate text between languages. This service is available at `http://neon-hub.local:5000`.
-
-!!!note
-    At this time, translation is only supported from English to other languages. If you need other language support, please let us know and it can be prioritized in the `neon-libretranslate` repo.
-
 ### Custom SSL certificate
 
-The `nginx` service expects a public and private key to be located at `/home/neon/$HOSTNAME.crt` and `/home/neon/$HOSTNAME.key`, with the default value of `$HOSTNAME` being neon-hub.local. If you would like to use your own certificate, you can replace the existing files with your own and restart the nginx service in Yacht.
+The `nginx` service expects a public and private key to be located at `/home/neon/$HOSTNAME.crt` and `/home/neon/$HOSTNAME.key`, with the default value of `$HOSTNAME` being neon-hub.local. If you would like to use your own certificate, you can replace the existing files with your own and restart the nginx service.

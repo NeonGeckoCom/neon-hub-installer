@@ -2,7 +2,7 @@
 
 [More configuration information is available in the Neon documentation.](https://neongeckocom.github.io/neon-docs/quick_reference/configuration/)
 
-All configuration is done in the `neon.yaml` file. This file is located in the `/home/neon/xdg/neon/neon.yaml` directory by default. After making changes to the file, you must restart the Neon core services in Yacht for the changes to take effect.
+All configuration is done in the `neon.yaml` file. This file is located in the `/home/neon/xdg/neon/neon.yaml` directory by default. After making changes to the file, you must restart the Neon core services for the changes to take effect.
 
 Neon core services:
 
@@ -115,4 +115,4 @@ Future versions of Neon Hub will include a web interface for managing these keys
 
 ## Skill settings
 
-Each skill has its own settings file located in the `/home/neon/xdg/neon/skills/$SKILL_NAME/settings.json` directory. These settings can be modified to change the behavior of the skill. Some skills require you to restart the neon-skills service in Yacht for the changes to take effect, although many skills automatically read the settings file each time and do not require a restart.
+Each skill has its own settings file located in the `/home/neon/xdg/neon/skills/$SKILL_NAME/settings.json` directory. These settings can be modified to change the behavior of the skill. Some skills require you to restart the neon-skills service for the changes to take effect, although many skills automatically read the settings file each time and do not require a restart.

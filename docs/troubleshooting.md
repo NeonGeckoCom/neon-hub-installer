@@ -6,7 +6,7 @@ You can also use Neon's `mana` command to interact with the Neon AI system. It i
 
 ## Docker container log access and troubleshooting
 
-For debugging issues with the Docker containers, use `http://yacht.neon-hub.local` to access the Yacht container manager. The default username and password are `admin@yacht.local` and `pass` respectively.
+For debugging issues with the Docker containers, SSH to the Hub and use `docker compose logs` from `/home/neon/compose`, or `docker logs <container-name>` for an individual service.
 
 ## Updating Neon Hub fails with `General error: Error response from daemon: Conflict.`
 

@@ -4,7 +4,7 @@ Neon Hub ships with a configuration UI. It is available on port 8005, or at `con
 
 ## Authentication
 
-The Neon Hub Configuration UI ships with the default username and password of `neon:neon`. These values are configurable as environment variables on the container and can be changed using the `yacht` interface.
+The Neon Hub Configuration UI ships with the default username and password of `neon:neon`. These values are configurable as environment variables on the `neon-hub-config` container.
 
 !!! warning
     This basic authentication is a minor deterrent and not a full security feature. Always change the default password!
@@ -42,7 +42,7 @@ To get an API key for each service, click on the link provided and follow their 
 
 For more information on what each setting does, please reference the Neon HANA repository link above.
 
-After making changes, be sure to restart the `neon-hana` service in yacht.
+After making changes, be sure to restart the `neon-hana` service.
 
 ### IRIS Configuration
 
@@ -75,7 +75,7 @@ This page is not yet implemented.
 
 ## System Updates
 
-This page is a placeholder that refers the user to the `yacht` service for managing their container services.
+This page is not yet implemented.
 
 ## Advanced
 
