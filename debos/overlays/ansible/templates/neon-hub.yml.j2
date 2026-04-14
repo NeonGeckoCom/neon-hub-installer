@@ -361,6 +361,8 @@ services:
     environment:
       DIANA_PATH: /root/.config/neon/diana.yaml
       NEON_PATH: /root/.config/neon/neon.yaml
+      NEON_HUB_CONFIG_USERNAME: neon
+      NEON_HUB_CONFIG_PASSWORD: "{{ users.neon_hub_config.password }}"
     container_name: neon-hub-config
     user: root
     networks:

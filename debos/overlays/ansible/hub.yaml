@@ -23,6 +23,7 @@
       neon_users_service: {}
       simple_docker_manager: {}
       neon_skill_config: {}
+      neon_hub_config: {}
     hana:
       access_token_secret: {}
       refresh_token_secret: {}

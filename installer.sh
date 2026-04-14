@@ -28,6 +28,12 @@ get_input() {
     whiptail --title "Neon Hub Installer" --inputbox "$1" 10 78 "$2" 3>&1 1>&2 2>&3
 }
 
+# Function to get password input (hidden). Returns the entered value,
+# or an empty string if the user leaves it blank.
+get_password() {
+    whiptail --title "Neon Hub Installer" --passwordbox "$1" 12 78 3>&1 1>&2 2>&3
+}
+
 # Function to get yes/no input
 get_yesno() {
     whiptail --title "Neon Hub Installer" --yesno "$1" 10 78 3>&1 1>&2 2>&3
@@ -161,13 +167,25 @@ case $INSTALL_NODE_KIOSK_CHOICE in
         ;;
 esac
 
+# Ask for web UI passwords. Empty input → auto-generate at install time.
+# Skipped entirely on re-runs where the secrets file already exists.
+HUB_CONFIG_PASSWORD=""
+SDM_PASSWORD=""
+SKILL_CONFIG_PASSWORD=""
+SECRETS_FILE="${SCRIPT_DIR}/debos/overlays/ansible/neon_hub_secrets.yaml"
+if [ ! -f "$SECRETS_FILE" ]; then
+    HUB_CONFIG_PASSWORD=$(get_password "Set a password for the main Neon Hub Config UI (https://config.${HOSTNAME}).\n\nLeave blank to auto-generate a random password. Either way, it will be saved to ${SECRETS_FILE} after install.")
+    SDM_PASSWORD=$(get_password "Set a password for the Simple Docker Manager UI (https://manager.${HOSTNAME}).\n\nLeave blank to auto-generate a random password. Either way, it will be saved to ${SECRETS_FILE} after install.")
+    SKILL_CONFIG_PASSWORD=$(get_password "Set a password for the Skill Config Tool UI (https://skill-config.${HOSTNAME}).\n\nLeave blank to auto-generate a random password. Either way, it will be saved to ${SECRETS_FILE} after install.")
+fi
+
 # Installation
 echo "Installing Neon Hub. This may take some time, take a break and relax."
 echo "You can find installation logs at $LOG_FILE."
 
 hostnamectl set-hostname "$HOSTNAME"
 export ANSIBLE_CONFIG=ansible.cfg
-script -q -c "ansible-playbook -i 127.0.0.1 -e 'xdg_dir=$XDG_DIR common_name=$HOSTNAME install_neon_node=$INSTALL_NODE_VOICE_CLIENT install_neon_node_gui=$INSTALL_NODE_KIOSK browser_package=$BROWSER_PACKAGE' ${ansible_debug[*]} debos/overlays/ansible/hub.yaml" "$ANSIBLE_LOG_FILE"
+script -q -c "ansible-playbook -i 127.0.0.1 -e 'xdg_dir=$XDG_DIR common_name=$HOSTNAME install_neon_node=$INSTALL_NODE_VOICE_CLIENT install_neon_node_gui=$INSTALL_NODE_KIOSK browser_package=$BROWSER_PACKAGE hub_config_password=\"$HUB_CONFIG_PASSWORD\" sdm_password=\"$SDM_PASSWORD\" skill_config_password=\"$SKILL_CONFIG_PASSWORD\"' ${ansible_debug[*]} debos/overlays/ansible/hub.yaml" "$ANSIBLE_LOG_FILE"
 
 if [ "${PIPESTATUS[0]}" -eq 0 ]; then
     show_message "Neon Hub has been successfully installed!"
@@ -191,11 +209,36 @@ show_message "Your message queue secrets and Neon Node secret are available in $
 
 Neon Hub is ready to use! To begin, say \"Hey Neon\" and ask a question such as \"What time is it?\" or \"What's the weather like today?\"."
 
+# Extract the web UI passwords from the secrets file to show them to the user.
+# Uses python (guaranteed available, the installer set up a venv).
+HUB_CONFIG_PW_DISPLAY="(see ${SECRETS_FILE})"
+SDM_PW_DISPLAY="(see ${SECRETS_FILE})"
+SKILL_CONFIG_PW_DISPLAY="(see ${SECRETS_FILE})"
+if [ -f "$SECRETS_FILE" ]; then
+    HUB_CONFIG_PW_DISPLAY=$(python3 -c "import yaml; print(yaml.safe_load(open('${SECRETS_FILE}'))['users']['neon_hub_config']['password'])" 2>/dev/null || echo "(see ${SECRETS_FILE})")
+    SDM_PW_DISPLAY=$(python3 -c "import yaml; print(yaml.safe_load(open('${SECRETS_FILE}'))['users']['simple_docker_manager']['password'])" 2>/dev/null || echo "(see ${SECRETS_FILE})")
+    SKILL_CONFIG_PW_DISPLAY=$(python3 -c "import yaml; print(yaml.safe_load(open('${SECRETS_FILE}'))['users']['neon_skill_config']['password'])" 2>/dev/null || echo "(see ${SECRETS_FILE})")
+fi
+
 show_message "Your Neon Hub ships with these web interfaces:
 
 - https://config.${HOSTNAME} — main configuration UI
 - https://manager.${HOSTNAME} — container management and logs (Simple Docker Manager)
 - https://skill-config.${HOSTNAME} — per-skill settings editor
+
+Neon Hub Config UI login:
+  Username: neon
+  Password: ${HUB_CONFIG_PW_DISPLAY}
+
+Simple Docker Manager login:
+  Username: neon
+  Password: ${SDM_PW_DISPLAY}
+
+Skill Config Tool login:
+  Username: neon
+  Password: ${SKILL_CONFIG_PW_DISPLAY}
+
+These passwords are stored in ${SECRETS_FILE}.
 
 Please note that the first time you access any of these web interfaces, you will need to accept the self-signed SSL certificate. You can do this in most browsers by clicking \"Advanced\" and then \"Proceed to ${HOSTNAME}\"."
 
