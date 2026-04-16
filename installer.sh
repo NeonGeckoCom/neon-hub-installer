@@ -205,7 +205,7 @@ fi
 IP=$(hostname -I | awk '{print $1}')
 
 # Final message
-show_message "Your message queue secrets and Neon Node secret are available in ${PWD}/ansible/neon_hub_secrets.yaml. Please keep these secrets safe and do not share them with anyone. You will need these secrets to connect to your Neon Hub.
+show_message "Your secrets are stored in ${SECRETS_FILE}. Please keep this file safe and do not share it. You will need these secrets to connect to your Neon Hub.
 
 Neon Hub is ready to use! To begin, say \"Hey Neon\" and ask a question such as \"What time is it?\" or \"What's the weather like today?\"."
 
@@ -222,24 +222,16 @@ fi
 
 show_message "Your Neon Hub ships with these web interfaces:
 
-- https://config.${HOSTNAME} — main configuration UI
-- https://manager.${HOSTNAME} — container management and logs (Simple Docker Manager)
-- https://skill-config.${HOSTNAME} — per-skill settings editor
+- https://config.${HOSTNAME} — Hub configuration
+- https://manager.${HOSTNAME} — container management
+- https://skill-config.${HOSTNAME} — skill settings
 
-Neon Hub Config UI login:
-  Username: neon
-  Password: ${HUB_CONFIG_PW_DISPLAY}
+Hub Config:  neon / ${HUB_CONFIG_PW_DISPLAY}
+Docker Mgr:  neon / ${SDM_PW_DISPLAY}
+Skill Config: neon / ${SKILL_CONFIG_PW_DISPLAY}
 
-Simple Docker Manager login:
-  Username: neon
-  Password: ${SDM_PW_DISPLAY}
+Passwords are stored in ${SECRETS_FILE}."
 
-Skill Config Tool login:
-  Username: neon
-  Password: ${SKILL_CONFIG_PW_DISPLAY}
+show_message "The first time you access a web interface, you will need to accept the self-signed SSL certificate. In most browsers, click \"Advanced\" then \"Proceed to ${HOSTNAME}\".
 
-These passwords are stored in ${SECRETS_FILE}.
-
-Please note that the first time you access any of these web interfaces, you will need to accept the self-signed SSL certificate. You can do this in most browsers by clicking \"Advanced\" and then \"Proceed to ${HOSTNAME}\"."
-
-show_message "Congratulations on setting up your Neon Hub! Enjoy your new AI server!"
+Congratulations on setting up your Neon Hub!"
