@@ -45,7 +45,7 @@ If your Hub is not discoverable:
 
 Neon Hub ships with a configuration tool that simplifies common tasks such as changing log levels, adding your own API keys for external services, and customizing other services. This tool is available at `https://neon-hub.local` (or equivalently `https://config.neon-hub.local`).
 
-The username is `neon`; the password is either one you set during installation or a random value generated at install time. Either way, it is stored in `debos/overlays/ansible/neon_hub_secrets.yaml` under the directory where `installer.sh` was run from.
+Log in with the Hub admin username and password you set during installation. The admin refresh token is stored in `hub_admin.yaml` in the Hub's config directory (default: `/home/neon/xdg/config/neon/hub_admin.yaml`).
 
 ### Skill configuration tool
 
