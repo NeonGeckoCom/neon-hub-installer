@@ -205,4 +205,67 @@ http {
         }
     }
 
+    # Simple Docker Manager
+    server {
+        listen 443 ssl;
+        server_name manager.{{ common_name }};
+
+        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
+        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
+
+        location / {
+            proxy_pass http://neon-docker-manager:3000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @fallback;
+        }
+
+        location /ws {
+            proxy_pass http://neon-docker-manager:3000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @fallback;
+        }
+
+        location @fallback {
+            return 503 "Service temporarily unavailable";
+        }
+    }
+
+    # Skill Config
+    server {
+        listen 443 ssl;
+        server_name skill-config.{{ common_name }};
+
+        ssl_certificate /etc/ssl/certs/{{ common_name }}.crt;
+        ssl_certificate_key /etc/ssl/private/{{ common_name }}.key;
+
+        location / {
+            proxy_pass http://neon-skill-config:8000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host $server_name;
+            proxy_redirect off;
+            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @fallback;
+        }
+
+        location @fallback {
+            return 503 "Service temporarily unavailable";
+        }
+    }
 }

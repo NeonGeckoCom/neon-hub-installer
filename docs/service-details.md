@@ -4,7 +4,11 @@ Neon Hub is more than just a voice assistant. It is a collection of services tha
 
 ## Service management
 
-Neon Hub leverages Docker Compose for container management. Service start/stop/restart is handled via `docker compose` from `/home/neon/compose` on the Hub itself.
+Neon Hub leverages Docker Compose for container management. Service start/stop/restart can be handled via `docker compose` from `/home/neon/compose` on the Hub itself, or through the web-based Simple Docker Manager described below.
+
+### Container management UI
+
+Neon Hub ships with [Simple Docker Manager](https://github.com/OscillateLabsLLC/simple-docker-manager), a lightweight web UI for viewing container status and logs, and restarting services. It is available at `https://manager.neon-hub.local` (or `http://neon-hub.local:3000`). The username is `neon`; the password is either one you set during installation or a random value generated at install time. Either way, it is stored in `debos/overlays/ansible/neon_hub_secrets.yaml` under the directory where `installer.sh` was run from.
 
 ## Network Discovery (mDNS)
 
@@ -39,9 +43,13 @@ If your Hub is not discoverable:
 
 ## Configuration tool
 
-Neon Hub ships with a configuration tool that simplifies common tasks such as changing log levels, adding your own API keys for external services, and customizing other services. This tool is available at `https://neon-hub.local`.
+Neon Hub ships with a configuration tool that simplifies common tasks such as changing log levels, adding your own API keys for external services, and customizing other services. This tool is available at `https://neon-hub.local` (or equivalently `https://config.neon-hub.local`).
 
-The default username/password is `neon:neon`.
+Log in with the Hub admin username and password you set during installation. The admin refresh token is stored in `hub_admin.yaml` in the Hub's config directory (default: `/home/neon/xdg/config/neon/hub_admin.yaml`).
+
+### Skill configuration tool
+
+For editing individual skill settings (rather than core Neon configuration), Neon Hub also ships with [ovos-skill-config-tool](https://github.com/OscillateLabsLLC/ovos-skill-config-tool). It is available at `https://skill-config.neon-hub.local` (or `http://neon-hub.local:8010`). The username is `neon`; the password is either one you set during installation or a random value generated at install time. Either way, it is stored in `debos/overlays/ansible/neon_hub_secrets.yaml` under the directory where `installer.sh` was run from.
 
 ## Speech-To-Text (STT)
 

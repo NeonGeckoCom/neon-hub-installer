@@ -6,7 +6,7 @@ You can also use Neon's `mana` command to interact with the Neon AI system. It i
 
 ## Docker container log access and troubleshooting
 
-For debugging issues with the Docker containers, SSH to the Hub and use `docker compose logs` from `/home/neon/compose`, or `docker logs <container-name>` for an individual service.
+For debugging issues with the Docker containers, use the Simple Docker Manager web UI at `https://manager.neon-hub.local`. You can also SSH to the Hub and use `docker compose logs` from `/home/neon/compose`, or `docker logs <container-name>` for an individual service.
 
 ## Updating Neon Hub fails with `General error: Error response from daemon: Conflict.`
 
