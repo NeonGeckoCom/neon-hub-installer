@@ -257,7 +257,7 @@ json.dump({'user': user}, sys.stdout)
             python3 -c "
 import yaml
 with open('${HUB_ADMIN_TOKEN_FILE}', 'w') as f:
-    yaml.dump({'username': '${HUB_ADMIN_USERNAME}', 'refresh_token': '${REFRESH_TOKEN}'}, f)
+    yaml.dump({'username': '${HUB_ADMIN_USERNAME}', 'password': '${HUB_ADMIN_PASSWORD}', 'refresh_token': '${REFRESH_TOKEN}'}, f)
 " 2>/dev/null
             chmod 600 "$HUB_ADMIN_TOKEN_FILE"
             echo "Hub admin user '${HUB_ADMIN_USERNAME}' registered with HANA." >> "$LOG_FILE"
