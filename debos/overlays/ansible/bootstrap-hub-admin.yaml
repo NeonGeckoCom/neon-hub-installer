@@ -29,6 +29,16 @@
   # If HANA never becomes ready, fail the playbook so the installer surfaces
   # the error — without hub_admin.yaml the Hub is non-functional anyway.
 
+# HANA /status coming up doesn't mean its downstream MQ consumers are ready.
+# /user/get talks to neon-users-service via RabbitMQ, which can lag by 30+s
+# on slow hosts. Check the broker is accepting AMQP connections first, then
+# the retries on /user/get cover users-service warm-up after that.
+- name: Wait for RabbitMQ AMQP port (up to 2 minutes)
+  ansible.builtin.wait_for:
+    host: localhost
+    port: 5672
+    timeout: 120
+
 - name: Log in as Hub admin (existing user path)
   ansible.builtin.uri:
     url: "{{ hana_url }}/auth/login"
@@ -86,9 +96,15 @@
       username: "{{ hub_admin_username }}"
     status_code: 200
   register: admin_user_get
-  # no_log intentionally omitted for this task — we need the failure body to
-  # debug. Response may contain password_hash on the User model; rotate the
-  # admin password if the log is shared.
+  # Retries cover neon-users-service MQ warm-up after RabbitMQ is up.
+  # HANA returns 500 with elapsed≈30s (MQ request timeout) until the
+  # users-service consumer registers its queue.
+  retries: 12
+  delay: 10
+  until: admin_user_get.status == 200
+  # no_log omitted here so failure detail reaches the log; the response
+  # may contain password_hash — rotate the admin password if the log
+  # is shared publicly.
 
 - name: Grant ADMIN permissions to Hub admin
   ansible.builtin.uri:
