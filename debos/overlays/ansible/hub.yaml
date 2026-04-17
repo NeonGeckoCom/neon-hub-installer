@@ -50,6 +50,11 @@
     install_neon_node: "0"
     install_neon_node_gui: "0"
     secrets_file: "{{ playbook_dir }}/neon_hub_secrets.yaml"
+    # Hub admin bootstrap
+    hana_url: "http://localhost:8082"
+    hub_admin_username: "{{ hub_admin_username_input | default('neon', true) }}"
+    hub_admin_password: "{{ hub_admin_password_input | default('', true) }}"
+    hub_admin_token_file: "{{ xdg_dir }}/config/neon/hub_admin.yaml"
     # Neon Node GUI variables, only used if install_neon_node_gui is true
     kiosk_user: kiosk
     webapp_url: "https://iris-websat.{{ common_name }}"
@@ -262,6 +267,11 @@
       delay: 3
       environment:
         DOCKER_TIMEOUT: "900"
+    # Bootstrap the Hub admin user with HANA so neon-hub-config can
+    # authenticate. Fails loudly if HANA never comes up — no silent skips.
+    - name: Bootstrap Hub admin user
+      import_tasks: bootstrap-hub-admin.yaml
+      when: start_neon_hub_services == "1"
     - name: Configure Neon Hub subdomains
       blockinfile:
         path: /etc/hosts

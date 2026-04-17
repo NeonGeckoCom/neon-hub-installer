@@ -1,0 +1,140 @@
+---
+# Bootstrap the Hub admin user with HANA.
+#
+# Requires vars:
+#   hana_url              — base URL, e.g. http://localhost:8082
+#   hub_admin_username    — admin username (from installer prompt)
+#   hub_admin_password    — admin password (from installer prompt)
+#   hub_admin_token_file  — path to hub_admin.yaml (read by neon-hub-config)
+#
+# Flow:
+#   1. Wait for HANA /status.
+#   2. Try login; if that fails, register then login.
+#   3. Grant ADMIN permissions on the admin user record.
+#   4. Re-login so the refresh token carries the new permissions.
+#   5. Write hub_admin.yaml (chmod 600).
+#
+# Idempotent: re-running against an existing admin user just re-authenticates
+# and refreshes the stored token.
+
+- name: Wait for HANA to be ready (up to 2 minutes)
+  ansible.builtin.uri:
+    url: "{{ hana_url }}/status"
+    method: GET
+    status_code: 200
+  register: hana_status
+  retries: 24
+  delay: 5
+  until: hana_status.status == 200
+  # If HANA never becomes ready, fail the playbook so the installer surfaces
+  # the error — without hub_admin.yaml the Hub is non-functional anyway.
+
+- name: Log in as Hub admin (existing user path)
+  ansible.builtin.uri:
+    url: "{{ hana_url }}/auth/login"
+    method: POST
+    body_format: json
+    body:
+      username: "{{ hub_admin_username }}"
+      password: "{{ hub_admin_password }}"
+      token_name: hub-admin
+    status_code: [200, 401, 404]
+  register: admin_login
+  no_log: true
+
+- name: Register Hub admin (new user path)
+  ansible.builtin.uri:
+    url: "{{ hana_url }}/auth/register"
+    method: POST
+    body_format: json
+    body:
+      username: "{{ hub_admin_username }}"
+      password: "{{ hub_admin_password }}"
+    status_code: [200, 201]
+  when: admin_login.status != 200
+  no_log: true
+
+- name: Log in after registration
+  ansible.builtin.uri:
+    url: "{{ hana_url }}/auth/login"
+    method: POST
+    body_format: json
+    body:
+      username: "{{ hub_admin_username }}"
+      password: "{{ hub_admin_password }}"
+      token_name: hub-admin
+    status_code: 200
+  register: admin_login_post_register
+  when: admin_login.status != 200
+  no_log: true
+
+- name: Select authoritative login response
+  ansible.builtin.set_fact:
+    admin_auth: >-
+      {{ admin_login if admin_login.status == 200
+         else admin_login_post_register }}
+  no_log: true
+
+- name: Fetch admin user record
+  ansible.builtin.uri:
+    url: "{{ hana_url }}/user/get"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ admin_auth.json.access_token }}"
+    body_format: json
+    body:
+      username: "{{ hub_admin_username }}"
+    status_code: 200
+  register: admin_user_get
+  no_log: true
+
+- name: Grant ADMIN permissions to Hub admin
+  ansible.builtin.uri:
+    url: "{{ hana_url }}/user/update"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ admin_auth.json.access_token }}"
+    body_format: json
+    body:
+      user: >-
+        {{ admin_user_get.json | combine({
+             'permissions': {
+               'klat': 20, 'core': 30, 'diana': 30, 'users': 30,
+               'node': 20, 'hub': 30, 'llm': 20
+             }
+           }) }}
+    status_code: 200
+  no_log: true
+
+- name: Re-login to pick up new permissions on the refresh token
+  ansible.builtin.uri:
+    url: "{{ hana_url }}/auth/login"
+    method: POST
+    body_format: json
+    body:
+      username: "{{ hub_admin_username }}"
+      password: "{{ hub_admin_password }}"
+      token_name: hub-admin
+    status_code: 200
+  register: admin_auth_final
+  no_log: true
+
+- name: Ensure hub_admin.yaml parent directory exists
+  ansible.builtin.file:
+    path: "{{ hub_admin_token_file | dirname }}"
+    state: directory
+    mode: "0755"
+    owner: neon
+    group: neon
+
+- name: Write hub_admin.yaml
+  ansible.builtin.copy:
+    dest: "{{ hub_admin_token_file }}"
+    mode: "0600"
+    owner: neon
+    group: neon
+    content: |
+      username: {{ hub_admin_username | to_json }}
+      password: {{ hub_admin_password | to_json }}
+      refresh_token: {{ admin_auth_final.json.refresh_token | to_json }}
+  no_log: true
