@@ -245,10 +245,29 @@ services:
       OVOS_CONFIG_PASSWORD: "{{ users.neon_skill_config.password }}"
       OVOS_CONFIG_BASE_FOLDER: neon
       XDG_CONFIG_HOME: /home/appuser/.config
+  users-service:
+    <<: *podman
+    depends_on:
+      - rabbitmq
+    container_name: neon-users-service
+    image: ghcr.io/neongeckocom/neon-users-service:${MQ_IMAGE_TAG}
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: $HOSTNAME
+    networks:
+      neon-core:
+        aliases:
+          - neon-users-service
+    volumes:
+      - xdg:/config:rw
+      - {{ xdg_dir }}/share/neon/users-service:/data:rw
+    environment:
+      <<: *default-env-vars
   hana:
     <<: *podman
     depends_on:
       - rabbitmq
+      - users-service
     container_name: neon-hana
     image: ghcr.io/neongeckocom/neon-hana:${HTTP_IMAGE_TAG}
     restart: unless-stopped

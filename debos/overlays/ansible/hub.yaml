@@ -160,6 +160,8 @@
         - "{{ xdg_dir }}"
         - "{{ xdg_dir }}/local"
         - "{{ xdg_dir }}/share"
+        - "{{ xdg_dir }}/share/neon"
+        - "{{ xdg_dir }}/share/neon/users-service"
         - "{{ xdg_dir }}/config"
         - "{{ xdg_dir }}/config/neon"
         - "/home/neon/compose"
