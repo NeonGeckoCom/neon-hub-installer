@@ -86,7 +86,9 @@
       username: "{{ hub_admin_username }}"
     status_code: 200
   register: admin_user_get
-  no_log: true
+  # no_log intentionally omitted for this task — we need the failure body to
+  # debug. Response may contain password_hash on the User model; rotate the
+  # admin password if the log is shared.
 
 - name: Grant ADMIN permissions to Hub admin
   ansible.builtin.uri:
