@@ -20,9 +20,6 @@ MQ:
   port: 5672
   server: neon-rabbitmq
   users:
-    mq_handler:
-      user: neon_users_service
-      password: "{{ users.neon_users_service.password }}"
     chat_api_proxy:
       password: "{{ users.neon_core.password }}"
       user: neon_core
