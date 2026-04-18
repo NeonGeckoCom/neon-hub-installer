@@ -50,6 +50,12 @@
     install_neon_node: "0"
     install_neon_node_gui: "0"
     secrets_file: "{{ playbook_dir }}/neon_hub_secrets.yaml"
+    # Hub admin bootstrap
+    hana_url: "http://localhost:8082"
+    hub_admin_username: "{{ hub_admin_username_input | default('neon', true) }}"
+    hub_admin_password: "{{ hub_admin_password_input | default('', true) }}"
+    hub_admin_token_file: "{{ xdg_dir }}/config/neon/hub_admin.yaml"
+    users_service_db_path: "{{ xdg_dir }}/share/neon/users-service/neon-users-db.sqlite"
     # Neon Node GUI variables, only used if install_neon_node_gui is true
     kiosk_user: kiosk
     webapp_url: "https://iris-websat.{{ common_name }}"
@@ -155,6 +161,8 @@
         - "{{ xdg_dir }}"
         - "{{ xdg_dir }}/local"
         - "{{ xdg_dir }}/share"
+        - "{{ xdg_dir }}/share/neon"
+        - "{{ xdg_dir }}/share/neon/users-service"
         - "{{ xdg_dir }}/config"
         - "{{ xdg_dir }}/config/neon"
         - "/home/neon/compose"
@@ -248,6 +256,14 @@
         mode: "0644"
         owner: neon
         group: neon
+    # Seed users-service's SQLite DB with admin and node users BEFORE the
+    # containers come up. users-service has no admin-bootstrap path through
+    # HANA's API (default-permission users only, with no admin-promotion),
+    # so we write the rows directly. Pre-compose timing avoids any contention
+    # with the running service.
+    - name: Seed users-service database
+      import_tasks: seed-hana-users.yaml
+      when: start_neon_hub_services == "1"
     # Deploy
     - name: Download and Start Core and Hub
       when: start_neon_hub_services == "1"
@@ -262,6 +278,11 @@
       delay: 3
       environment:
         DOCKER_TIMEOUT: "900"
+    # Authenticate as the seeded admin to obtain a refresh token, write
+    # hub_admin.yaml so neon-hub-config can talk to HANA on its own.
+    - name: Bootstrap Hub admin token
+      import_tasks: bootstrap-hub-admin.yaml
+      when: start_neon_hub_services == "1"
     - name: Configure Neon Hub subdomains
       blockinfile:
         path: /etc/hosts

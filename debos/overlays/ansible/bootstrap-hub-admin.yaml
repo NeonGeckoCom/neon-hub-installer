@@ -1,0 +1,67 @@
+---
+# Authenticate as the seeded Hub admin and write hub_admin.yaml so
+# neon-hub-config can talk to HANA on its own. The admin user itself was
+# seeded directly into users-service's SQLite DB by seed-hana-users.yaml,
+# which runs before the containers come up; this file just gets a real
+# refresh token from a working HANA after the stack is running.
+#
+# Required vars (set in hub.yaml):
+#   hana_url              — base URL, e.g. http://localhost:8082
+#   hub_admin_username    — admin username (from installer prompt)
+#   hub_admin_password    — admin password (from installer prompt)
+#   hub_admin_token_file  — path to hub_admin.yaml
+
+- name: Wait for HANA to be ready (up to 2 minutes)
+  ansible.builtin.uri:
+    url: "{{ hana_url }}/docs"
+    method: GET
+    status_code: 200
+  register: hana_status
+  retries: 24
+  delay: 5
+  until: hana_status.status == 200
+  # /docs is FastAPI's built-in OpenAPI UI — always 200 once the app is up.
+
+- name: Wait for RabbitMQ AMQP port (up to 2 minutes)
+  ansible.builtin.wait_for:
+    host: localhost
+    port: 5672
+    timeout: 120
+
+- name: Log in as Hub admin to obtain refresh token
+  # Retries cover users-service MQ warm-up after RabbitMQ is up. HANA's
+  # /auth/login validates against users-service over MQ.
+  ansible.builtin.uri:
+    url: "{{ hana_url }}/auth/login"
+    method: POST
+    body_format: json
+    body:
+      username: "{{ hub_admin_username }}"
+      password: "{{ hub_admin_password }}"
+      token_name: hub-admin
+    status_code: 200
+  register: admin_login
+  retries: 12
+  delay: 10
+  until: admin_login.status == 200
+  no_log: true
+
+- name: Ensure hub_admin.yaml parent directory exists
+  ansible.builtin.file:
+    path: "{{ hub_admin_token_file | dirname }}"
+    state: directory
+    mode: "0755"
+    owner: neon
+    group: neon
+
+- name: Write hub_admin.yaml
+  ansible.builtin.copy:
+    dest: "{{ hub_admin_token_file }}"
+    mode: "0600"
+    owner: neon
+    group: neon
+    content: |
+      username: {{ hub_admin_username | to_json }}
+      password: {{ hub_admin_password | to_json }}
+      refresh_token: {{ admin_login.json.refresh_token | to_json }}
+  no_log: true
