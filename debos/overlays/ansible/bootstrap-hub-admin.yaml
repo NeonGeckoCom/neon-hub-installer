@@ -19,13 +19,16 @@
 
 - name: Wait for HANA to be ready (up to 2 minutes)
   ansible.builtin.uri:
-    url: "{{ hana_url }}/status"
+    url: "{{ hana_url }}/docs"
     method: GET
     status_code: 200
   register: hana_status
   retries: 24
   delay: 5
   until: hana_status.status == 200
+  # /docs is FastAPI's built-in OpenAPI UI — always 200 once the app is up.
+  # The /status route was added later and isn't present in the published
+  # neon-hana:dev image we're pinned against.
   # If HANA never becomes ready, fail the playbook so the installer surfaces
   # the error — without hub_admin.yaml the Hub is non-functional anyway.
 

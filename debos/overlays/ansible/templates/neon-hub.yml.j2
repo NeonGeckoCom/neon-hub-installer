@@ -259,7 +259,7 @@ services:
         aliases:
           - neon-users-service
     volumes:
-      - xdg:/config:rw
+      - xdg:/xdg:rw
       - {{ xdg_dir }}/share/neon/users-service:/data:rw
     environment:
       <<: *default-env-vars
