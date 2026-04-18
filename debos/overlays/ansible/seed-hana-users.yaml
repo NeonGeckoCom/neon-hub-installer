@@ -1,0 +1,56 @@
+---
+# Seed users into the neon-users-service SQLite database BEFORE the
+# containers come up. This avoids:
+#   - Race conditions with users-service holding the SQLite file open
+#   - Any need to wait for users-service to be ready
+#   - HANA's inability to bootstrap an admin via /auth/register (default
+#     permissions only, with no admin-promotion path)
+#
+# Required vars:
+#   xdg_dir, hub_admin_username, hub_admin_password, install_neon_node
+# Required secrets:
+#   hana.node_pw
+
+- name: Stage seed-user helper on host
+  ansible.builtin.copy:
+    src: files/seed-user.py
+    dest: /tmp/seed-user.py
+    mode: "0700"
+    owner: root
+    group: root
+
+- name: Seed Hub admin user with ADMIN permissions
+  ansible.builtin.command:
+    argv:
+      - python3
+      - /tmp/seed-user.py
+      - "{{ users_service_db_path }}"
+      - "{{ hub_admin_username }}"
+      - "{{ hub_admin_password }}"
+      - '{"klat": 20, "core": 30, "diana": 30, "users": 30, "node": 20, "hub": 30, "llm": 20}'
+  no_log: true
+
+- name: Seed neon_node user with NODE permissions
+  ansible.builtin.command:
+    argv:
+      - python3
+      - /tmp/seed-user.py
+      - "{{ users_service_db_path }}"
+      - neon_node
+      - "{{ hana.node_pw }}"
+      - '{"klat": -1, "core": -1, "diana": -1, "users": -1, "node": -1, "hub": -1, "llm": -1}'
+  no_log: true
+  when: install_neon_node | string == "1"
+
+- name: Remove seed-user helper from host
+  # Don't leave a "get admin for free" script lying around.
+  ansible.builtin.file:
+    path: /tmp/seed-user.py
+    state: absent
+
+- name: Set users-service DB ownership for the container user
+  ansible.builtin.file:
+    path: "{{ users_service_db_path }}"
+    owner: neon
+    group: neon
+    mode: "0644"
