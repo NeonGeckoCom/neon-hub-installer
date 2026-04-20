@@ -167,19 +167,56 @@ case $INSTALL_NODE_KIOSK_CHOICE in
         ;;
 esac
 
-# Ask for passwords. Empty input → auto-generate at install time.
-# Skipped entirely on re-runs where the secrets file already exists.
+# Ask for passwords. Empty input → auto-generate.
+# Service passwords (SDM, skill-config) are in the secrets file, so we skip
+# those prompts on re-runs. Admin credentials aren't in the secrets file, so
+# we always prompt — but on a re-run where hub_admin.yaml already exists we
+# reuse what's there.
 HUB_ADMIN_USERNAME=""
 HUB_ADMIN_PASSWORD=""
 SDM_PASSWORD=""
 SKILL_CONFIG_PASSWORD=""
 SECRETS_FILE="${SCRIPT_DIR}/debos/overlays/ansible/neon_hub_secrets.yaml"
 HUB_ADMIN_TOKEN_FILE="${XDG_DIR}/config/neon/hub_admin.yaml"
-if [ ! -f "$SECRETS_FILE" ]; then
+
+if [ -f "$HUB_ADMIN_TOKEN_FILE" ]; then
+    # Reuse existing admin creds so Ansible re-bootstrap is a no-op refresh.
+    # Values are written as JSON string scalars (JSON is a subset of YAML).
+    # Parse them with stdlib json so escapes round-trip cleanly without
+    # requiring PyYAML on the installer host.
+    _admin_creds=$(python3 - "$HUB_ADMIN_TOKEN_FILE" <<'PY'
+import json, re, sys
+out = {}
+with open(sys.argv[1]) as f:
+    for line in f:
+        m = re.match(r'^(username|password):\s*(.*)\s*$', line)
+        if m:
+            try: out[m.group(1)] = json.loads(m.group(2))
+            except Exception: out[m.group(1)] = m.group(2)
+print(out.get('username', ''))
+print(out.get('password', ''))
+PY
+)
+    HUB_ADMIN_USERNAME=$(printf '%s\n' "$_admin_creds" | sed -n '1p')
+    HUB_ADMIN_PASSWORD=$(printf '%s\n' "$_admin_creds" | sed -n '2p')
+elif [ -f "$SECRETS_FILE" ]; then
+    show_message "An existing Neon Hub install was detected, but no admin credentials file was found at ${HUB_ADMIN_TOKEN_FILE}.\n\nEnter the admin username and password you set previously. If you don't remember them, enter new values — the installer will try to log in first, and if that fails, register a new admin user."
+    HUB_ADMIN_USERNAME=$(get_input "Hub admin username:" "neon")
+    HUB_ADMIN_PASSWORD=$(get_password "Hub admin password (required):")
+else
     HUB_ADMIN_USERNAME=$(get_input "Choose a username for the Hub admin account.\n\nThis is used to log in to the Hub Config UI and manage users." "neon")
     HUB_ADMIN_PASSWORD=$(get_password "Set a password for the Hub admin account (${HUB_ADMIN_USERNAME}).\n\nLeave blank to auto-generate a random password.")
     SDM_PASSWORD=$(get_password "Set a password for the Simple Docker Manager UI (https://manager.${HOSTNAME}).\n\nLeave blank to auto-generate a random password.")
     SKILL_CONFIG_PASSWORD=$(get_password "Set a password for the Skill Config Tool UI (https://skill-config.${HOSTNAME}).\n\nLeave blank to auto-generate a random password.")
+fi
+
+# Fill in defaults/generated values up-front so the final dialog can show them
+# and so Ansible receives concrete values (not blanks) as extra-vars.
+if [ -z "$HUB_ADMIN_USERNAME" ]; then
+    HUB_ADMIN_USERNAME="neon"
+fi
+if [ -z "$HUB_ADMIN_PASSWORD" ]; then
+    HUB_ADMIN_PASSWORD=$(python3 -c "import secrets, string; print(''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32)))")
 fi
 
 # Installation
@@ -188,86 +225,9 @@ echo "You can find installation logs at $LOG_FILE."
 
 hostnamectl set-hostname "$HOSTNAME"
 export ANSIBLE_CONFIG=ansible.cfg
-script -q -c "ansible-playbook -i 127.0.0.1 -e 'xdg_dir=$XDG_DIR common_name=$HOSTNAME install_neon_node=$INSTALL_NODE_VOICE_CLIENT install_neon_node_gui=$INSTALL_NODE_KIOSK browser_package=$BROWSER_PACKAGE hub_admin_username=\"$HUB_ADMIN_USERNAME\" hub_admin_password=\"$HUB_ADMIN_PASSWORD\" sdm_password=\"$SDM_PASSWORD\" skill_config_password=\"$SKILL_CONFIG_PASSWORD\"' ${ansible_debug[*]} debos/overlays/ansible/hub.yaml" "$ANSIBLE_LOG_FILE"
+script -q -c "ansible-playbook -i 127.0.0.1 -e 'xdg_dir=$XDG_DIR common_name=$HOSTNAME install_neon_node=$INSTALL_NODE_VOICE_CLIENT install_neon_node_gui=$INSTALL_NODE_KIOSK browser_package=$BROWSER_PACKAGE hub_admin_username_input=\"$HUB_ADMIN_USERNAME\" hub_admin_password_input=\"$HUB_ADMIN_PASSWORD\" sdm_password=\"$SDM_PASSWORD\" skill_config_password=\"$SKILL_CONFIG_PASSWORD\"' ${ansible_debug[*]} debos/overlays/ansible/hub.yaml" "$ANSIBLE_LOG_FILE"
 
 if [ "${PIPESTATUS[0]}" -eq 0 ]; then
-    # Register the Hub admin user with HANA now that services are running.
-    # Uses the admin username/password from the earlier prompt (or generated).
-    # Generates a password if the user left it blank.
-    if [ -z "$HUB_ADMIN_PASSWORD" ]; then
-        HUB_ADMIN_PASSWORD=$(python3 -c "import secrets, string; print(''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32)))")
-    fi
-    if [ -z "$HUB_ADMIN_USERNAME" ]; then
-        HUB_ADMIN_USERNAME="neon"
-    fi
-
-    HANA_URL="http://localhost:8082"
-    ADMIN_REGISTER_OK=false
-
-    # Wait for HANA to be ready (up to 60 seconds)
-    for i in $(seq 1 12); do
-        if curl -sf "${HANA_URL}/status" > /dev/null 2>&1; then
-            break
-        fi
-        sleep 5
-    done
-
-    # Register the admin user
-    REGISTER_RESPONSE=$(curl -sf -X POST "${HANA_URL}/auth/register" \
-        -H "Content-Type: application/json" \
-        -d "{\"username\": \"${HUB_ADMIN_USERNAME}\", \"password\": \"${HUB_ADMIN_PASSWORD}\"}" 2>&1) && ADMIN_REGISTER_OK=true
-
-    if [ "$ADMIN_REGISTER_OK" = true ]; then
-        # Log in to get tokens
-        LOGIN_RESPONSE=$(curl -sf -X POST "${HANA_URL}/auth/login" \
-            -H "Content-Type: application/json" \
-            -d "{\"username\": \"${HUB_ADMIN_USERNAME}\", \"password\": \"${HUB_ADMIN_PASSWORD}\", \"token_name\": \"hub-admin\"}")
-
-        ACCESS_TOKEN=$(echo "$LOGIN_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['access_token'])" 2>/dev/null)
-        REFRESH_TOKEN=$(echo "$LOGIN_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['refresh_token'])" 2>/dev/null)
-
-        if [ -n "$ACCESS_TOKEN" ] && [ -n "$REFRESH_TOKEN" ]; then
-            # Grant admin permissions
-            USER_DATA=$(curl -sf -X POST "${HANA_URL}/user/get" \
-                -H "Content-Type: application/json" \
-                -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-                -d "{\"username\": \"${HUB_ADMIN_USERNAME}\"}")
-
-            UPDATED_USER=$(echo "$USER_DATA" | python3 -c "
-import sys, json
-user = json.load(sys.stdin)
-user['permissions'] = {'klat': 20, 'core': 30, 'diana': 30, 'users': 30, 'node': 20, 'hub': 30, 'llm': 20}
-json.dump({'user': user}, sys.stdout)
-" 2>/dev/null)
-
-            curl -sf -X POST "${HANA_URL}/user/update" \
-                -H "Content-Type: application/json" \
-                -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-                -d "$UPDATED_USER" > /dev/null 2>&1
-
-            # Re-login to get tokens with updated permissions
-            LOGIN_RESPONSE=$(curl -sf -X POST "${HANA_URL}/auth/login" \
-                -H "Content-Type: application/json" \
-                -d "{\"username\": \"${HUB_ADMIN_USERNAME}\", \"password\": \"${HUB_ADMIN_PASSWORD}\", \"token_name\": \"hub-admin\"}")
-
-            REFRESH_TOKEN=$(echo "$LOGIN_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['refresh_token'])" 2>/dev/null)
-
-            # Save the admin refresh token
-            mkdir -p "$(dirname "$HUB_ADMIN_TOKEN_FILE")"
-            python3 -c "
-import yaml
-with open('${HUB_ADMIN_TOKEN_FILE}', 'w') as f:
-    yaml.dump({'username': '${HUB_ADMIN_USERNAME}', 'password': '${HUB_ADMIN_PASSWORD}', 'refresh_token': '${REFRESH_TOKEN}'}, f)
-" 2>/dev/null
-            chmod 600 "$HUB_ADMIN_TOKEN_FILE"
-            echo "Hub admin user '${HUB_ADMIN_USERNAME}' registered with HANA." >> "$LOG_FILE"
-        else
-            echo "Warning: Failed to obtain admin tokens from HANA." >> "$LOG_FILE"
-        fi
-    else
-        echo "Warning: Failed to register admin user with HANA. You may need to register manually." >> "$LOG_FILE"
-    fi
-
     show_message "Neon Hub has been successfully installed!"
 else
     cat "$ANSIBLE_LOG_FILE" >> "$LOG_FILE"
@@ -289,13 +249,11 @@ show_message "Your secrets are stored in ${SECRETS_FILE}. Please keep this file 
 
 Neon Hub is ready to use! To begin, say \"Hey Neon\" and ask a question such as \"What time is it?\" or \"What's the weather like today?\"."
 
-# Extract the web UI passwords to show them to the user.
-SDM_PW_DISPLAY="(see ${SECRETS_FILE})"
-SKILL_CONFIG_PW_DISPLAY="(see ${SECRETS_FILE})"
-if [ -f "$SECRETS_FILE" ]; then
-    SDM_PW_DISPLAY=$(python3 -c "import yaml; print(yaml.safe_load(open('${SECRETS_FILE}'))['users']['simple_docker_manager']['password'])" 2>/dev/null || echo "(see ${SECRETS_FILE})")
-    SKILL_CONFIG_PW_DISPLAY=$(python3 -c "import yaml; print(yaml.safe_load(open('${SECRETS_FILE}'))['users']['neon_skill_config']['password'])" 2>/dev/null || echo "(see ${SECRETS_FILE})")
-fi
+# Web UI passwords to show the user. If they typed one, show it. If they
+# left the prompt blank (or it's a re-run where prompts were skipped),
+# Ansible wrote a generated value to the secrets file — point them there.
+SDM_PW_DISPLAY="${SDM_PASSWORD:-(see ${SECRETS_FILE})}"
+SKILL_CONFIG_PW_DISPLAY="${SKILL_CONFIG_PASSWORD:-(see ${SECRETS_FILE})}"
 
 show_message "Your Neon Hub ships with these web interfaces:
 
