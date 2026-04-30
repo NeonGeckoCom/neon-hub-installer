@@ -12,17 +12,24 @@ Neon Hub ships with [Simple Docker Manager](https://github.com/OscillateLabsLLC/
 
 ## Network Discovery (mDNS)
 
-Neon Hub advertises itself on the local network using [Avahi](https://avahi.org/), an mDNS/DNS-SD service. This allows Neon Node apps to automatically discover available Hubs on the same network using the "Scan for Hubs" feature.
+Neon Hub advertises itself on the local network using [Avahi](https://avahi.org/), an mDNS/DNS-SD responder. This allows Neon Node apps to automatically discover available Hubs on the same network using the "Scan for Hubs" feature. The installer pulls in `avahi-daemon` and `avahi-utils` as required packages — if you weren't already running them, expect a small added footprint.
 
-The Hub advertises as service type `_neon-hub._tcp` on port 8082 (the HANA API endpoint).
+The Hub advertises as service type `_neon-hub._tcp` on port 443 (the public reverse-proxy endpoint, same one that serves `https://hana.<common_name>`). The service record carries two TXT entries:
+
+- `scheme=https` — the URL scheme clients should use.
+- `host=hana.<common_name>` — the cert-subject hostname clients should use for SNI and the `Host` header. Defaults to `hana.neon-hub.local`.
+
+The Hub also publishes `hana.<common_name>` as an mDNS A-record alias (via a small `avahi-publish-address` systemd unit, `avahi-alias-hana.service`) so off-hub clients can resolve the cert-subject name and validate TLS without falling back to the trust-on-first-use path. Without this alias, only the host's own `%h` name (e.g. `neon-hub.local`) would be visible on the wire.
 
 ### Verifying discovery
 
 From a Linux machine on the same network:
 
 ```bash
-avahi-browse -r _neon-hub._tcp
+avahi-browse -rt _neon-hub._tcp
 ```
+
+You should see a resolved (`=`) record with `port=443` and both TXT entries populated.
 
 From a macOS machine:
 
@@ -30,16 +37,23 @@ From a macOS machine:
 dns-sd -B _neon-hub._tcp local.
 ```
 
-You should see your Hub appear with its hostname and port.
+To confirm the proxy hostname resolves over mDNS:
+
+```bash
+avahi-resolve-host-name -4 hana.neon-hub.local
+```
+
+This should return the Hub's primary IPv4 address.
 
 ### Troubleshooting discovery
 
 If your Hub is not discoverable:
 
 1. Verify avahi-daemon is running: `systemctl status avahi-daemon`
-2. Check the service file exists: `ls /etc/avahi/services/neon-hub.service`
-3. Ensure your firewall allows mDNS traffic (UDP port 5353)
-4. Verify the Hub and the scanning device are on the same network/subnet
+2. Verify the alias unit is running: `systemctl status avahi-alias-hana`
+3. Check the service file exists: `ls /etc/avahi/services/neon-hub.service`
+4. Ensure your firewall allows mDNS traffic (UDP port 5353)
+5. Verify the Hub and the scanning device are on the same network/subnet
 
 ## Configuration tool
 

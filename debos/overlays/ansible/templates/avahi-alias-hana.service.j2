@@ -1,0 +1,32 @@
+[Unit]
+Description=Publish hana.{{ common_name }} as an mDNS alias
+# Bind to avahi-daemon so the alias goes down when avahi does, and
+# wait for the network to be online so ExecStartPre can pick up an
+# IPv4 address from the default route.
+Requires=avahi-daemon.service
+After=avahi-daemon.service network-online.target
+BindsTo=avahi-daemon.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Re-resolve the primary IPv4 on every (re)start so a DHCP-renewed
+# or interface-swapped IP lands cleanly. The helper writes the
+# current address into PRIMARY_IP for ExecStart to consume.
+ExecStartPre=/usr/local/sbin/avahi-alias-hana-resolve
+EnvironmentFile=/run/avahi-alias-hana.env
+# -R skips avahi's local conflict check. Without it, the publish
+# fails with "Local name collision" even though no peer on the LAN
+# is actually claiming the name. Source of the apparent conflict
+# isn't fully understood — we ruled out the /etc/hosts entry by
+# commenting it out and reproducing — and may be avahi hearing its
+# own multicast announcement reflected back across one of the many
+# docker veth interfaces the hub typically has. Skipping the check
+# is safe here: no real peer publishes this name, so there's no
+# actual conflict to detect.
+ExecStart=/usr/bin/avahi-publish-address -R hana.{{ common_name }} ${PRIMARY_IP}
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

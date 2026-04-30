@@ -104,7 +104,7 @@
     # Prepare
     - name: Ensure package prerequisites are installed
       ansible.builtin.package:
-        name: openssl,python3-docker,python3-jsondiff,ffmpeg,avahi-daemon
+        name: openssl,python3-docker,python3-jsondiff,ffmpeg,avahi-daemon,avahi-utils
         state: present
     - name: Get primary IP address
       ansible.builtin.set_fact:
@@ -306,6 +306,33 @@
         owner: root
         group: root
       notify: Restart avahi-daemon
+    # mDNS alias for the proxy hostname (hana.{{ common_name }}).
+    # Avahi only auto-advertises the host's own hostname (%h), so
+    # without this the cert-subject hostname has no A record on the
+    # wire and clients can't validate TLS. A small systemd unit runs
+    # `avahi-publish-address` to claim the alias for the lifetime
+    # of avahi-daemon.
+    - name: Install hana mDNS alias resolver helper
+      ansible.builtin.copy:
+        src: files/avahi-alias-hana-resolve
+        dest: /usr/local/sbin/avahi-alias-hana-resolve
+        mode: "0755"
+        owner: root
+        group: root
+    - name: Install hana mDNS alias systemd unit
+      ansible.builtin.template:
+        src: templates/avahi-alias-hana.service.j2
+        dest: /etc/systemd/system/avahi-alias-hana.service
+        mode: "0644"
+        owner: root
+        group: root
+      notify: Restart avahi-alias-hana
+    - name: Enable and start hana mDNS alias
+      ansible.builtin.systemd:
+        name: avahi-alias-hana
+        enabled: true
+        state: started
+        daemon_reload: true
     # Neon Node Client
     - name: Install Neon Node Client
       import_tasks: neon-node.yaml
@@ -346,3 +373,9 @@
         name: avahi-daemon
         state: restarted
         enabled: true
+    - name: Restart avahi-alias-hana
+      ansible.builtin.systemd:
+        name: avahi-alias-hana
+        state: restarted
+        enabled: true
+        daemon_reload: true

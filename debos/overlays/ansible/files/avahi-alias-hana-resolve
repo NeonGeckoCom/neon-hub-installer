@@ -1,0 +1,15 @@
+#!/bin/sh
+# Pick the IPv4 that owns the default route — the same source as
+# ansible's `ansible_default_ipv4.address` fact. Re-run on every
+# unit start so DHCP renewals or network swaps land cleanly.
+#
+# Output: writes PRIMARY_IP=<addr> to /run/avahi-alias-hana.env
+# for the systemd unit's EnvironmentFile to consume.
+set -e
+IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')
+if [ -z "$IP" ]; then
+    echo "avahi-alias-hana-resolve: could not determine primary IPv4" >&2
+    exit 1
+fi
+mkdir -p /run
+printf 'PRIMARY_IP=%s\n' "$IP" > /run/avahi-alias-hana.env
