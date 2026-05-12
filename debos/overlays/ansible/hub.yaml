@@ -45,7 +45,7 @@
 
   vars:
     # Hub — platform-aware defaults
-    neon_home: "{{ '/opt/neon' if ansible_os_family == 'Darwin' else '/home/neon' }}"
+    neon_home: "{{ ansible_env.HOME + '/neon-hub' if ansible_os_family == 'Darwin' else '/home/neon' }}"
     neon_user: "{{ ansible_user_id if ansible_os_family == 'Darwin' else 'neon' }}"
     neon_group: "{{ 'staff' if ansible_os_family == 'Darwin' else 'neon' }}"
     xdg_dir: "{{ neon_home }}/xdg"
