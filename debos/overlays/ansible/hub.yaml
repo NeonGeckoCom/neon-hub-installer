@@ -45,9 +45,9 @@
 
   vars:
     # Hub — platform-aware defaults
-    neon_home: "{{ ansible_env.HOME + '/neon-hub' if ansible_os_family == 'Darwin' else '/home/neon' }}"
-    neon_user: "{{ ansible_user_id if ansible_os_family == 'Darwin' else 'neon' }}"
-    neon_group: "{{ 'staff' if ansible_os_family == 'Darwin' else 'neon' }}"
+    neon_home: "/home/neon"
+    neon_user: "neon"
+    neon_group: "neon"
     xdg_dir: "{{ neon_home }}/xdg"
     common_name: neon-hub.local
     install_neon_node: "0"
@@ -418,7 +418,7 @@
     - name: Template mDNS service advertisement plist
       ansible.builtin.template:
         src: templates/com.neongecko.neon-hub-mdns.plist.j2
-        dest: "{{ ansible_env.HOME }}/Library/LaunchAgents/com.neongecko.neon-hub-mdns.plist"
+        dest: "/Users/{{ neon_user }}/Library/LaunchAgents/com.neongecko.neon-hub-mdns.plist"
         mode: "0644"
       become: no
       when: ansible_os_family == 'Darwin'
@@ -426,7 +426,7 @@
     - name: Template hana hostname alias plist
       ansible.builtin.template:
         src: templates/com.neongecko.neon-hub-hana-alias.plist.j2
-        dest: "{{ ansible_env.HOME }}/Library/LaunchAgents/com.neongecko.neon-hub-hana-alias.plist"
+        dest: "/Users/{{ neon_user }}/Library/LaunchAgents/com.neongecko.neon-hub-hana-alias.plist"
         mode: "0644"
       become: no
       when: ansible_os_family == 'Darwin'

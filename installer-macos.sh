@@ -504,6 +504,9 @@ run_ansible() {
     local ansible_cmd=(
         "$VENV_PATH/bin/ansible-playbook"
         -i 127.0.0.1,
+        -e "neon_home=${NEON_HOME}"
+        -e "neon_user=$(whoami)"
+        -e "neon_group=staff"
         -e "common_name=${COMMON_NAME}"
         -e "trust_self_signed_cert=${TRUST_SELF_SIGNED_CERT}"
         -e "hub_admin_username_input=${HUB_ADMIN_USERNAME}"
