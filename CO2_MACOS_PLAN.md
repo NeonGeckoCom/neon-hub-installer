@@ -282,7 +282,7 @@ Test each feature on macOS + Docker Desktop and document status:
 | mDNS Hub discovery (\_neon-hub.\_tcp)       | Confirmed working | dns-sd -R, tested 2026-05-11                |
 | mDNS hana hostname alias                    | Confirmed working | dns-sd -P, tested 2026-05-11                |
 | Node app connects and authenticates         | Needs testing     | TLS cert validation against hana.<hostname> |
-| STT (Faster Whisper)                        | Should work       | No audio device needed, HTTP API            |
+| STT (Faster Whisper)                        | **BLOCKED — upstream** | `smartgic/ovos-stt-server-fasterwhisper:alpha` has no `linux/arm64` image. Compose fails-fast on pull. Options: (a) upstream ships multi-arch build, (b) force `platform: linux/amd64` for Rosetta emulation, (c) skip service on Darwin. |
 | TTS (Coqui)                                 | Should work       | No audio device needed, HTTP API            |
 | Speech service (voice loop)                 | Should work       | PulseAudio TCP confirmed working 2026-05-11 |
 | Audio service (playback)                    | Should work       | PulseAudio TCP confirmed, played audio from container |
