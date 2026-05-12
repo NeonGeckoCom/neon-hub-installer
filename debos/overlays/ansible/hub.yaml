@@ -351,6 +351,7 @@
       until: neon_services is succeeded
       retries: 5
       delay: 3
+      become: "{{ false if ansible_os_family == 'Darwin' else true }}"
       environment:
         DOCKER_TIMEOUT: "900"
     # Authenticate as the seeded admin to obtain a refresh token, write
