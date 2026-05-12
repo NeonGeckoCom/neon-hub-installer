@@ -178,6 +178,72 @@ wait for the whale icon to stop animating, then re-run this installer."
     success "Docker Desktop is installed and running"
 }
 
+ensure_docker_file_sharing() {
+    info "Checking Docker Desktop file sharing for ${NEON_HOME}..."
+
+    local settings_file="$HOME/Library/Group Containers/group.com.docker/settings-store.json"
+    if [ ! -f "$settings_file" ]; then
+        warn "Docker Desktop settings file not found — cannot verify file sharing"
+        warn "If container mounts fail, add ${NEON_HOME} in Docker → Settings → Resources → File Sharing"
+        return
+    fi
+
+    local already_shared
+    already_shared=$(python3 -c "
+import json, sys
+with open(sys.argv[1]) as f:
+    s = json.load(f)
+dirs = s.get('FilesharingDirectories', [])
+for d in dirs:
+    if sys.argv[2] == d or sys.argv[2].startswith(d + '/'):
+        print('yes')
+        sys.exit(0)
+print('no')
+" "$settings_file" "$NEON_HOME")
+
+    if [ "$already_shared" = "yes" ]; then
+        success "${NEON_HOME} is already in Docker Desktop file sharing"
+        return
+    fi
+
+    info "${NEON_HOME} is not in Docker Desktop's file sharing list"
+    info "Adding it now (Docker Desktop will restart)..."
+
+    python3 -c "
+import json, sys
+path = sys.argv[1]
+new_dir = sys.argv[2]
+with open(path) as f:
+    s = json.load(f)
+dirs = s.get('FilesharingDirectories', [])
+if new_dir not in dirs:
+    dirs.append(new_dir)
+    s['FilesharingDirectories'] = dirs
+    with open(path, 'w') as f:
+        json.dump(s, f, indent=2)
+    print('added')
+else:
+    print('already_present')
+" "$settings_file" "$NEON_HOME"
+
+    info "Restarting Docker Desktop to apply file sharing changes..."
+    osascript -e 'quit app "Docker"' 2>/dev/null || true
+    sleep 3
+
+    open -a Docker
+    info "Waiting for Docker Desktop to start..."
+    local retries=0
+    while ! docker info &>/dev/null; do
+        retries=$((retries + 1))
+        if [ "$retries" -gt 60 ]; then
+            fatal "Docker Desktop did not restart within 60 seconds.
+Please start Docker Desktop manually and re-run the installer."
+        fi
+        sleep 2
+    done
+    success "Docker Desktop restarted with ${NEON_HOME} file sharing enabled"
+}
+
 check_homebrew() {
     info "Checking Homebrew..."
     if ! command -v brew &>/dev/null; then
@@ -601,6 +667,7 @@ main() {
     # Step 2: Prerequisites
     check_macos_version
     check_docker
+    ensure_docker_file_sharing
     check_homebrew
 
     # Step 3: Optional dependencies (whiptail first, so PA prompts can use it)
