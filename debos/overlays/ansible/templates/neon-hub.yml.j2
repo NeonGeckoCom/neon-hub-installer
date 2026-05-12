@@ -226,7 +226,12 @@ services:
         aliases:
           - neon-rabbitmq
     volumes:
+{% if ansible_os_family == 'Darwin' %}
+      - {{ neon_home }}/xdg/config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - {{ neon_home }}/xdg/config/rabbitmq/rabbitmq.json:/etc/rabbitmq/rabbitmq.json:ro
+{% else %}
       - {{ neon_home }}/xdg/config/rabbitmq:/etc/rabbitmq
+{% endif %}
     environment:
       - RABBITMQ_ENABLED_PLUGINS=rabbitmq_management
   # MQ Services

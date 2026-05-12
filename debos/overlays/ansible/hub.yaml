@@ -242,8 +242,8 @@
         path: "{{ xdg_dir }}/config/rabbitmq"
         state: directory
         mode: "2775"
-        owner: 999
-        group: 999
+        owner: "{{ 999 if ansible_os_family != 'Darwin' else neon_user }}"
+        group: "{{ 999 if ansible_os_family != 'Darwin' else neon_group }}"
 
     # Certificate generation
     - name: Generate self-signed certificate
@@ -272,8 +272,8 @@
         src: "templates/{{ item }}.j2"
         dest: "{{ xdg_dir }}/config/rabbitmq/{{ item }}"
         mode: "0644"
-        owner: 999
-        group: 999
+        owner: "{{ 999 if ansible_os_family != 'Darwin' else neon_user }}"
+        group: "{{ 999 if ansible_os_family != 'Darwin' else neon_group }}"
     - name: Create neon.yaml
       ansible.builtin.template:
         src: templates/neon.yaml.j2
