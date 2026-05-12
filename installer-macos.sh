@@ -506,6 +506,7 @@ run_ansible() {
         -i 127.0.0.1,
         -e "neon_home=${NEON_HOME}"
         -e "neon_user=$(whoami)"
+        -e "neon_uid=$(id -u)"
         -e "neon_group=staff"
         -e "common_name=${COMMON_NAME}"
         -e "trust_self_signed_cert=${TRUST_SELF_SIGNED_CERT}"

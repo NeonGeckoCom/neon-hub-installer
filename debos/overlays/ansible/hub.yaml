@@ -47,6 +47,7 @@
     # Hub — platform-aware defaults
     neon_home: "/home/neon"
     neon_user: "neon"
+    neon_uid: "1000"
     neon_group: "neon"
     xdg_dir: "{{ neon_home }}/xdg"
     common_name: neon-hub.local
@@ -440,14 +441,14 @@
       when: ansible_os_family == 'Darwin'
 
     - name: Unload existing mDNS service
-      shell: launchctl bootout gui/{{ ansible_user_uid }}/com.neongecko.neon-hub-mdns
+      shell: launchctl bootout gui/{{ neon_uid }}/com.neongecko.neon-hub-mdns
       become: no
       when:
         - ansible_os_family == 'Darwin'
         - mdns_loaded.rc == 0
 
     - name: Load mDNS service
-      shell: launchctl bootstrap gui/{{ ansible_user_uid }} ~/Library/LaunchAgents/com.neongecko.neon-hub-mdns.plist
+      shell: launchctl bootstrap gui/{{ neon_uid }} /Users/{{ neon_user }}/Library/LaunchAgents/com.neongecko.neon-hub-mdns.plist
       become: no
       when: ansible_os_family == 'Darwin'
 
@@ -460,14 +461,14 @@
       when: ansible_os_family == 'Darwin'
 
     - name: Unload existing hana alias service
-      shell: launchctl bootout gui/{{ ansible_user_uid }}/com.neongecko.neon-hub-hana-alias
+      shell: launchctl bootout gui/{{ neon_uid }}/com.neongecko.neon-hub-hana-alias
       become: no
       when:
         - ansible_os_family == 'Darwin'
         - hana_alias_loaded.rc == 0
 
     - name: Load hana alias service
-      shell: launchctl bootstrap gui/{{ ansible_user_uid }} ~/Library/LaunchAgents/com.neongecko.neon-hub-hana-alias.plist
+      shell: launchctl bootstrap gui/{{ neon_uid }} /Users/{{ neon_user }}/Library/LaunchAgents/com.neongecko.neon-hub-hana-alias.plist
       become: no
       when: ansible_os_family == 'Darwin'
 
