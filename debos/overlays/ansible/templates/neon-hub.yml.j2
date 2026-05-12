@@ -1,3 +1,14 @@
+# TEMPORARY: Several images lack linux/arm64 manifests and are forced to
+# linux/amd64 on Darwin (Rosetta 2). Remove the per-service
+# `platform: linux/amd64` conditionals once upstream ships multi-arch builds.
+# Tracking issues:
+#   - neongeckocom/neon_api_proxy (NeonGeckoCom)
+#   - neongeckocom/neon-hana (NeonGeckoCom)
+#   - neongeckocom/neon-hub-config (NeonGeckoCom)
+#   - neongeckocom/neon-iris, neon-iris-websat (NeonGeckoCom)
+#   - neongeckocom/neon-tts-plugin-coqui (NeonGeckoCom)
+#   - neongeckocom/neon-users-service (NeonGeckoCom)
+#   - smartgic/ovos-stt-server-fasterwhisper (OpenVoiceOS/ovos-docker-stt#16)
 x-podman: &podman
   userns_mode: keep-id
   security_opt:
@@ -223,6 +234,9 @@ services:
     <<: *podman
     container_name: neon-api-proxy
     image: ghcr.io/neongeckocom/neon_api_proxy:${MQ_IMAGE_TAG}
+{% if ansible_os_family == 'Darwin' %}
+    platform: linux/amd64
+{% endif %}
     depends_on:
       - rabbitmq
     restart: unless-stopped
@@ -289,6 +303,9 @@ services:
       - rabbitmq
     container_name: neon-users-service
     image: ghcr.io/neongeckocom/neon-users-service:${MQ_IMAGE_TAG}
+{% if ansible_os_family == 'Darwin' %}
+    platform: linux/amd64
+{% endif %}
     restart: unless-stopped
     logging: *default-logging
     hostname: $HOSTNAME
@@ -308,6 +325,9 @@ services:
       - users-service
     container_name: neon-hana
     image: ghcr.io/neongeckocom/neon-hana:${HTTP_IMAGE_TAG}
+{% if ansible_os_family == 'Darwin' %}
+    platform: linux/amd64
+{% endif %}
     restart: unless-stopped
     logging: *default-logging
     hostname: $HOSTNAME
@@ -323,6 +343,9 @@ services:
     <<: *podman
     container_name: neon-tts-coqui
     image: ghcr.io/neongeckocom/neon-tts-plugin-coqui:${HTTP_IMAGE_TAG}
+{% if ansible_os_family == 'Darwin' %}
+    platform: linux/amd64
+{% endif %}
     restart: unless-stopped
     logging: *default-logging
     hostname: $HOSTNAME
@@ -340,6 +363,9 @@ services:
     <<: *podman
     container_name: neon-stt-fasterwhisper
     image: docker.io/smartgic/ovos-stt-server-fasterwhisper:alpha
+{% if ansible_os_family == 'Darwin' %}
+    platform: linux/amd64
+{% endif %}
     restart: unless-stopped
     logging: *default-logging
     hostname: $HOSTNAME
@@ -358,6 +384,9 @@ services:
     container_name: neon-iris
     user: root
     image: ghcr.io/neongeckocom/neon-iris:${HTTP_IMAGE_TAG}
+{% if ansible_os_family == 'Darwin' %}
+    platform: linux/amd64
+{% endif %}
     restart: unless-stopped
     logging: *default-logging
     hostname: $HOSTNAME
@@ -378,6 +407,9 @@ services:
       - rabbitmq
     container_name: neon-iris-websat
     image: ghcr.io/neongeckocom/neon-iris-websat:${HTTP_IMAGE_TAG}
+{% if ansible_os_family == 'Darwin' %}
+    platform: linux/amd64
+{% endif %}
     restart: unless-stopped
     logging: *default-logging
     hostname: $HOSTNAME
@@ -414,6 +446,9 @@ services:
     depends_on:
       - hana
     image: ghcr.io/neongeckocom/neon-hub-config:main
+{% if ansible_os_family == 'Darwin' %}
+    platform: linux/amd64
+{% endif %}
     environment:
       DIANA_PATH: /root/.config/neon/diana.yaml
       NEON_PATH: /root/.config/neon/neon.yaml
