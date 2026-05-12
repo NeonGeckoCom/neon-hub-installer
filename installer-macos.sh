@@ -206,7 +206,7 @@ install_whiptail() {
     info "whiptail provides a nicer dialog experience for the installer."
     if get_yesno "Install whiptail via Homebrew? (brew install newt)"; then
         info "Installing whiptail (newt)..."
-        if brew install newt &>/dev/null; then
+        if brew install newt; then
             HAS_WHIPTAIL=1
             success "whiptail installed"
         else
@@ -309,13 +309,19 @@ fix_pulseaudio() {
     fi
 
     # 4d: Start (or restart) PulseAudio daemon
+    # Always use restart — handles started, stopped, and error states uniformly
     info "Starting PulseAudio daemon..."
-    if brew services list | grep -q "pulseaudio.*started"; then
-        brew services restart pulseaudio &>/dev/null
-        success "PulseAudio restarted"
+    if ! brew services restart pulseaudio; then
+        warn "brew services restart returned an error — checking if PA is running anyway..."
+    fi
+    # Verify PA is actually running regardless of brew services exit code
+    sleep 1
+    if pgrep -q pulseaudio; then
+        success "PulseAudio daemon is running"
     else
-        brew services start pulseaudio &>/dev/null
-        success "PulseAudio started"
+        fatal "PulseAudio daemon is not running. Try manually:
+  brew services restart pulseaudio
+  pulseaudio --check"
     fi
 
     # 4e: Verify TCP module and port
@@ -458,17 +464,29 @@ setup_ansible() {
         success "Venv already exists at $VENV_PATH"
     fi
 
+    # Fix ~/.ansible ownership if a previous sudo run left it root-owned
+    if [ -d "$HOME/.ansible" ] && [ "$(stat -f '%u' "$HOME/.ansible")" != "$(id -u)" ]; then
+        warn "Fixing ~/.ansible ownership (was root-owned from a previous run)..."
+        sudo chown -R "$(whoami):staff" "$HOME/.ansible"
+    fi
+
     info "Installing Ansible and dependencies..."
-    "$VENV_PATH/bin/pip" install --upgrade pip setuptools &>/dev/null
-    "$VENV_PATH/bin/pip" install \
-        ansible==9.2.0 \
+    if ! "$VENV_PATH/bin/pip" install --quiet --upgrade pip setuptools; then
+        fatal "Failed to upgrade pip/setuptools"
+    fi
+    if ! "$VENV_PATH/bin/pip" install --quiet \
+        ansible==9.13.0 \
         docker==7.1.0 \
-        requests==2.31.0 &>/dev/null
+        requests==2.34.0; then
+        fatal "Failed to install Ansible and dependencies"
+    fi
     success "Python packages installed"
 
-    info "Installing Ansible Galaxy requirements..."
-    "$VENV_PATH/bin/ansible-galaxy" install -r "${PLAYBOOK_DIR}/requirements.yml" &>/dev/null
-    success "Ansible Galaxy roles and collections installed"
+    info "Installing Ansible Galaxy collections..."
+    if ! "$VENV_PATH/bin/ansible-galaxy" collection install -r "${PLAYBOOK_DIR}/requirements.yml"; then
+        fatal "Failed to install Ansible Galaxy collections. Check your network connection and try again."
+    fi
+    success "Ansible Galaxy collections installed"
 }
 
 ###############################################################################
@@ -495,7 +513,7 @@ run_ansible() {
         -e "hub_admin_password_input=${HUB_ADMIN_PASSWORD}"
         -e "timezone=${TIMEZONE}"
         -e "start_neon_hub_services=1"
-        "${ansible_debug[@]}"
+        ${ansible_debug[@]+"${ansible_debug[@]}"}
         -K
         "${PLAYBOOK_DIR}/hub.yaml"
     )
