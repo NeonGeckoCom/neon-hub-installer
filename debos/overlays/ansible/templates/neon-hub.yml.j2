@@ -2,13 +2,13 @@
 # linux/amd64 on Darwin (Rosetta 2). Remove the per-service
 # `platform: linux/amd64` conditionals once upstream ships multi-arch builds.
 # Tracking issues:
-#   - neongeckocom/neon_api_proxy (NeonGeckoCom)
-#   - neongeckocom/neon-hana (NeonGeckoCom)
-#   - neongeckocom/neon-hub-config (NeonGeckoCom)
-#   - neongeckocom/neon-iris, neon-iris-websat (NeonGeckoCom)
-#   - neongeckocom/neon-tts-plugin-coqui (NeonGeckoCom)
-#   - neongeckocom/neon-users-service (NeonGeckoCom)
-#   - smartgic/ovos-stt-server-fasterwhisper (OpenVoiceOS/ovos-docker-stt#16)
+#   https://github.com/NeonGeckoCom/neon_api_proxy/issues/109
+#   https://github.com/NeonGeckoCom/neon-hana/issues/53
+#   https://github.com/NeonGeckoCom/neon-hub-config/issues/17
+#   https://github.com/NeonGeckoCom/neon-iris/issues/81 (iris + iris-websat)
+#   https://github.com/NeonGeckoCom/neon-tts-plugin-coqui/issues/129
+#   https://github.com/NeonGeckoCom/neon-users-service/issues/7
+#   https://github.com/OpenVoiceOS/ovos-docker-stt/issues/16
 x-podman: &podman
   userns_mode: keep-id
   security_opt:
