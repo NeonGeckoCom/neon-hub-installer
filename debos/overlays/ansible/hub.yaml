@@ -44,8 +44,11 @@
   become: yes
 
   vars:
-    # Hub
-    xdg_dir: /home/neon/xdg
+    # Hub — platform-aware defaults
+    neon_home: "{{ '/opt/neon' if ansible_os_family == 'Darwin' else '/home/neon' }}"
+    neon_user: "{{ ansible_user_id if ansible_os_family == 'Darwin' else 'neon' }}"
+    neon_group: "{{ 'staff' if ansible_os_family == 'Darwin' else 'neon' }}"
+    xdg_dir: "{{ neon_home }}/xdg"
     common_name: neon-hub.local
     install_neon_node: "0"
     install_neon_node_gui: "0"
@@ -75,22 +78,21 @@
     docker_service_manage: "0"
     start_neon_hub_services: "1"
     # Certificate - this will change rarely
-    primary_ip: "{{ ansible_default_ipv4.address }}"
+    primary_ip: "{{ ansible_default_ipv4.address | default('127.0.0.1') }}"
     country: US
     state: Washington
     location: Bellevue
     organization: Neon
     organizational_unit: Neon
     trust_self_signed_cert: "0"
-
-  roles:
-    - geerlingguy.docker
+    timezone: "{{ lookup('pipe', 'cat /etc/timezone 2>/dev/null || readlink /etc/localtime 2>/dev/null | sed \"s|.*/zoneinfo/||\" || echo America/Chicago') }}"
 
   post_tasks:
     - name: Manually enable Docker service for boot
       ansible.builtin.command:
         cmd: systemctl enable docker
       become: yes
+      when: ansible_os_family != 'Darwin'
 
   pre_tasks:
     - name: Validate installation options
@@ -101,19 +103,57 @@
         - install_neon_node_gui | bool
 
   tasks:
-    # Prepare
-    - name: Ensure package prerequisites are installed
-      ansible.builtin.package:
+    # Install Docker role (Linux only — macOS uses Docker Desktop)
+    - name: Install Docker via geerlingguy.docker role
+      ansible.builtin.include_role:
+        name: geerlingguy.docker
+      when: ansible_os_family != 'Darwin'
+
+    # Prepare — platform-conditional package installation
+    - name: Ensure package prerequisites are installed (Debian/Ubuntu)
+      ansible.builtin.apt:
         name: openssl,python3-docker,python3-jsondiff,ffmpeg,avahi-daemon,avahi-utils
         state: present
-    - name: Get primary IP address
+      when: ansible_os_family == 'Debian'
+
+    - name: Ensure package prerequisites are installed (macOS)
+      community.general.homebrew:
+        name:
+          - openssl
+          - ffmpeg
+        state: present
+      become: no
+      when: ansible_os_family == 'Darwin'
+
+    # IP resolution — Darwin-specific (ansible_default_ipv4 may not populate)
+    - name: Get default network interface (Darwin)
+      shell: route get default | awk '/interface:/ {print $2}'
+      register: darwin_default_iface
+      when: ansible_os_family == 'Darwin'
+      changed_when: false
+
+    - name: Get primary IP address (Darwin)
+      shell: "ipconfig getifaddr {{ darwin_default_iface.stdout }}"
+      register: darwin_primary_ip
+      when: ansible_os_family == 'Darwin'
+      changed_when: false
+
+    - name: Set primary_ip fact (Darwin)
+      set_fact:
+        primary_ip: "{{ darwin_primary_ip.stdout }}"
+      when: ansible_os_family == 'Darwin'
+
+    - name: Get primary IP address (Linux)
       ansible.builtin.set_fact:
         primary_ip: "{{ ansible_default_ipv4.address }}"
+      when: ansible_os_family != 'Darwin'
+
     - name: Previous installation
       stat:
         path: "{{ xdg_dir }}/neon-installed"
       register: previous_install
-    # Users and groups
+
+    # Users and groups (Linux only — macOS uses current user)
     - name: Create neon user if it doesn't exist
       ansible.builtin.user:
         name: neon
@@ -122,10 +162,14 @@
         password: $6$OLlZU5ZMFA8gNQWj$/XxUraZxn08JI.9toC3Lq3O0llVkcVek5roJfcGMqL0woL.uxrd2I.XBVsoQqzN8vkKLFD7s2pasQDZlU0qQ9/
         shell: /bin/bash
         update_password: on_create
+      when: ansible_os_family != 'Darwin'
+
     - name: Create neon group if it doesn't exist
       ansible.builtin.group:
         name: neon
         system: yes
+      when: ansible_os_family != 'Darwin'
+
     - name: Add current user to neon and docker groups
       become: no
       ansible.builtin.user:
@@ -134,6 +178,8 @@
         groups:
           - neon
           - docker
+      when: ansible_os_family != 'Darwin'
+
     - name: Add neon to audio, docker, and systemd-journal groups
       ansible.builtin.user:
         name: neon
@@ -142,21 +188,27 @@
           - audio
           - docker
           - systemd-journal
+      when: ansible_os_family != 'Darwin'
+
     - name: Look up docker group GID
       ansible.builtin.getent:
         database: group
         key: docker
+      when: ansible_os_family != 'Darwin'
+
     - name: Set docker_gid fact
       ansible.builtin.set_fact:
         docker_gid: "{{ getent_group['docker'][1] }}"
-    # Set up prerequisite folders
+      when: ansible_os_family != 'Darwin'
+
+    # Set up prerequisite folders — common dirs (both platforms)
     - name: Create Neon folders with 2775 permissions
       ansible.builtin.file:
         path: "{{ item }}"
         state: directory
-        mode: "2775" # Keeps the group sticky
-        owner: neon
-        group: neon
+        mode: "2775"
+        owner: "{{ neon_user }}"
+        group: "{{ neon_group }}"
       loop:
         - "{{ xdg_dir }}"
         - "{{ xdg_dir }}/local"
@@ -165,14 +217,26 @@
         - "{{ xdg_dir }}/share/neon/users-service"
         - "{{ xdg_dir }}/config"
         - "{{ xdg_dir }}/config/neon"
-        - "/home/neon/compose"
-        - "/home/neon/.config/pulse"
-        - "/home/neon/.config/systemd"
-        - "/home/neon/.config/systemd/user"
-        - "/home/neon/.local"
-        - "/home/neon/.local/state"
-        - "/home/neon/.local/state/mycroft"
-        - "/home/neon/.cache"
+        - "{{ neon_home }}/compose"
+        - "{{ neon_home }}/.local"
+        - "{{ neon_home }}/.local/state"
+        - "{{ neon_home }}/.local/state/mycroft"
+        - "{{ neon_home }}/.cache"
+
+    # Set up prerequisite folders — Linux-only dirs
+    - name: Create Linux-only Neon folders
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "2775"
+        owner: "{{ neon_user }}"
+        group: "{{ neon_group }}"
+      loop:
+        - "{{ neon_home }}/.config/pulse"
+        - "{{ neon_home }}/.config/systemd"
+        - "{{ neon_home }}/.config/systemd/user"
+      when: ansible_os_family != 'Darwin'
+
     - name: Create {{ xdg_dir }}/config/rabbitmq folder
       ansible.builtin.file:
         path: "{{ xdg_dir }}/config/rabbitmq"
@@ -180,9 +244,20 @@
         mode: "2775"
         owner: 999
         group: 999
+
     # Certificate generation
     - name: Generate self-signed certificate
       import_tasks: generate-certificate.yaml
+
+    # Trust self-signed cert in macOS System keychain
+    - name: Trust self-signed cert in macOS System keychain
+      ansible.builtin.command:
+        cmd: security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain {{ neon_home }}/{{ common_name }}.crt
+      become: yes
+      when:
+        - ansible_os_family == 'Darwin'
+        - trust_self_signed_cert == "1"
+
     # Generate configs
     - name: Load secrets
       include_vars:
@@ -204,47 +279,47 @@
         src: templates/neon.yaml.j2
         dest: "{{ xdg_dir }}/config/neon/neon.yaml"
         mode: "0644"
-        owner: neon
-        group: neon
+        owner: "{{ neon_user }}"
+        group: "{{ neon_group }}"
     - name: Create diana.yaml
       ansible.builtin.template:
         src: templates/diana.yaml.j2
         dest: "{{ xdg_dir }}/config/neon/diana.yaml"
         mode: "0644"
-        owner: neon
-        group: neon
+        owner: "{{ neon_user }}"
+        group: "{{ neon_group }}"
     # Docker services
     - name: Copy nginx config file
       ansible.builtin.template:
         src: templates/nginx.conf.j2
-        dest: /home/neon/compose/nginx.conf
+        dest: "{{ neon_home }}/compose/nginx.conf"
         mode: "0644"
-        owner: neon
-        group: neon
+        owner: "{{ neon_user }}"
+        group: "{{ neon_group }}"
     - name: Copy neon-logo.png for skill-config tool
       ansible.builtin.copy:
         src: files/neon-logo.png
-        dest: /home/neon/compose/neon-logo.png
+        dest: "{{ neon_home }}/compose/neon-logo.png"
         mode: "0644"
-        owner: neon
-        group: neon
+        owner: "{{ neon_user }}"
+        group: "{{ neon_group }}"
     - name: Copy skill-config.json for skill-config tool
       ansible.builtin.copy:
         src: files/skill-config.json
-        dest: /home/neon/compose/skill-config.json
+        dest: "{{ neon_home }}/compose/skill-config.json"
         mode: "0644"
-        owner: neon
-        group: neon
+        owner: "{{ neon_user }}"
+        group: "{{ neon_group }}"
     - name: Copy environment variables file with user-provided values
       ansible.builtin.template:
         src: templates/.env.j2
-        dest: /home/neon/compose/.env
+        dest: "{{ neon_home }}/compose/.env"
         mode: "0644"
-        owner: neon
-        group: neon
+        owner: "{{ neon_user }}"
+        group: "{{ neon_group }}"
     - name: Read .env file
       ansible.builtin.slurp:
-        src: /home/neon/compose/.env
+        src: "{{ neon_home }}/compose/.env"
       register: env_file
     - name: Parse .env file
       ansible.builtin.set_fact:
@@ -252,10 +327,10 @@
     - name: Copy compose file from template
       ansible.builtin.template:
         src: templates/neon-hub.yml.j2
-        dest: /home/neon/compose/neon-hub.yml
+        dest: "{{ neon_home }}/compose/neon-hub.yml"
         mode: "0644"
-        owner: neon
-        group: neon
+        owner: "{{ neon_user }}"
+        group: "{{ neon_group }}"
     # Seed users-service's SQLite DB with admin and node users BEFORE the
     # containers come up. users-service has no admin-bootstrap path through
     # HANA's API (default-permission users only, with no admin-promotion),
@@ -268,7 +343,7 @@
     - name: Download and Start Core and Hub
       when: start_neon_hub_services == "1"
       community.docker.docker_compose_v2:
-        project_src: /home/neon/compose
+        project_src: "{{ neon_home }}/compose"
         project_name: neon
         files:
           - neon-hub.yml
@@ -295,9 +370,12 @@
           127.0.0.1    iris-websat.{{ common_name }}
           127.0.0.1    rmq-admin.{{ common_name }}
           127.0.0.1    config.{{ common_name }}
+          {% if ansible_os_family != 'Darwin' %}
           127.0.0.1    manager.{{ common_name }}
+          {% endif %}
           127.0.0.1    skill-config.{{ common_name }}
-    # mDNS service advertisement
+
+    # mDNS service advertisement — Linux (Avahi)
     - name: Copy Avahi service definition
       ansible.builtin.template:
         src: templates/neon-hub.service.j2
@@ -306,12 +384,8 @@
         owner: root
         group: root
       notify: Restart avahi-daemon
-    # mDNS alias for the proxy hostname (hana.{{ common_name }}).
-    # Avahi only auto-advertises the host's own hostname (%h), so
-    # without this the cert-subject hostname has no A record on the
-    # wire and clients can't validate TLS. A small systemd unit runs
-    # `avahi-publish-address` to claim the alias for the lifetime
-    # of avahi-daemon.
+      when: ansible_os_family != 'Darwin'
+
     - name: Install hana mDNS alias resolver helper
       ansible.builtin.copy:
         src: files/avahi-alias-hana-resolve
@@ -319,6 +393,8 @@
         mode: "0755"
         owner: root
         group: root
+      when: ansible_os_family != 'Darwin'
+
     - name: Install hana mDNS alias systemd unit
       ansible.builtin.template:
         src: templates/avahi-alias-hana.service.j2
@@ -327,45 +403,125 @@
         owner: root
         group: root
       notify: Restart avahi-alias-hana
+      when: ansible_os_family != 'Darwin'
+
     - name: Enable and start hana mDNS alias
       ansible.builtin.systemd:
         name: avahi-alias-hana
         enabled: true
         state: started
         daemon_reload: true
-    # Neon Node Client
+      when: ansible_os_family != 'Darwin'
+
+    # mDNS service advertisement — macOS (dns-sd via launchd)
+    - name: Template mDNS service advertisement plist
+      ansible.builtin.template:
+        src: templates/com.neongecko.neon-hub-mdns.plist.j2
+        dest: "{{ ansible_env.HOME }}/Library/LaunchAgents/com.neongecko.neon-hub-mdns.plist"
+        mode: "0644"
+      become: no
+      when: ansible_os_family == 'Darwin'
+
+    - name: Template hana hostname alias plist
+      ansible.builtin.template:
+        src: templates/com.neongecko.neon-hub-hana-alias.plist.j2
+        dest: "{{ ansible_env.HOME }}/Library/LaunchAgents/com.neongecko.neon-hub-hana-alias.plist"
+        mode: "0644"
+      become: no
+      when: ansible_os_family == 'Darwin'
+
+    - name: Check if mDNS service is loaded
+      shell: launchctl list | grep com.neongecko.neon-hub-mdns
+      register: mdns_loaded
+      failed_when: false
+      changed_when: false
+      become: no
+      when: ansible_os_family == 'Darwin'
+
+    - name: Unload existing mDNS service
+      shell: launchctl bootout gui/{{ ansible_user_uid }}/com.neongecko.neon-hub-mdns
+      become: no
+      when:
+        - ansible_os_family == 'Darwin'
+        - mdns_loaded.rc == 0
+
+    - name: Load mDNS service
+      shell: launchctl bootstrap gui/{{ ansible_user_uid }} ~/Library/LaunchAgents/com.neongecko.neon-hub-mdns.plist
+      become: no
+      when: ansible_os_family == 'Darwin'
+
+    - name: Check if hana alias service is loaded
+      shell: launchctl list | grep com.neongecko.neon-hub-hana-alias
+      register: hana_alias_loaded
+      failed_when: false
+      changed_when: false
+      become: no
+      when: ansible_os_family == 'Darwin'
+
+    - name: Unload existing hana alias service
+      shell: launchctl bootout gui/{{ ansible_user_uid }}/com.neongecko.neon-hub-hana-alias
+      become: no
+      when:
+        - ansible_os_family == 'Darwin'
+        - hana_alias_loaded.rc == 0
+
+    - name: Load hana alias service
+      shell: launchctl bootstrap gui/{{ ansible_user_uid }} ~/Library/LaunchAgents/com.neongecko.neon-hub-hana-alias.plist
+      become: no
+      when: ansible_os_family == 'Darwin'
+
+    # Neon Node Client (Linux only)
     - name: Install Neon Node Client
       import_tasks: neon-node.yaml
-      when: install_neon_node == "1"
-    # Neon Node GUI
+      when:
+        - ansible_os_family != 'Darwin'
+        - install_neon_node == "1"
+
+    # Neon Node GUI (Linux only)
     - name: Install Neon Node GUI
       import_tasks: kiosk.yaml
-      when: install_neon_node_gui == "1"
+      when:
+        - ansible_os_family != 'Darwin'
+        - install_neon_node_gui == "1"
+
     - name: Remove Existing Neon Node GUI
       import_tasks: kiosk-teardown.yaml
       when:
+        - ansible_os_family != 'Darwin'
         - install_neon_node_gui == "0"
         - previous_install.stat.exists
+
     # Finish
     - name: Create file indicating successful deployment
       ansible.builtin.file:
         path: "{{ xdg_dir }}/neon-installed"
         state: touch
         mode: "2775"
+
     - name: Ask the user if they want to reboot
       ansible.builtin.pause:
         prompt: "Do you want to reboot the system? Recommended after first installation. (yes/no)"
       register: reboot_answer
-      when: start_neon_hub_services == "1"
+      when:
+        - ansible_os_family != 'Darwin'
+        - start_neon_hub_services == "1"
+
     - name: Reboot the system if user says yes
       ansible.builtin.command:
         cmd: /sbin/reboot
-      when: start_neon_hub_services == "1" and reboot_answer.user_input | lower in ['yes', 'y']
+      when:
+        - ansible_os_family != 'Darwin'
+        - start_neon_hub_services == "1"
+        - reboot_answer.user_input | lower in ['yes', 'y']
       become: true
+
     - name: Inform the user that reboot has been triggered
       ansible.builtin.debug:
         msg: "Rebooting the system now, as requested."
-      when: start_neon_hub_services == "1" and reboot_answer.user_input | lower in ['yes', 'y']
+      when:
+        - ansible_os_family != 'Darwin'
+        - start_neon_hub_services == "1"
+        - reboot_answer.user_input | lower in ['yes', 'y']
 
   handlers:
     - name: Restart avahi-daemon
@@ -373,9 +529,12 @@
         name: avahi-daemon
         state: restarted
         enabled: true
+      when: ansible_os_family != 'Darwin'
+
     - name: Restart avahi-alias-hana
       ansible.builtin.systemd:
         name: avahi-alias-hana
         state: restarted
         enabled: true
         daemon_reload: true
+      when: ansible_os_family != 'Darwin'

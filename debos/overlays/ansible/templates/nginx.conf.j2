@@ -205,6 +205,7 @@ http {
         }
     }
 
+{% if ansible_os_family != 'Darwin' %}
     # Simple Docker Manager
     server {
         listen 443 ssl;
@@ -242,6 +243,7 @@ http {
             return 503 "Service temporarily unavailable";
         }
     }
+{% endif %}
 
     # Skill Config
     server {

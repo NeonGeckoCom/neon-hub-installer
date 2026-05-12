@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.neongecko.neon-hub-hana-alias</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/dns-sd</string>
+    <string>-P</string>
+    <string>hana-alias</string>
+    <string>_neon-hub-alias._tcp</string>
+    <string>local</string>
+    <string>443</string>
+    <string>hana.{{ common_name }}</string>
+    <string>{{ primary_ip }}</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+</dict>
+</plist>

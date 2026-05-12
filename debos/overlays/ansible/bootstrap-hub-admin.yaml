@@ -51,15 +51,15 @@
     path: "{{ hub_admin_token_file | dirname }}"
     state: directory
     mode: "0755"
-    owner: neon
-    group: neon
+    owner: "{{ neon_user }}"
+    group: "{{ neon_group }}"
 
 - name: Write hub_admin.yaml
   ansible.builtin.copy:
     dest: "{{ hub_admin_token_file }}"
     mode: "0600"
-    owner: neon
-    group: neon
+    owner: "{{ neon_user }}"
+    group: "{{ neon_group }}"
     content: |
       username: {{ hub_admin_username | to_json }}
       password: {{ hub_admin_password | to_json }}
