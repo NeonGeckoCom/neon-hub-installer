@@ -16,8 +16,6 @@
     src: files/seed-user.py
     dest: /tmp/seed-user.py
     mode: "0700"
-    owner: root
-    group: root
 
 - name: Seed Hub admin user with ADMIN permissions
   ansible.builtin.command:
