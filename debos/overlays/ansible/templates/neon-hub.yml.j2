@@ -234,6 +234,9 @@ services:
 {% endif %}
     environment:
       - RABBITMQ_ENABLED_PLUGINS=rabbitmq_management
+{% if ansible_os_family == 'Darwin' %}
+      - RABBITMQ_ENABLED_PLUGINS_FILE=/var/lib/rabbitmq/enabled_plugins
+{% endif %}
   # MQ Services
   api_proxy:
     <<: *podman
