@@ -1,0 +1,344 @@
+# Neon Hub — Windows Phase 1 (compose only)
+#
+# This is a hand-written parallel to the macOS/Linux compose template at
+# debos/overlays/ansible/templates/neon-hub.yml.j2. It is intentionally
+# static so Windows users can `docker compose -p neon up -d` without an
+# installer.
+#
+# Differences from the Linux/macOS rendering:
+#   - No host audio/Pulse/X11/dbus/snd mounts (Windows has none)
+#   - No /etc/timezone or /etc/localtime bind mounts (TZ env var instead)
+#   - No `platform: linux/amd64` overrides (Windows is amd64 native)
+#   - RabbitMQ uses the macOS-style read-only conf mount + redirected
+#     enabled_plugins file (Docker Desktop on WSL2 has the same uid-999
+#     ownership problem as VirtioFS on macOS)
+#   - `hub_config` and `docker_manager` are commented out (require Hub
+#     admin bootstrap and a Linux docker socket respectively — Phase 2)
+#   - All paths use ${NEON_HOME} from .env, forward-slash form
+#
+# Dev secrets are seeded under windows/seed/. ROTATE BEFORE EXPOSING TO
+# ANYTHING REAL — they are committed to the repo for local dev only.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    mode: non-blocking
+    max-buffer-size: 4m
+    max-size: "5m"
+    max-file: "1"
+
+x-default-env-vars: &default-env-vars
+  XDG_CONFIG_HOME: ${XDG_CONFIG_HOME}
+  TZ: ${TZ}
+
+networks:
+  neon-core:
+
+volumes:
+  xdg:
+  models:
+  vosk:
+  listener_records:
+  tts_cache:
+  nltk:
+  local_state:
+  neon_gui_files:
+
+services:
+  # ---------- Core ----------
+  messagebus:
+    logging: *default-logging
+    restart: unless-stopped
+    image: ghcr.io/neongeckocom/neon_messagebus:${NEON_IMAGE_TAG}
+    container_name: neon-messagebus
+    depends_on:
+      - rabbitmq
+    networks:
+      neon-core:
+        aliases:
+          - neon-messagebus
+    volumes:
+      - ${NEON_HOME}/xdg/config:/xdg/config
+      - ${NEON_HOME}/xdg/local:/xdg/local
+    environment:
+      <<: *default-env-vars
+
+  speech:
+    logging: *default-logging
+    restart: unless-stopped
+    depends_on:
+      - messagebus
+    image: ghcr.io/neongeckocom/neon_speech-default_model:${NEON_IMAGE_TAG}
+    container_name: neon-speech
+    networks:
+      neon-core:
+    volumes:
+      - xdg:/home/neon:rw
+      - ${NEON_HOME}/xdg/config:/xdg/config:ro
+      - listener_records:/xdg/local/share/neon/listener
+      - ${NEON_HOME}/xdg/local:/xdg/local
+      - models:/xdg/local/share/precise-lite
+      - vosk:/xdg/local/share/vosk
+    environment:
+      <<: *default-env-vars
+
+  audio:
+    logging: *default-logging
+    restart: unless-stopped
+    depends_on:
+      - messagebus
+    image: ghcr.io/neongeckocom/neon_audio:${NEON_IMAGE_TAG}
+    container_name: neon-audio
+    networks:
+      neon-core:
+    volumes:
+      - ${NEON_HOME}/xdg/config:/xdg/config
+      - ${NEON_HOME}/xdg/local:/xdg/local
+      - tts_cache:/xdg/cache/neon
+    environment:
+      <<: *default-env-vars
+      LOG_LEVEL: INFO
+
+  enclosure:
+    logging: *default-logging
+    restart: unless-stopped
+    depends_on:
+      - messagebus
+    image: ghcr.io/neongeckocom/neon_enclosure:${NEON_IMAGE_TAG}
+    container_name: neon-enclosure
+    networks:
+      neon-core:
+    volumes:
+      - ${NEON_HOME}/xdg/config:/xdg/config
+      - ${NEON_HOME}/xdg/local:/xdg/local
+    environment:
+      <<: *default-env-vars
+
+  skills:
+    logging: *default-logging
+    restart: unless-stopped
+    depends_on:
+      - messagebus
+    image: ghcr.io/neongeckocom/neon_skills-default_skills:${NEON_IMAGE_TAG}
+    container_name: neon-skills
+    networks:
+      neon-core:
+    volumes:
+      - ${NEON_HOME}/xdg/config:/xdg/config
+      - ${NEON_HOME}/xdg/local:/xdg/local
+      - nltk:/home/neon/nltk_data
+      - ${NEON_HOME}/xdg/share/neon:/xdg/local/share/neon
+    environment:
+      <<: *default-env-vars
+
+  # ---------- Hub ----------
+  rabbitmq:
+    container_name: neon-rabbitmq
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: ${NEON_HOSTNAME}
+    networks:
+      neon-core:
+        aliases:
+          - neon-rabbitmq
+    volumes:
+      - ${NEON_HOME}/xdg/config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ${NEON_HOME}/xdg/config/rabbitmq/rabbitmq.json:/etc/rabbitmq/rabbitmq.json:ro
+    environment:
+      - RABBITMQ_ENABLED_PLUGINS=rabbitmq_management
+      - RABBITMQ_ENABLED_PLUGINS_FILE=/var/lib/rabbitmq/enabled_plugins
+
+  # ---------- MQ Services ----------
+  api_proxy:
+    container_name: neon-api-proxy
+    image: ghcr.io/neongeckocom/neon_api_proxy:${MQ_IMAGE_TAG}
+    depends_on:
+      - rabbitmq
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: ${NEON_HOSTNAME}
+    networks:
+      neon-core:
+    volumes:
+      - xdg:/xdg:rw
+    environment:
+      <<: *default-env-vars
+
+  # ---------- HTTP Services ----------
+  skill_config:
+    container_name: neon-skill-config
+    image: ghcr.io/oscillatelabsllc/ovos-skill-config-tool:latest
+    user: "0:0"
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: ${NEON_HOSTNAME}
+    networks:
+      neon-core:
+        aliases:
+          - neon-skill-config
+    ports:
+      - "8010:8000"
+    volumes:
+      - ${NEON_HOME}/xdg/config:/home/appuser/.config:rw
+      - ${NEON_HOME}/compose/neon-logo.png:/app/static/logo.png:ro
+      - ${NEON_HOME}/compose/skill-config.json:/app/static/config.json:ro
+    environment:
+      <<: *default-env-vars
+      OVOS_CONFIG_USERNAME: neon
+      OVOS_CONFIG_PASSWORD: devneonskillconfig
+      OVOS_CONFIG_BASE_FOLDER: neon
+      XDG_CONFIG_HOME: /home/appuser/.config
+
+  users-service:
+    depends_on:
+      - rabbitmq
+    container_name: neon-users-service
+    image: ghcr.io/neongeckocom/neon-users-service:${MQ_IMAGE_TAG}
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: ${NEON_HOSTNAME}
+    networks:
+      neon-core:
+        aliases:
+          - neon-users-service
+    volumes:
+      - xdg:/xdg:rw
+      - ${NEON_HOME}/xdg/share/neon/users-service:/data:rw
+    environment:
+      <<: *default-env-vars
+
+  hana:
+    depends_on:
+      - rabbitmq
+      - users-service
+    container_name: neon-hana
+    image: ghcr.io/neongeckocom/neon-hana:${HTTP_IMAGE_TAG}
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: ${NEON_HOSTNAME}
+    networks:
+      neon-core:
+    ports:
+      - "8082:8080"
+    volumes:
+      - xdg:/xdg:rw
+    environment:
+      <<: *default-env-vars
+
+  tts_coqui:
+    container_name: neon-tts-coqui
+    image: ghcr.io/neongeckocom/neon-tts-plugin-coqui:${HTTP_IMAGE_TAG}
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: ${NEON_HOSTNAME}
+    networks:
+      neon-core:
+        aliases:
+          - coqui
+    ports:
+      - "9666:9666"
+    volumes:
+      - xdg:/xdg:rw
+    environment:
+      <<: *default-env-vars
+
+  stt_fasterwhisper:
+    container_name: neon-stt-fasterwhisper
+    image: docker.io/smartgic/ovos-stt-server-fasterwhisper:alpha
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: ${NEON_HOSTNAME}
+    networks:
+      neon-core:
+        aliases:
+          - fasterwhisper
+    ports:
+      - "8080:8080"
+    environment:
+      <<: *default-env-vars
+
+  iris:
+    depends_on:
+      - rabbitmq
+    container_name: neon-iris
+    user: root
+    image: ghcr.io/neongeckocom/neon-iris:${HTTP_IMAGE_TAG}
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: ${NEON_HOSTNAME}
+    networks:
+      neon-core:
+        aliases:
+          - iris
+    ports:
+      - "7860:7860"
+    volumes:
+      - xdg:/xdg:rw
+    environment:
+      <<: *default-env-vars
+      OVOS_CONFIG_FILENAME: diana.yaml
+
+  iris_websat:
+    depends_on:
+      - rabbitmq
+    container_name: neon-iris-websat
+    image: ghcr.io/neongeckocom/neon-iris-websat:${HTTP_IMAGE_TAG}
+    restart: unless-stopped
+    logging: *default-logging
+    hostname: ${NEON_HOSTNAME}
+    networks:
+      neon-core:
+        aliases:
+          - iris-websat
+    ports:
+      - "8001:8000"
+    volumes:
+      - xdg:/xdg:rw
+    environment:
+      <<: *default-env-vars
+      OVOS_CONFIG_FILENAME: diana.yaml
+
+  nginx:
+    image: nginx:alpine
+    container_name: neon-nginx
+    logging: *default-logging
+    restart: unless-stopped
+    networks:
+      neon-core:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ${NEON_HOME}/compose/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${NEON_HOME}/${NEON_HOSTNAME}.crt:/etc/ssl/certs/${NEON_HOSTNAME}.crt:ro
+      - ${NEON_HOME}/${NEON_HOSTNAME}.key:/etc/ssl/private/${NEON_HOSTNAME}.key:ro
+
+  # ---------- Deferred to Phase 2 ----------
+  # hub_config requires a populated hub_admin.yaml (refresh_token from HANA).
+  # docker_manager mounts /var/run/docker.sock which doesn't exist on Windows.
+  # Both will be re-enabled once the PowerShell bootstrap script lands.
+  #
+  # hub_config:
+  #   logging: *default-logging
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - hana
+  #   image: ghcr.io/neongeckocom/neon-hub-config:main
+  #   environment:
+  #     DIANA_PATH: /root/.config/neon/diana.yaml
+  #     NEON_PATH: /root/.config/neon/neon.yaml
+  #     HUB_ADMIN_TOKEN_FILE: /root/.config/neon/hub_admin.yaml
+  #   container_name: neon-hub-config
+  #   user: root
+  #   networks:
+  #     neon-core:
+  #       aliases:
+  #         - neon-hub-config
+  #   ports:
+  #     - "8005:80"
+  #   volumes:
+  #     - ${NEON_HOME}/xdg/config:/root/.config

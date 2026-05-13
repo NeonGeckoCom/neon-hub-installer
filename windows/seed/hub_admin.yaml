@@ -1,0 +1,10 @@
+# Placeholder for hub_admin token file.
+# Phase 1 (compose-only) does not bootstrap a hub admin, so this file is empty.
+# To enable neon-hub-config in the compose stack, first POST to /auth/login on
+# HANA to obtain a refresh_token, then populate this file:
+#
+#   username: "admin"
+#   password: "your-admin-password"
+#   refresh_token: "<token returned by HANA>"
+#
+# Phase 2 will add a PowerShell bootstrap script that does this automatically.
