@@ -38,6 +38,13 @@ prove out the container layer end-to-end before we build a real installer.
      under `C:\Program Files\Git\usr\bin\`; reachable from Git Bash but
      not PowerShell unless you add the dir to PATH. The script finds
      it either way.
+6. **Shawl.** A small Rust service-wrapper used so the Bonjour mDNS
+   publisher (`dns-sd.exe`, which doesn't speak the Windows Service
+   Control Manager protocol) can run as a real Windows service.
+   Install with:
+   ```powershell
+   winget install -e --id mtkennerly.shawl
+   ```
 
 ## One-time setup
 
@@ -104,6 +111,32 @@ Copy-Item windows\seed\skill-config.json "$NEON_HOME\compose\"
 Copy-Item windows\seed\neon-logo.png     "$NEON_HOME\compose\"
 ```
 
+### 3a. Advertise the Hub on the LAN (optional)
+
+Run these from an Administrator PowerShell to install Bonjour Print
+Services (Apple's mDNS responder for Windows) and register a Windows
+service that advertises `_neon-hub._tcp.local.` so discovery clients
+on the LAN can find the Hub:
+
+```powershell
+.\windows\scripts\install-bonjour.ps1
+.\windows\scripts\register-mdns.ps1 -Hostname neon-hub-win.local
+```
+
+**Honest limitations**, since Windows mDNS is less capable than macOS:
+
+- The service record is advertised correctly, so a Node app browsing
+  for `_neon-hub._tcp` discovers this Hub.
+- A-record advertisement (resolving `hana.neon-hub-win.local` itself
+  from other devices) does *not* work reliably — Microsoft's
+  `DnsServiceRegister` API has a known bug. Other devices on the LAN
+  still need a hosts-file entry to actually reach the Hub.
+- For local-machine browser access (the most common case), the
+  hosts-file edit from step 1 covers everything.
+
+Skip this whole step if you only need single-machine access; the rest
+of the install works fine without it.
+
 ### 4. Create your `.env`
 
 ```powershell
@@ -147,10 +180,11 @@ Remove-Item -Recurse -Force $env:USERPROFILE\neon-hub
   out in the compose with a TODO.
 - **`docker_manager` container.** Mounts `/var/run/docker.sock`, which
   doesn't exist on Windows. Will likely stay disabled on Windows.
-- **mDNS advertising.** The hosts-file workaround means only this machine
-  resolves `neon-hub-win.local`. Phase 2 will document installing Bonjour
-  Print Services so other devices on the LAN (phones, Node app) can find
-  the Hub.
+- **Multi-device hostname resolution.** Even with the Phase 2.1 + 2.2
+  Bonjour install, the Windows mDNS API can't publish A records
+  reliably, so other devices on the LAN still need their own hosts-file
+  entry to reach `hana.<hostname>` etc. Service discovery (Node app
+  finding `_neon-hub._tcp`) does work.
 - **Password rotation.** Everything in `seed/` is a static dev placeholder.
   Phase 2 PowerShell installer will generate fresh values per host. (The
   TLS cert is already per-host as of Phase 2.1 — see step 2.)
