@@ -36,24 +36,42 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-if (-not (Get-Command openssl -ErrorAction SilentlyContinue)) {
+# Resolve openssl.exe: prefer PATH, then probe the well-known install dirs.
+# ShiningLight and Git for Windows don't add openssl to PATH by default,
+# so we try those locations explicitly before giving up.
+$opensslExe = (Get-Command openssl -ErrorAction SilentlyContinue).Source
+if (-not $opensslExe) {
+    $candidates = @(
+        "$env:ProgramFiles\OpenSSL-Win64\bin\openssl.exe",
+        "$env:ProgramFiles\FireDaemon OpenSSL 3\bin\openssl.exe",
+        "$env:ProgramFiles\Git\usr\bin\openssl.exe",
+        "${env:ProgramFiles(x86)}\OpenSSL-Win32\bin\openssl.exe"
+    )
+    $opensslExe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+}
+if (-not $opensslExe) {
     Write-Error @"
-openssl.exe not found on PATH.
+openssl.exe not found on PATH or in any well-known install dir.
 
-Install one of:
-  - Git for Windows  (https://gitforwindows.org/) — bundles openssl under usr\bin
-  - winget install ShiningLight.OpenSSL.Light
+Install one of (FireDaemon adds itself to PATH by default; the others
+require either checking the "Add to PATH" option in the installer or
+adding the bin dir manually):
+
   - winget install FireDaemon.OpenSSL
+  - winget install ShiningLight.OpenSSL.Light
+  - Git for Windows (https://gitforwindows.org/) — bundles openssl under usr\bin
 
-Then re-run this script.
+Then re-run this script. (This script will find openssl whether or not
+it's on PATH, as long as it's installed in a standard location.)
 "@
 }
 
+Write-Host "Using $opensslExe" -ForegroundColor DarkGray
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $crt = Join-Path $OutDir "$Hostname.crt"
 $key = Join-Path $OutDir "$Hostname.key"
 
-& openssl req -x509 -newkey rsa:4096 -nodes `
+& $opensslExe req -x509 -newkey rsa:4096 -nodes `
     -keyout $key -out $crt `
     -days $ValidDays `
     -subj "/CN=$Hostname/O=Neon Hub/OU=Dev" `

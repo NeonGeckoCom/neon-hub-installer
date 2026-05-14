@@ -26,12 +26,18 @@ prove out the container layer end-to-end before we build a real installer.
 4. **A text editor that can write Unix line endings** (VS Code, Notepad++,
    anything but the default Notepad). The seed configs are LF-terminated;
    editing them with Notepad will silently break the containers.
-5. **OpenSSL on PATH.** Used by `windows\scripts\new-cert.ps1` to generate
-   the Hub's TLS cert. Easiest install paths:
+5. **OpenSSL.** Used by `windows\scripts\new-cert.ps1` to generate the
+   Hub's TLS cert. The script will find `openssl.exe` whether or not
+   it's on PATH, as long as you installed to a standard location.
+   Easiest install paths:
+   - `winget install FireDaemon.OpenSSL` — *adds itself to PATH by default*
+   - `winget install ShiningLight.OpenSSL.Light` — installer's "Add to PATH"
+     checkbox is unchecked by default; the script finds it under
+     `C:\Program Files\OpenSSL-Win64\bin\` regardless
    - [Git for Windows](https://gitforwindows.org/) — bundles `openssl.exe`
-     under `usr\bin`
-   - `winget install ShiningLight.OpenSSL.Light`
-   - `winget install FireDaemon.OpenSSL`
+     under `C:\Program Files\Git\usr\bin\`; reachable from Git Bash but
+     not PowerShell unless you add the dir to PATH. The script finds
+     it either way.
 
 ## One-time setup
 
