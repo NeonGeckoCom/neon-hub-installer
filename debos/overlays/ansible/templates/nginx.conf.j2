@@ -205,7 +205,7 @@ http {
         }
     }
 
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
     # Simple Docker Manager
     server {
         listen 443 ssl;

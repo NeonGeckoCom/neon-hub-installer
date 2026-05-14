@@ -28,7 +28,7 @@ networks:
   neon-core:
 volumes:
   xdg:
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
     driver_opts:
       type: xdg
       o: bind
@@ -61,7 +61,7 @@ volumes:
   neon_gui_files:
     name: neon_gui_files
     driver: local
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
   sdm-data:
     name: sdm-data
     driver: local
@@ -84,7 +84,7 @@ services:
     volumes:
       - ${NEON_CONFIG_FOLDER}:/xdg/config
       - ${NEON_LOCAL_FOLDER}:/xdg/local
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
 {% endif %}
@@ -102,7 +102,7 @@ services:
       neon-core:
     volumes:
       - xdg:/home/neon:rw
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
       - /home/${NEON_USER}/.config/pulse/cookie:/xdg/config/pulse/cookie:ro
@@ -114,7 +114,7 @@ services:
       - vosk:/xdg/local/share/vosk
     environment:
       <<: *default-env-vars
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
     devices:
       - /dev/snd
 {% endif %}
@@ -129,24 +129,24 @@ services:
     networks:
       neon-core:
     volumes:
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
       - ${XDG_RUNTIME_DIR}/bus:${XDG_RUNTIME_DIR}/bus:ro
       - /home/${NEON_USER}/.config/pulse/cookie:/xdg/config/pulse/cookie:ro
 {% endif %}
       - ${NEON_CONFIG_FOLDER}:/xdg/config
       - ${NEON_LOCAL_FOLDER}:/xdg/local
       - tts_cache:/xdg/cache/neon
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
 {% endif %}
     environment:
       <<: *default-env-vars
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
       DBUS_SESSION_BUS_ADDRESS: unix:path=${XDG_RUNTIME_DIR}/bus
 {% endif %}
       LOG_LEVEL: INFO
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
     devices:
       - /dev/snd
 {% endif %}
@@ -161,24 +161,24 @@ services:
     networks:
       neon-core:
     volumes:
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
       - ${XDG_RUNTIME_DIR}/pulse/cookie:${XDG_RUNTIME_DIR}/pulse/cookie:ro
       - ${XDG_RUNTIME_DIR}/bus:${XDG_RUNTIME_DIR}/bus:ro
       - /tmp/.X11-unix:/tmp/.X11-unix:ro
 {% endif %}
       - ${NEON_CONFIG_FOLDER}:/xdg/config
       - ${NEON_LOCAL_FOLDER}:/xdg/local
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
 {% endif %}
     environment:
       <<: *default-env-vars
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
       DISPLAY: ${DISPLAY}
       DBUS_SESSION_BUS_ADDRESS: unix:path=${XDG_RUNTIME_DIR}/bus
 {% endif %}
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
     devices:
       - /dev/snd
 {% endif %}
@@ -193,18 +193,18 @@ services:
     networks:
       neon-core:
     volumes:
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
       - /home/${NEON_USER}/.config/pulse/cookie:/xdg/config/pulse/cookie:ro
 {% endif %}
       - ${NEON_CONFIG_FOLDER}:/xdg/config
       - ${NEON_LOCAL_FOLDER}:/xdg/local
       - nltk:/home/${NEON_USER}/nltk_data
       - ${NEON_SHARE_FOLDER}:/xdg/local/share/neon
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
 {% endif %}
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
     devices:
       - /dev/snd
 {% endif %}
@@ -226,7 +226,11 @@ services:
         aliases:
           - neon-rabbitmq
     volumes:
-{% if ansible_os_family == 'Darwin' %}
+{% if ansible_os_family in ('Darwin', 'Windows') %}
+      # macOS (VirtioFS) and Windows (WSL2 9P) both preserve host UIDs in
+      # bind mounts, so the in-image rabbitmq user (uid 999) can't own the
+      # config dir. Mount the two files read-only and redirect the writable
+      # enabled_plugins file to /var/lib/rabbitmq instead.
       - {{ neon_home }}/xdg/config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
       - {{ neon_home }}/xdg/config/rabbitmq/rabbitmq.json:/etc/rabbitmq/rabbitmq.json:ro
 {% else %}
@@ -234,7 +238,7 @@ services:
 {% endif %}
     environment:
       - RABBITMQ_ENABLED_PLUGINS=rabbitmq_management
-{% if ansible_os_family == 'Darwin' %}
+{% if ansible_os_family in ('Darwin', 'Windows') %}
       - RABBITMQ_ENABLED_PLUGINS_FILE=/var/lib/rabbitmq/enabled_plugins
 {% endif %}
   # MQ Services
@@ -257,7 +261,7 @@ services:
     environment:
       <<: *default-env-vars
   # HTTP Services
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
   docker_manager:
     <<: *podman
     container_name: neon-docker-manager
@@ -471,7 +475,7 @@ services:
       - 8005:80
     volumes:
       - ${NEON_CONFIG_FOLDER}:/root/.config
-{% if ansible_os_family != 'Darwin' %}
+{% if ansible_system == 'Linux' %}
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
 {% endif %}
