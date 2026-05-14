@@ -35,7 +35,17 @@ networks:
   neon-core:
 
 volumes:
+  # `xdg` is bind-mounted to ${NEON_HOME}/xdg so the seed configs the
+  # README has the user copy in (diana.yaml, neon.yaml, hub_admin.yaml,
+  # rabbitmq.*) actually reach the containers. Without this, Docker
+  # creates an empty managed volume and the first service to write into
+  # /xdg (HANA writing a hub_id) becomes the only source of truth.
   xdg:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${NEON_HOME}/xdg
   models:
   vosk:
   listener_records:
