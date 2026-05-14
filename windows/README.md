@@ -26,6 +26,12 @@ prove out the container layer end-to-end before we build a real installer.
 4. **A text editor that can write Unix line endings** (VS Code, Notepad++,
    anything but the default Notepad). The seed configs are LF-terminated;
    editing them with Notepad will silently break the containers.
+5. **OpenSSL on PATH.** Used by `windows\scripts\new-cert.ps1` to generate
+   the Hub's TLS cert. Easiest install paths:
+   - [Git for Windows](https://gitforwindows.org/) — bundles `openssl.exe`
+     under `usr\bin`
+   - `winget install ShiningLight.OpenSSL.Light`
+   - `winget install FireDaemon.OpenSSL`
 
 ## One-time setup
 
@@ -44,17 +50,27 @@ Administrator** and add:
 
 (One long line. Subdomain explosion is because nginx routes by Host header.)
 
-### 2. Trust the dev self-signed cert (optional, recommended)
-
-The cert at `windows/seed/neon-hub-win.local.crt` is self-signed. Either click
-through the browser warning each time, or trust it once:
+### 2. Generate a self-signed TLS cert
 
 ```powershell
-Import-Certificate -FilePath .\windows\seed\neon-hub-win.local.crt `
-  -CertStoreLocation Cert:\LocalMachine\Root
+.\windows\scripts\new-cert.ps1 `
+  -Hostname neon-hub-win.local `
+  -OutDir   $env:USERPROFILE\neon-hub
 ```
 
-(Run from an Administrator PowerShell. Removes the warnings in Edge/Chrome.)
+That writes `neon-hub-win.local.crt` and `neon-hub-win.local.key` directly
+into your data dir. The SAN covers the hostname, `localhost`, and
+`127.0.0.1`, so the same cert works for every access pattern a local Hub
+sees.
+
+If you want to suppress the browser warning, trust the freshly-minted cert
+from an Administrator PowerShell:
+
+```powershell
+Import-Certificate `
+  -FilePath        $env:USERPROFILE\neon-hub\neon-hub-win.local.crt `
+  -CertStoreLocation Cert:\LocalMachine\Root
+```
 
 ### 3. Lay down the data directory
 
@@ -80,8 +96,6 @@ Copy-Item windows\seed\hub_admin.yaml    "$NEON_HOME\xdg\config\neon\"
 Copy-Item windows\seed\nginx.conf        "$NEON_HOME\compose\"
 Copy-Item windows\seed\skill-config.json "$NEON_HOME\compose\"
 Copy-Item windows\seed\neon-logo.png     "$NEON_HOME\compose\"
-Copy-Item windows\seed\neon-hub-win.local.crt "$NEON_HOME\"
-Copy-Item windows\seed\neon-hub-win.local.key "$NEON_HOME\"
 ```
 
 ### 4. Create your `.env`
@@ -131,9 +145,9 @@ Remove-Item -Recurse -Force $env:USERPROFILE\neon-hub
   resolves `neon-hub-win.local`. Phase 2 will document installing Bonjour
   Print Services so other devices on the LAN (phones, Node app) can find
   the Hub.
-- **Cert generation and password rotation.** Everything in `seed/` is a
-  static dev placeholder. Phase 2 PowerShell installer will generate fresh
-  values per host.
+- **Password rotation.** Everything in `seed/` is a static dev placeholder.
+  Phase 2 PowerShell installer will generate fresh values per host. (The
+  TLS cert is already per-host as of Phase 2.1 — see step 2.)
 
 ## Troubleshooting
 
@@ -153,5 +167,4 @@ restarts. Will be addressed via a `resolver` directive in Phase 2's
 `nginx.conf.j2`.
 
 **Browser shows cert warning.** Either trust the cert per step 2, or click
-through. The cert is committed to the public repo and **must be
-regenerated** before this stack goes anywhere other than `localhost`.
+through. The cert is locally-generated and self-signed; that's expected.
