@@ -63,10 +63,9 @@ $ErrorActionPreference = 'Stop'
 $repoRoot    = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $seedScript  = Join-Path $repoRoot 'debos\overlays\ansible\files\seed-user.py'
 $envFile     = Join-Path $repoRoot 'windows\.env'
-$dianaYaml   = Join-Path $repoRoot 'windows\seed\diana.yaml'
 $composeFile = Join-Path $repoRoot 'windows\docker-compose.yml'
 
-foreach ($p in @($seedScript, $envFile, $dianaYaml, $composeFile)) {
+foreach ($p in @($seedScript, $envFile, $composeFile)) {
     if (-not (Test-Path $p)) { Write-Error "Required file missing: $p" }
 }
 
@@ -99,8 +98,20 @@ if (-not $AdminPassword) {
     $AdminPassword = Read-Host -Prompt "Password for $AdminUsername" -AsSecureString
 }
 
-# Pull node_password out of diana.yaml unless overridden.
+# Pull node_password out of the rendered diana.yaml in NEON_HOME
+# unless overridden. generate-secrets.ps1 renders that file from
+# debos/overlays/ansible/templates/diana.yaml.j2 with a fresh per-host
+# password, so this picks up the same value HANA is configured with.
 if (-not $NodePassword) {
+    $dianaYaml = (Join-Path $neonHome 'xdg/config/neon/diana.yaml') -replace '/', '\'
+    if (-not (Test-Path $dianaYaml)) {
+        Write-Error @"
+$dianaYaml does not exist.
+
+Run windows\scripts\generate-secrets.ps1 first to render the Hub
+config templates into NEON_HOME, or pass -NodePassword explicitly.
+"@
+    }
     $nodePwLine = (Get-Content $dianaYaml | Select-String -Pattern '^\s*node_password:').Line
     if (-not $nodePwLine) { Write-Error "node_password not found in $dianaYaml" }
     $nodePwPlain = ($nodePwLine -split ':', 2)[1].Trim().Trim('"').Trim("'")

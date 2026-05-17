@@ -60,46 +60,27 @@ Then re-run this script.
 "@
 }
 
-# Resolve python.exe. We bake the absolute path into the service's
-# binPath because shawl runs as LocalSystem and a user-scoped Python
-# install isn't on LocalSystem's PATH.
-#
-# Get-Command alone isn't enough: on machines with pyenv-win the
-# `python.exe` it finds is actually a shim that re-shells `pyenv` to
-# pick the active version, and `pyenv` isn't on LocalSystem's PATH.
-# Ask the interpreter for its own absolute path via sys.executable;
-# that resolves through any shim to the real binary.
-$pythonShim = (Get-Command python -ErrorAction SilentlyContinue).Source
-if (-not $pythonShim) {
+# Use the Hub venv set up by setup-python.ps1. Baking the absolute path
+# into the service's binPath lets Shawl launch the publisher under
+# LocalSystem without any PATH or shim dance.
+$repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$envFile  = Join-Path $repoRoot 'windows\.env'
+if (-not (Test-Path $envFile)) { Write-Error "windows\.env not found; run README step 4 first" }
+$envVars = @{}
+Get-Content $envFile | ForEach-Object {
+    if ($_ -match '^\s*([A-Z_][A-Z_0-9]*)\s*=\s*(.+?)\s*$') {
+        $envVars[$matches[1]] = $matches[2].Trim('"').Trim("'")
+    }
+}
+$neonHome = $envVars['NEON_HOME']
+if (-not $neonHome) { Write-Error "NEON_HOME missing from $envFile" }
+$python = (Join-Path $neonHome 'venv\Scripts\python.exe') -replace '/', '\'
+if (-not (Test-Path $python)) {
     Write-Error @"
-python.exe not found on PATH.
+Hub venv interpreter not found at $python.
 
-Install Python from python.org or via winget:
-  winget install -e --id Python.Python.3.12
-
-Then re-run this script.
-"@
-}
-$python = (& $pythonShim -c "import sys; print(sys.executable)" 2>$null).Trim()
-if (-not $python -or -not (Test-Path $python)) {
-    Write-Error "Could not resolve python.exe via $pythonShim (sys.executable returned: '$python')"
-}
-if ($python -ne $pythonShim) {
-    Write-Host "python shim $pythonShim resolves to $python" -ForegroundColor DarkGray
-}
-
-# Verify the zeroconf module is importable for the resolved Python.
-# Pipe stderr to $null because pip not being initialised etc. produces
-# warnings on stderr that aren't relevant.
-& $python -c "import zeroconf" 2>$null
-if ($LASTEXITCODE -ne 0) {
-    Write-Error @"
-The 'zeroconf' Python module is not installed for $python.
-
-Install with:
-  $python -m pip install zeroconf
-
-Then re-run this script.
+Run windows\scripts\setup-python.ps1 first to create the venv and
+install zeroconf.
 "@
 }
 

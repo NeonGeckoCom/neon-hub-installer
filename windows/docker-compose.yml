@@ -1,9 +1,9 @@
-# Neon Hub — Windows Phase 1 (compose only)
+# Neon Hub — Windows compose file
 #
 # This is a hand-written parallel to the macOS/Linux compose template at
 # debos/overlays/ansible/templates/neon-hub.yml.j2. It is intentionally
-# static so Windows users can `docker compose -p neon up -d` without an
-# installer.
+# static so Windows users can `docker compose -p neon up -d` without
+# rendering it through Ansible.
 #
 # Differences from the Linux/macOS rendering:
 #   - No host audio/Pulse/X11/dbus/snd mounts (Windows has none)
@@ -16,8 +16,10 @@
 #     which Docker Desktop on Windows doesn't expose)
 #   - All paths use ${NEON_HOME} from .env, forward-slash form
 #
-# Dev secrets are seeded under windows/seed/. ROTATE BEFORE EXPOSING TO
-# ANYTHING REAL — they are committed to the repo for local dev only.
+# Service-user passwords + HANA token secrets are generated per host by
+# windows\scripts\generate-secrets.ps1 and rendered from the Jinja2
+# templates the Linux/macOS install shares. Nothing in windows/seed/
+# contains real credentials.
 
 x-logging: &default-logging
   driver: json-file

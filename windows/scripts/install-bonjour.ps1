@@ -11,8 +11,7 @@
     winget.
 
     Apple retired the standalone BonjourPSSetup.exe download some time
-    after the original Phase 2.2 commit was written (the previous
-    direct-URL strategy now 302s to a 404). winget's
+    back (the previous direct-URL strategy now 302s to a 404). winget's
     Apple.BonjourPrintServices is the current Apple-published vehicle.
 
     Idempotent — safe to re-run on a machine that already has Bonjour.

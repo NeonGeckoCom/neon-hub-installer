@@ -1,13 +1,13 @@
-# Neon Hub on Windows — Phase 1 (compose only)
+# Neon Hub on Windows
 
-> **DEV-ONLY.** Every credential in this directory is a hardcoded placeholder
-> checked into the public repo. Do not expose this stack to anything but
-> `localhost` until Phase 2 lands and replaces these with generated secrets.
+This directory provides a static `docker-compose.yml` plus a handful of
+PowerShell scripts that stand up the Neon Hub container stack on
+Windows 10/11 with **Docker Desktop + WSL2** — no Ansible, no Linux VM.
+Secrets are generated per-host by `generate-secrets.ps1`; nothing in
+`windows/seed/` is a real credential.
 
-This directory provides a static `docker-compose.yml` and seed configs so you
-can stand up the Neon Hub container stack on Windows 10/11 with **Docker
-Desktop + WSL2** — no installer, no Ansible, no PowerShell. The point is to
-prove out the container layer end-to-end before we build a real installer.
+The install is currently "run each script in order, in an Administrator
+PowerShell." A single-command `installer.ps1` is on the roadmap.
 
 ## Prerequisites
 
@@ -43,16 +43,13 @@ prove out the container layer end-to-end before we build a real installer.
    ```powershell
    winget install -e --id mtkennerly.shawl
    ```
-7. **Python 3.10+** with the `zeroconf` package. Used by
-   `windows\scripts\mdns-publisher.py` to advertise the Hub on the
-   LAN — both the `_neon-hub._tcp` service record AND A records for
-   each Hub subdomain. `register-mdns.ps1` resolves `sys.executable`
-   at install time so it works with pyenv-win or any other Python
-   shim; the absolute interpreter path gets baked into the service
-   binPath so LocalSystem can launch it directly.
+7. **Python 3.10+.** Used by the LAN mDNS publisher
+   (`mdns-publisher.py`) and the per-host secrets renderer
+   (`generate-secrets.py`). The Hub install creates and manages its
+   own venv under `${NEON_HOME}\venv` so dependencies don't pollute
+   the system Python; see "Set up the Hub venv" below.
    ```powershell
    winget install -e --id Python.Python.3.12
-   python -m pip install zeroconf
    ```
 
 ## One-time setup
@@ -94,10 +91,11 @@ Import-Certificate `
   -CertStoreLocation Cert:\LocalMachine\Root
 ```
 
-### 3. Lay down the data directory
+### 3. Lay down the data directory and render secrets
 
 The compose file expects a tree under `%USERPROFILE%\neon-hub` (or wherever
-you set `NEON_HOME`). Run this once from PowerShell:
+you set `NEON_HOME`). Create it and drop the *static* seed files in place
+(`rabbitmq.conf`, `nginx.conf`, etc. — no secrets):
 
 ```powershell
 $NEON_HOME = "$env:USERPROFILE\neon-hub"
@@ -108,17 +106,43 @@ New-Item -ItemType Directory -Force -Path `
   "$NEON_HOME\xdg\local\share\neon\users-service",
   "$NEON_HOME\xdg\share\neon" | Out-Null
 
-# Copy seed configs into place
 Copy-Item windows\seed\rabbitmq.conf     "$NEON_HOME\xdg\config\rabbitmq\"
-Copy-Item windows\seed\rabbitmq.json     "$NEON_HOME\xdg\config\rabbitmq\"
 Copy-Item windows\seed\enabled_plugins   "$NEON_HOME\xdg\config\rabbitmq\"
-Copy-Item windows\seed\neon.yaml         "$NEON_HOME\xdg\config\neon\"
-Copy-Item windows\seed\diana.yaml        "$NEON_HOME\xdg\config\neon\"
 Copy-Item windows\seed\hub_admin.yaml    "$NEON_HOME\xdg\config\neon\"
 Copy-Item windows\seed\nginx.conf        "$NEON_HOME\compose\"
 Copy-Item windows\seed\skill-config.json "$NEON_HOME\compose\"
 Copy-Item windows\seed\neon-logo.png     "$NEON_HOME\compose\"
 ```
+
+### 3b. Set up the Hub venv
+
+Create an isolated Python venv under `${NEON_HOME}\venv` and install
+the Hub's pip dependencies (`zeroconf`, `jinja2`, `PyYAML`) into it.
+Keeps system Python clean and gives the mDNS Windows service a stable
+absolute interpreter path to launch.
+
+```powershell
+.\windows\scripts\setup-python.ps1
+```
+
+Idempotent — re-runs upgrade existing packages.
+
+### 3c. Render Hub config templates
+
+Generate per-host service-user passwords + HANA token secrets and
+render `rabbitmq.json`, `diana.yaml`, and `neon.yaml` from the Jinja2
+templates the Linux/macOS install uses:
+
+```powershell
+.\windows\scripts\generate-secrets.ps1 -Hostname neon-hub-win.local
+```
+
+Writes the secrets to `$NEON_HOME\neon_hub_secrets.yaml` and the
+rendered configs under `$NEON_HOME\xdg\config\`. Idempotent — re-runs
+reuse the existing secrets file. Pass `-Rotate` to mint fresh
+credentials, but note that RabbitMQ persists its user database in a
+Docker volume on first start, so rotating after `docker compose up`
+requires `docker compose down -v` first.
 
 ### 3a. Advertise the Hub on the LAN (optional)
 
@@ -229,13 +253,11 @@ Remove-Item -Recurse -Force $env:USERPROFILE\neon-hub
 - **`docker_manager` container.** Mounts `/var/run/docker.sock`, which
   Docker Desktop on Windows doesn't expose. Likely permanently disabled
   on Windows.
-- **Password rotation.** Everything in `seed/` other than the per-host
-  TLS cert is a static dev placeholder. Phase 2.5 will generate fresh
-  RabbitMQ + HANA secrets per host.
 - **One-shot orchestrator.** Today the install is run-each-script-in-order;
-  Phase 3 will wrap hosts-file edit + cert + data tree + .env + compose up
-  + seed-users + bootstrap-hub-admin + register-mdns into a single
-  `installer.ps1`.
+  on the roadmap is a single `installer.ps1` that wraps the hosts-file
+  edit, cert generation, data tree, venv setup, secrets, .env, compose
+  up, seed-users, bootstrap-hub-admin, and register-mdns into one
+  command.
 
 ## Troubleshooting
 
@@ -249,10 +271,10 @@ The Darwin-style workaround should prevent this, but if you see it: check
 that `RABBITMQ_ENABLED_PLUGINS_FILE=/var/lib/rabbitmq/enabled_plugins` is
 in the container's env (`docker inspect neon-rabbitmq | grep RABBIT`).
 
-**Nginx 502 errors after restart.** Same upstream-caching issue we hit on
-the Mac path. `docker restart neon-nginx` after the dependent service
-restarts. Will be addressed via a `resolver` directive in Phase 2's
-`nginx.conf.j2`.
+**Nginx 502 errors after restart.** Same upstream-caching issue the Mac
+install hits. `docker restart neon-nginx` after the dependent service
+restarts. A future `resolver` directive in `nginx.conf` will address it
+permanently.
 
 **Browser shows cert warning.** Either trust the cert per step 2, or click
 through. The cert is locally-generated and self-signed; that's expected.

@@ -1,0 +1,13 @@
+# Python dependencies for the Hub's helper scripts.
+#
+# Installed into ${NEON_HOME}\venv by windows\scripts\setup-python.ps1.
+
+# mdns-publisher.py — A-record + service-discovery publishing on
+# UDP 5353. The Bonjour-for-Windows and Win32 mDNS APIs both have
+# A-record bugs; zeroconf speaks the protocol directly.
+zeroconf
+
+# generate-secrets.py — renders the Jinja2 templates the Linux/macOS
+# install shares (rabbitmq.json, diana.yaml, neon.yaml).
+jinja2
+PyYAML

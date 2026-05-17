@@ -4,8 +4,8 @@
     neon-hub-config container can talk to HANA.
 
 .DESCRIPTION
-    Phase 2.4. The seeded Hub admin user (created by seed-users.ps1)
-    already exists in users-service; this script authenticates against
+    The seeded Hub admin user (created by seed-users.ps1) already
+    exists in users-service; this script authenticates against
     HANA's /auth/login, captures the refresh_token from the response,
     and writes ${NEON_HOME}/xdg/config/neon/hub_admin.yaml in the
     shape neon-hub-config expects.

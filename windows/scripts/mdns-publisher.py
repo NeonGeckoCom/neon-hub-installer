@@ -2,9 +2,9 @@
 """
 Long-running mDNS publisher for the Neon Hub on Windows.
 
-Replaces the Bonjour `dns-sd -R` advertisement that Phase 2.2 originally
-shipped. Two Windows-native mDNS publishers have a known A-record bug
-that makes them unusable for our case:
+Replaces the Bonjour `dns-sd -R` advertisement we originally shipped.
+Two Windows-native mDNS publishers have a known A-record bug that makes
+them unusable for our case:
 
   - Apple's Bonjour for Windows: `dns-sd -P` returns
     `kDNSServiceErr_ServiceNotRunning` (-65563) for every invocation
