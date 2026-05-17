@@ -170,7 +170,27 @@ Expected: all containers report `running`, `neon-rabbitmq` reaches `Server
 startup complete`, `neon-hana` serves `https://hana.neon-hub-win.local/docs`
 in the browser.
 
-To tear down:
+### Seed initial users
+
+The users-service container starts with an empty SQLite DB. HANA's
+`/auth/register` only creates default-permission users (no admin
+promotion path), so the installer writes the initial rows directly,
+matching what the Linux/macOS install does via
+`debos/overlays/ansible/seed-hana-users.yaml`.
+
+```powershell
+.\windows\scripts\seed-users.ps1
+```
+
+Prompts for the Hub admin username + password. Also seeds `neon_node`
+with the password from `windows\seed\diana.yaml` so a Neon Node client
+can log in against HANA out of the box. The script stops
+`users-service` while writing (so the DB file isn't locked) and
+restarts it before exiting.
+
+Re-runnable — existing rows are updated, not duplicated.
+
+### Tear down
 
 ```powershell
 docker compose -p neon -f windows\docker-compose.yml down
