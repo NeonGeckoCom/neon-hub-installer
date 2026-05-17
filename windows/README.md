@@ -1,13 +1,40 @@
 # Neon Hub on Windows
 
-This directory provides a static `docker-compose.yml` plus a handful of
-PowerShell scripts that stand up the Neon Hub container stack on
-Windows 10/11 with **Docker Desktop + WSL2** — no Ansible, no Linux VM.
-Secrets are generated per-host by `generate-secrets.ps1`; nothing in
-`windows/seed/` is a real credential.
+A static `docker-compose.yml` plus a one-shot `installer.ps1` that stand
+up the Neon Hub container stack on Windows 10/11 with **Docker Desktop +
+WSL2** — no Ansible, no Linux VM. Secrets are generated per-host;
+nothing in `windows/seed/` is a real credential.
 
-The install is currently "run each script in order, in an Administrator
-PowerShell." A single-command `installer.ps1` is on the roadmap.
+## Quick install
+
+From an **Administrator PowerShell** in this directory, after installing
+the prerequisites below:
+
+```powershell
+.\installer.ps1
+```
+
+That walks every step in order — hosts file, cert, data tree, .env,
+Python venv, secret generation, `docker compose up`, user seeding,
+admin-token bootstrap — and prompts for the Hub admin username and
+password. Each step is idempotent, so re-running picks up where a
+prior run left off.
+
+Useful flags:
+
+  - `-TrustCert` — import the self-signed cert into LocalMachine\Root
+    so browsers don't warn.
+  - `-EnableMdns` — register the LAN mDNS publisher so other devices on
+    your network can reach `hana.<hostname>` etc. without each one
+    needing its own hosts-file entry.
+  - `-RotateSecrets` — mint fresh per-host secrets. Pair with
+    `docker compose down -v` first if the stack has already initialised
+    RabbitMQ's user database.
+  - `-NonInteractive` — fail instead of prompting; useful for CI or
+    scripted reinstalls. Requires `-AdminUsername` + `-AdminPassword`.
+
+After it finishes, `https://hana.<hostname>/docs` (default
+`neon-hub-win.local`) should serve the HANA OpenAPI page.
 
 ## Prerequisites
 
@@ -52,7 +79,11 @@ PowerShell." A single-command `installer.ps1` is on the roadmap.
    winget install -e --id Python.Python.3.12
    ```
 
-## One-time setup
+## Manual install (reference)
+
+These are the same steps `installer.ps1` walks, broken out for the
+case where you want to skip some, integrate with an existing install,
+or debug a failing step. Run each from an Administrator PowerShell.
 
 ### 1. Add the hostname to your hosts file
 
@@ -91,11 +122,11 @@ Import-Certificate `
   -CertStoreLocation Cert:\LocalMachine\Root
 ```
 
-### 3. Lay down the data directory and render secrets
+### 3. Lay down the data directory
 
 The compose file expects a tree under `%USERPROFILE%\neon-hub` (or wherever
-you set `NEON_HOME`). Create it and drop the *static* seed files in place
-(`rabbitmq.conf`, `nginx.conf`, etc. — no secrets):
+you set `NEON_HOME`). Create it and drop the static seed files (no secrets)
+into place:
 
 ```powershell
 $NEON_HOME = "$env:USERPROFILE\neon-hub"
@@ -114,62 +145,6 @@ Copy-Item windows\seed\skill-config.json "$NEON_HOME\compose\"
 Copy-Item windows\seed\neon-logo.png     "$NEON_HOME\compose\"
 ```
 
-### 3b. Set up the Hub venv
-
-Create an isolated Python venv under `${NEON_HOME}\venv` and install
-the Hub's pip dependencies (`zeroconf`, `jinja2`, `PyYAML`) into it.
-Keeps system Python clean and gives the mDNS Windows service a stable
-absolute interpreter path to launch.
-
-```powershell
-.\windows\scripts\setup-python.ps1
-```
-
-Idempotent — re-runs upgrade existing packages.
-
-### 3c. Render Hub config templates
-
-Generate per-host service-user passwords + HANA token secrets and
-render `rabbitmq.json`, `diana.yaml`, and `neon.yaml` from the Jinja2
-templates the Linux/macOS install uses:
-
-```powershell
-.\windows\scripts\generate-secrets.ps1 -Hostname neon-hub-win.local
-```
-
-Writes the secrets to `$NEON_HOME\neon_hub_secrets.yaml` and the
-rendered configs under `$NEON_HOME\xdg\config\`. Idempotent — re-runs
-reuse the existing secrets file. Pass `-Rotate` to mint fresh
-credentials, but note that RabbitMQ persists its user database in a
-Docker volume on first start, so rotating after `docker compose up`
-requires `docker compose down -v` first.
-
-### 3a. Advertise the Hub on the LAN (optional)
-
-Install a Windows service that publishes the Hub's `_neon-hub._tcp.local.`
-service record AND the A records for `hana.<hostname>` and the other
-Hub subdomains. Other LAN clients can then reach
-`https://hana.neon-hub-win.local/` (and friends) without a hosts-file
-entry on each one.
-
-```powershell
-.\windows\scripts\register-mdns.ps1 -Hostname neon-hub-win.local
-```
-
-The service is wrapped in Shawl and runs `mdns-publisher.py`, which
-uses `python-zeroconf` to speak mDNS directly over UDP 5353. Skip
-this step if you only need single-machine access — the rest of the
-install works fine without it.
-
-**Why not Bonjour or Microsoft's native mDNS?** Apple's Bonjour-for-Windows
-`dns-sd -P` returns -65563 (`DNSServiceCreateConnection` isn't
-implemented in the Windows port). Microsoft's built-in `DnsServiceRegister`
-registers the service envelope but silently drops the A record — a
-Win10/11 bug still present on 26100 in 2026. python-zeroconf bypasses
-both. `install-bonjour.ps1` is still in the repo as an optional way to
-install Apple's `dns-sd` CLI for diagnostics, but the publisher itself
-no longer depends on it.
-
 ### 4. Create your `.env`
 
 ```powershell
@@ -178,9 +153,38 @@ Copy-Item windows\.env.example windows\.env
 
 Open `windows\.env` and edit `NEON_HOME` to match your username, e.g.
 `C:/Users/Mike/neon-hub` (forward slashes only — Docker Desktop does not
-accept backslashes in bind mounts).
+accept backslashes in bind mounts). The Python venv and rendered configs
+both key off this value, so it has to land before the next step.
 
-## Run it
+### 5. Set up the Hub venv
+
+Create an isolated Python venv under `${NEON_HOME}\venv` and install the
+Hub's pip dependencies (`zeroconf`, `jinja2`, `PyYAML`):
+
+```powershell
+.\windows\scripts\setup-python.ps1
+```
+
+Idempotent — re-runs upgrade existing packages.
+
+### 6. Render Hub config templates
+
+Generate per-host service-user passwords + HANA token secrets and render
+`rabbitmq.json`, `diana.yaml`, and `neon.yaml` from the Jinja2 templates
+the Linux/macOS install uses:
+
+```powershell
+.\windows\scripts\generate-secrets.ps1 -Hostname neon-hub-win.local
+```
+
+Writes the secrets to `$NEON_HOME\neon_hub_secrets.yaml` and the rendered
+configs under `$NEON_HOME\xdg\config\`. Idempotent — re-runs reuse the
+existing secrets file. Pass `-Rotate` to mint fresh credentials, but
+note that RabbitMQ persists its user database in a Docker volume on
+first start, so rotating after `docker compose up` requires
+`docker compose down -v` first.
+
+### 7. Bring up the container stack
 
 ```powershell
 docker compose -p neon -f windows\docker-compose.yml up -d
@@ -189,15 +193,14 @@ docker compose -p neon -f windows\docker-compose.yml logs -f rabbitmq hana
 ```
 
 Expected: all containers report `running`, `neon-rabbitmq` reaches `Server
-startup complete`, `neon-hana` serves `https://hana.neon-hub-win.local/docs`
-in the browser.
+startup complete`. `neon-hub-config` will crash-loop until step 9 lands.
 
-### Seed initial users
+### 8. Seed initial users
 
 The users-service container starts with an empty SQLite DB. HANA's
-`/auth/register` only creates default-permission users (no admin
-promotion path), so the installer writes the initial rows directly,
-matching what the Linux/macOS install does via
+`/auth/register` only creates default-permission users (no admin-promotion
+path), so the installer writes the initial rows directly, matching what
+the Linux/macOS install does via
 `debos/overlays/ansible/seed-hana-users.yaml`.
 
 ```powershell
@@ -205,37 +208,53 @@ matching what the Linux/macOS install does via
 ```
 
 Prompts for the Hub admin username + password. Also seeds `neon_node`
-with the password from `windows\seed\diana.yaml` so a Neon Node client
-can log in against HANA out of the box. The script stops
-`users-service` while writing (so the DB file isn't locked) and
-restarts it before exiting.
+with the password from the rendered `diana.yaml` so a Neon Node client
+can log in against HANA out of the box. The script stops `users-service`
+while writing (so the DB file isn't locked) and restarts it before
+exiting. Re-runnable — existing rows are updated, not duplicated.
 
-Re-runnable — existing rows are updated, not duplicated.
-
-### Bootstrap the Hub admin token
+### 9. Bootstrap the Hub admin token
 
 `neon-hub-config` is enabled in the compose stack but starts in a
-crash-loop until it finds a valid `hub_admin.yaml` (with a refresh
-token from HANA). This script authenticates as the admin user you
-just seeded, captures the token, writes the file, and bumps
-`hub_config` so it picks the token up immediately.
+crash-loop until it finds a valid `hub_admin.yaml`. This script
+authenticates as the admin user you just seeded, captures a refresh
+token, writes the file, and bumps `hub_config` so it picks the token
+up immediately.
 
 ```powershell
 .\windows\scripts\bootstrap-hub-admin.ps1
 ```
 
-Prompts for the same admin username + password you used in
-`seed-users.ps1`. Mirrors `debos/overlays/ansible/bootstrap-hub-admin.yaml`
-from the Linux/macOS path.
-
 Idempotent. Re-run if `hub_config` ever starts failing its HANA auth
-(refresh tokens have a finite TTL set in `windows\seed\diana.yaml`'s
-`refresh_token_ttl`).
+(refresh tokens have a finite TTL set in `diana.yaml`'s
+`refresh_token_ttl`). After this lands,
+`https://config.neon-hub-win.local/` should serve the Hub Config UI.
 
-After this lands, `https://config.neon-hub-win.local/` should serve
-the Hub Config UI.
+### 10. (Optional) Advertise the Hub on the LAN
 
-### Tear down
+Install a Windows service that publishes the Hub's `_neon-hub._tcp.local.`
+service record AND the A records for `hana.<hostname>` and the other Hub
+subdomains. Other LAN clients can then reach
+`https://hana.neon-hub-win.local/` (and friends) without their own
+hosts-file edits.
+
+```powershell
+.\windows\scripts\register-mdns.ps1 -Hostname neon-hub-win.local
+```
+
+The service is wrapped in Shawl and runs `mdns-publisher.py`, which uses
+`python-zeroconf` to speak mDNS directly over UDP 5353. Skip if you only
+need single-machine access.
+
+**Why not Bonjour or Microsoft's native mDNS?** Apple's Bonjour-for-Windows
+`dns-sd -P` returns -65563 (`DNSServiceCreateConnection` isn't implemented
+in the Windows port). Microsoft's built-in `DnsServiceRegister` registers
+the service envelope but silently drops the A record (Win10/11 bug still
+present on 26100). python-zeroconf bypasses both. `install-bonjour.ps1`
+is still in the repo as an optional install of Apple's `dns-sd` CLI for
+diagnostics; the publisher itself no longer depends on it.
+
+## Tear down
 
 ```powershell
 docker compose -p neon -f windows\docker-compose.yml down
