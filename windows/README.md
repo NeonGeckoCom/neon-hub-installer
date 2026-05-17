@@ -38,12 +38,21 @@ prove out the container layer end-to-end before we build a real installer.
      under `C:\Program Files\Git\usr\bin\`; reachable from Git Bash but
      not PowerShell unless you add the dir to PATH. The script finds
      it either way.
-6. **Shawl.** A small Rust service-wrapper used so the Bonjour mDNS
-   publisher (`dns-sd.exe`, which doesn't speak the Windows Service
-   Control Manager protocol) can run as a real Windows service.
-   Install with:
+6. **Shawl.** A small Rust service-wrapper used so the Python mDNS
+   publisher runs as a real Windows service. Install with:
    ```powershell
    winget install -e --id mtkennerly.shawl
+   ```
+7. **Python 3.10+** with the `zeroconf` package. Used by
+   `windows\scripts\mdns-publisher.py` to advertise the Hub on the
+   LAN — both the `_neon-hub._tcp` service record AND A records for
+   each Hub subdomain. `register-mdns.ps1` resolves `sys.executable`
+   at install time so it works with pyenv-win or any other Python
+   shim; the absolute interpreter path gets baked into the service
+   binPath so LocalSystem can launch it directly.
+   ```powershell
+   winget install -e --id Python.Python.3.12
+   python -m pip install zeroconf
    ```
 
 ## One-time setup
@@ -113,40 +122,29 @@ Copy-Item windows\seed\neon-logo.png     "$NEON_HOME\compose\"
 
 ### 3a. Advertise the Hub on the LAN (optional)
 
-Run these from an Administrator PowerShell to install Bonjour Print
-Services (Apple's mDNS responder for Windows) and register a Windows
-service that advertises `_neon-hub._tcp.local.` so discovery clients
-on the LAN can find the Hub:
+Install a Windows service that publishes the Hub's `_neon-hub._tcp.local.`
+service record AND the A records for `hana.<hostname>` and the other
+Hub subdomains. Other LAN clients can then reach
+`https://hana.neon-hub-win.local/` (and friends) without a hosts-file
+entry on each one.
 
 ```powershell
-.\windows\scripts\install-bonjour.ps1
 .\windows\scripts\register-mdns.ps1 -Hostname neon-hub-win.local
 ```
 
-**Honest limitations** — service discovery works, hostname resolution
-on other devices does not:
+The service is wrapped in Shawl and runs `mdns-publisher.py`, which
+uses `python-zeroconf` to speak mDNS directly over UDP 5353. Skip
+this step if you only need single-machine access — the rest of the
+install works fine without it.
 
-- The service record is advertised correctly, so a Node app browsing
-  for `_neon-hub._tcp` discovers this Hub from anywhere on the LAN.
-- A-record publishing for `hana.neon-hub-win.local` and friends is
-  **not** done by this step. macOS's mDNSResponder auto-publishes
-  `<computer>.local` so clients can resolve it; Bonjour for Windows
-  has the same auto-publish for the Windows machine name, but we use
-  a branded hostname (`neon-hub-win.local`) that the auto-publish
-  doesn't cover. The CLI workaround (`dns-sd -P`) is broken in
-  Bonjour for Windows: every invocation fails with
-  `DNSServiceCreateConnection returned -65563` because the Windows
-  port doesn't implement the connection-based register-record IPC.
-- **Other devices on the LAN therefore still need a hosts-file entry**
-  pointing each subdomain at this machine's LAN IP. For local-machine
-  browser access the hosts-file edit from step 1 already covers it.
-
-Replacing dns-sd with a `python-zeroconf`-based publisher is on the
-Phase 2.3 roadmap; that library speaks mDNS directly and avoids the
-Bonjour-for-Windows gap.
-
-Skip this whole step if you only need single-machine access; the rest
-of the install works fine without it.
+**Why not Bonjour or Microsoft's native mDNS?** Apple's Bonjour-for-Windows
+`dns-sd -P` returns -65563 (`DNSServiceCreateConnection` isn't
+implemented in the Windows port). Microsoft's built-in `DnsServiceRegister`
+registers the service envelope but silently drops the A record — a
+Win10/11 bug still present on 26100 in 2026. python-zeroconf bypasses
+both. `install-bonjour.ps1` is still in the repo as an optional way to
+install Apple's `dns-sd` CLI for diagnostics, but the publisher itself
+no longer depends on it.
 
 ### 4. Create your `.env`
 

@@ -1,45 +1,35 @@
 <#
 .SYNOPSIS
-    Register the Neon Hub mDNS advertisement as a Windows service.
+    Register the Neon Hub mDNS publisher as a Windows service.
 
 .DESCRIPTION
-    Creates a Windows service named NeonHubMdnsService that runs
-    `dns-sd.exe -R` to advertise `_neon-hub._tcp.local.` on port 443
-    with TXT records describing the Hub. The service is wrapped in
-    Shawl so dns-sd.exe (a plain console program) speaks the Windows
-    Service Control Manager protocol.
+    Creates a Windows service named NeonHubMdnsService that runs the
+    sibling `mdns-publisher.py` (python-zeroconf) under Shawl. The
+    publisher advertises:
 
-    Parallels the launchd plist used on macOS
-    (debos/overlays/ansible/templates/com.neongecko.neon-hub-mdns.plist.j2)
-    so a Node app or Apple-flavored discovery client browsing for
-    `_neon-hub._tcp` finds a Windows Hub the same way it finds a Mac
-    Hub.
+      - one `_neon-hub._tcp.local.` service record (Hub discovery,
+        matching the macOS launchd plist's intent)
+      - one A record per Hub subdomain (config, hana, iris, ...) so
+        a browser on another LAN client can resolve `hana.<hostname>`
+        without a hosts-file entry.
 
-    Idempotent — re-running the script reinstalls the service with the
-    current parameters. Useful when the hostname changes.
+    Why python-zeroconf instead of Bonjour or Windows-native mDNS:
+    Apple's Bonjour-for-Windows `dns-sd -P` fails with -65563 because
+    its register-record IPC isn't implemented. Microsoft's built-in
+    `DnsServiceRegister` succeeds and broadcasts the SRV/TXT/PTR but
+    silently drops the A record (known Win10/11 bug, still present on
+    26100). python-zeroconf speaks mDNS directly over UDP 5353 and
+    sidesteps both.
 
-    KNOWN LIMITATION — multi-device hostname resolution. This script
-    advertises the Hub service, not custom A records. Apple's Bonjour
-    for Windows lets `dns-sd -R` register a service successfully but
-    `dns-sd -P` (proxy mode, the only way to publish arbitrary A
-    records from the CLI) fails immediately with
-    `DNSServiceCreateConnection returned -65563`
-    (kDNSServiceErr_ServiceNotRunning) — the Windows port doesn't
-    implement the connection-based register-record IPC.
-
-    So discovery clients find the Hub, but a browser on another LAN
-    device still can't resolve `hana.<hostname>` without a hosts-file
-    entry on that device. macOS Hubs sidestep this because
-    mDNSResponder auto-publishes `<computer>.local`, which clients
-    use directly.
-
-    Phase 2.3 plan: replace dns-sd with a small python-zeroconf-based
-    publisher that talks the mDNS protocol directly, side-stepping
-    Bonjour-for-Windows entirely.
+    Idempotent — re-running the script reinstalls the service with
+    current parameters.
 
 .PARAMETER Hostname
-    NEON_HOSTNAME — appears in the host= TXT record so discovery
-    clients know which name to resolve.
+    NEON_HOSTNAME (e.g. `neon-hub-win.local`).
+
+.PARAMETER Ip
+    LAN IP to advertise. If omitted, the script picks the first
+    non-loopback / non-APIPA / non-Docker-bridge IPv4 address.
 
 .PARAMETER ServiceName
     Name of the Windows service to create. Defaults to
@@ -51,6 +41,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$Hostname,
+    [string]$Ip,
     [string]$ServiceName = 'NeonHubMdnsService'
 )
 
@@ -69,60 +60,86 @@ Then re-run this script.
 "@
 }
 
-# Resolve dns-sd.exe (Bonjour for Windows). Modern Bonjour Print
-# Services installs it into C:\Windows\System32\ (on PATH); older
-# versions kept it in C:\Program Files\Bonjour\. Prefer the PATH
-# lookup so either layout works.
-$dnsSd = (Get-Command dns-sd -ErrorAction SilentlyContinue).Source
-if (-not $dnsSd) {
+# Resolve python.exe. We bake the absolute path into the service's
+# binPath because shawl runs as LocalSystem and a user-scoped Python
+# install isn't on LocalSystem's PATH.
+#
+# Get-Command alone isn't enough: on machines with pyenv-win the
+# `python.exe` it finds is actually a shim that re-shells `pyenv` to
+# pick the active version, and `pyenv` isn't on LocalSystem's PATH.
+# Ask the interpreter for its own absolute path via sys.executable;
+# that resolves through any shim to the real binary.
+$pythonShim = (Get-Command python -ErrorAction SilentlyContinue).Source
+if (-not $pythonShim) {
     Write-Error @"
-dns-sd.exe not found on PATH or in C:\Program Files\Bonjour\.
+python.exe not found on PATH.
 
-Run .\install-bonjour.ps1 first, then re-run this script.
+Install Python from python.org or via winget:
+  winget install -e --id Python.Python.3.12
+
+Then re-run this script.
+"@
+}
+$python = (& $pythonShim -c "import sys; print(sys.executable)" 2>$null).Trim()
+if (-not $python -or -not (Test-Path $python)) {
+    Write-Error "Could not resolve python.exe via $pythonShim (sys.executable returned: '$python')"
+}
+if ($python -ne $pythonShim) {
+    Write-Host "python shim $pythonShim resolves to $python" -ForegroundColor DarkGray
+}
+
+# Verify the zeroconf module is importable for the resolved Python.
+# Pipe stderr to $null because pip not being initialised etc. produces
+# warnings on stderr that aren't relevant.
+& $python -c "import zeroconf" 2>$null
+if ($LASTEXITCODE -ne 0) {
+    Write-Error @"
+The 'zeroconf' Python module is not installed for $python.
+
+Install with:
+  $python -m pip install zeroconf
+
+Then re-run this script.
 "@
 }
 
-# Bonjour Service (mDNSResponder) must be running — every dns-sd call
-# (including the one our service runs) returns -65563 / ServiceNotRunning
-# without it. Catching it here is cheap and prevents the install from
-# crash-looping NeonHubMdnsService silently.
-$bonjour = Get-Service -Name 'Bonjour Service' -ErrorAction SilentlyContinue
-if (-not $bonjour) {
-    Write-Error "Bonjour Service is not installed. Run .\install-bonjour.ps1 first."
-}
-if ($bonjour.Status -ne 'Running') {
-    Write-Error @"
-Bonjour Service is installed but currently $($bonjour.Status). Start it before
-running this script:
-
-  Start-Service 'Bonjour Service'
-
-(Bonjour is set to Automatic startup, so this is usually only needed after a
-clean install or if something stopped the service after boot.)
-"@
+# Resolve the publisher script next to this one.
+$publisher = Join-Path $PSScriptRoot 'mdns-publisher.py'
+if (-not (Test-Path $publisher)) {
+    Write-Error "mdns-publisher.py not found next to register-mdns.ps1 (expected at $publisher)"
 }
 
-# Build the dns-sd -R arguments. These mirror the macOS launchd plist.
-$serviceLabel = "Neon Hub on $env:COMPUTERNAME"
-$dnsSdArgs = @(
-    '-R'
-    "`"$serviceLabel`""
-    '_neon-hub._tcp'
-    'local'
-    '443'
-    'scheme=https'
-    "host=hana.$Hostname"
-) -join ' '
+# Auto-detect LAN IP if not passed. Filters out loopback, APIPA, and
+# Docker's default 172.16/12 bridge so we don't advertise an address
+# only the host or its containers can reach.
+if (-not $Ip) {
+    $candidate = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.IPAddress -ne '127.0.0.1' -and
+            $_.IPAddress -notlike '169.254.*' -and
+            $_.IPAddress -notlike '172.1[6-9].*' -and
+            $_.IPAddress -notlike '172.2[0-9].*' -and
+            $_.IPAddress -notlike '172.3[0-1].*' -and
+            $_.PrefixOrigin -in @('Dhcp', 'Manual')
+        } |
+        Select-Object -First 1
+    if (-not $candidate) {
+        Write-Error "Could not auto-detect a LAN IPv4 address. Pass -Ip explicitly."
+    }
+    $Ip = $candidate.IPAddress
+    Write-Host "Auto-detected LAN IP: $Ip (interface $($candidate.InterfaceAlias))" -ForegroundColor Cyan
+}
 
-# Construct the ImagePath the SCM will store. Final form:
-#   "<shawl>" run --name <X> -- "<dns-sd>" -R "Neon Hub on HOST" _neon-hub._tcp local 443 scheme=https host=hana.<NEON_HOSTNAME>
-# New-Service forwards -BinaryPathName to the SCM as a single string,
-# so we avoid the PS-5.1 -> sc.exe quoting footgun (sc.exe create
-# rejects the call with exit 1639 / "Invalid command line" when
-# embedded quotes get mangled by PowerShell's native-exe tokenizer).
-$binPath = "`"$shawlExe`" run --name $ServiceName -- `"$dnsSd`" $dnsSdArgs"
+# Build the ImagePath the SCM will store. Final form:
+#   "<shawl>" run --name <X> -- "<python>" -u "<publisher>" --hostname <H> --ip <IP>
+# `python -u` forces unbuffered stdout/stderr so Shawl's log file
+# captures the publisher's progress in real time, which is useful when
+# diagnosing service-side failures.
+# New-Service forwards -BinaryPathName to the SCM as a single string
+# and avoids the PS-5.1 -> sc.exe quoting footgun.
+$binPath = "`"$shawlExe`" run --name $ServiceName -- `"$python`" -u `"$publisher`" --hostname $Hostname --ip $Ip"
 
-# If the service already exists, recreate it with current params
+# If the service already exists, recreate it with current params.
 if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) {
     Write-Host "Service $ServiceName already exists; removing for re-create." -ForegroundColor Yellow
     Stop-Service -Name $ServiceName -Force -ErrorAction SilentlyContinue
@@ -144,4 +161,8 @@ Write-Host "Starting service ..." -ForegroundColor Cyan
 Start-Service -Name $ServiceName
 
 Write-Host "Service $ServiceName is running." -ForegroundColor Green
-Write-Host "Verify with: dns-sd -B _neon-hub._tcp local"
+Write-Host ""
+Write-Host "Verify service discovery:" -ForegroundColor Cyan
+Write-Host "  dns-sd -B _neon-hub._tcp local"
+Write-Host "Verify A record publishing (from this machine or another LAN client):"
+Write-Host "  dns-sd -G v4 hana.$Hostname"
