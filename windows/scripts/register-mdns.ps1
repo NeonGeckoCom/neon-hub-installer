@@ -18,13 +18,24 @@
     Idempotent — re-running the script reinstalls the service with the
     current parameters. Useful when the hostname changes.
 
-    Limitation: Windows' Bonjour port has a bug where DnsServiceRegister
-    doesn't publish A/AAAA records reliably. So this script only
-    publishes the service (SRV/TXT/PTR) record; resolution of
-    `hana.<hostname>` from *other* devices on the LAN still requires
-    a hosts-file entry on each client. For local-machine browser access
-    via `https://hana.<hostname>` etc., the Windows installer's hosts-
-    file edit covers it.
+    KNOWN LIMITATION — multi-device hostname resolution. This script
+    advertises the Hub service, not custom A records. Apple's Bonjour
+    for Windows lets `dns-sd -R` register a service successfully but
+    `dns-sd -P` (proxy mode, the only way to publish arbitrary A
+    records from the CLI) fails immediately with
+    `DNSServiceCreateConnection returned -65563`
+    (kDNSServiceErr_ServiceNotRunning) — the Windows port doesn't
+    implement the connection-based register-record IPC.
+
+    So discovery clients find the Hub, but a browser on another LAN
+    device still can't resolve `hana.<hostname>` without a hosts-file
+    entry on that device. macOS Hubs sidestep this because
+    mDNSResponder auto-publishes `<computer>.local`, which clients
+    use directly.
+
+    Phase 2.3 plan: replace dns-sd with a small python-zeroconf-based
+    publisher that talks the mDNS protocol directly, side-stepping
+    Bonjour-for-Windows entirely.
 
 .PARAMETER Hostname
     NEON_HOSTNAME — appears in the host= TXT record so discovery
@@ -58,13 +69,36 @@ Then re-run this script.
 "@
 }
 
-# Resolve dns-sd.exe (Bonjour for Windows)
-$dnsSd = "$env:ProgramFiles\Bonjour\dns-sd.exe"
-if (-not (Test-Path $dnsSd)) {
+# Resolve dns-sd.exe (Bonjour for Windows). Modern Bonjour Print
+# Services installs it into C:\Windows\System32\ (on PATH); older
+# versions kept it in C:\Program Files\Bonjour\. Prefer the PATH
+# lookup so either layout works.
+$dnsSd = (Get-Command dns-sd -ErrorAction SilentlyContinue).Source
+if (-not $dnsSd) {
     Write-Error @"
-dns-sd.exe not found at $dnsSd.
+dns-sd.exe not found on PATH or in C:\Program Files\Bonjour\.
 
 Run .\install-bonjour.ps1 first, then re-run this script.
+"@
+}
+
+# Bonjour Service (mDNSResponder) must be running — every dns-sd call
+# (including the one our service runs) returns -65563 / ServiceNotRunning
+# without it. Catching it here is cheap and prevents the install from
+# crash-looping NeonHubMdnsService silently.
+$bonjour = Get-Service -Name 'Bonjour Service' -ErrorAction SilentlyContinue
+if (-not $bonjour) {
+    Write-Error "Bonjour Service is not installed. Run .\install-bonjour.ps1 first."
+}
+if ($bonjour.Status -ne 'Running') {
+    Write-Error @"
+Bonjour Service is installed but currently $($bonjour.Status). Start it before
+running this script:
+
+  Start-Service 'Bonjour Service'
+
+(Bonjour is set to Automatic startup, so this is usually only needed after a
+clean install or if something stopped the service after boot.)
 "@
 }
 
@@ -80,9 +114,12 @@ $dnsSdArgs = @(
     "host=hana.$Hostname"
 ) -join ' '
 
-# binPath= passed to sc.exe must be ONE token. Quotes around paths-with-
-# spaces have to be escaped as \" so sc.exe parses them correctly. The
-# whole thing becomes: shawl run --name <X> -- "<dnsSd>" <dnsSdArgs>
+# Construct the ImagePath the SCM will store. Final form:
+#   "<shawl>" run --name <X> -- "<dns-sd>" -R "Neon Hub on HOST" _neon-hub._tcp local 443 scheme=https host=hana.<NEON_HOSTNAME>
+# New-Service forwards -BinaryPathName to the SCM as a single string,
+# so we avoid the PS-5.1 -> sc.exe quoting footgun (sc.exe create
+# rejects the call with exit 1639 / "Invalid command line" when
+# embedded quotes get mangled by PowerShell's native-exe tokenizer).
 $binPath = "`"$shawlExe`" run --name $ServiceName -- `"$dnsSd`" $dnsSdArgs"
 
 # If the service already exists, recreate it with current params
@@ -94,12 +131,13 @@ if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) {
 }
 
 Write-Host "Creating service $ServiceName ..." -ForegroundColor Cyan
-& sc.exe create $ServiceName binPath= $binPath start= auto DisplayName= "Neon Hub mDNS Advertisement"
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "sc.exe create failed with exit code $LASTEXITCODE"
-}
+New-Service -Name $ServiceName `
+    -BinaryPathName $binPath `
+    -DisplayName 'Neon Hub mDNS Advertisement' `
+    -StartupType Automatic | Out-Null
 
-# Auto-restart on failure
+# Auto-restart on failure. sc.exe failure uses plain key=value args
+# with no embedded quotes, so the PS-tokenizer issue doesn't apply.
 & sc.exe failure $ServiceName reset= 86400 actions= restart/5000/restart/5000/restart/5000 | Out-Null
 
 Write-Host "Starting service ..." -ForegroundColor Cyan

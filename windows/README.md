@@ -123,16 +123,27 @@ on the LAN can find the Hub:
 .\windows\scripts\register-mdns.ps1 -Hostname neon-hub-win.local
 ```
 
-**Honest limitations**, since Windows mDNS is less capable than macOS:
+**Honest limitations** — service discovery works, hostname resolution
+on other devices does not:
 
 - The service record is advertised correctly, so a Node app browsing
-  for `_neon-hub._tcp` discovers this Hub.
-- A-record advertisement (resolving `hana.neon-hub-win.local` itself
-  from other devices) does *not* work reliably — Microsoft's
-  `DnsServiceRegister` API has a known bug. Other devices on the LAN
-  still need a hosts-file entry to actually reach the Hub.
-- For local-machine browser access (the most common case), the
-  hosts-file edit from step 1 covers everything.
+  for `_neon-hub._tcp` discovers this Hub from anywhere on the LAN.
+- A-record publishing for `hana.neon-hub-win.local` and friends is
+  **not** done by this step. macOS's mDNSResponder auto-publishes
+  `<computer>.local` so clients can resolve it; Bonjour for Windows
+  has the same auto-publish for the Windows machine name, but we use
+  a branded hostname (`neon-hub-win.local`) that the auto-publish
+  doesn't cover. The CLI workaround (`dns-sd -P`) is broken in
+  Bonjour for Windows: every invocation fails with
+  `DNSServiceCreateConnection returned -65563` because the Windows
+  port doesn't implement the connection-based register-record IPC.
+- **Other devices on the LAN therefore still need a hosts-file entry**
+  pointing each subdomain at this machine's LAN IP. For local-machine
+  browser access the hosts-file edit from step 1 already covers it.
+
+Replacing dns-sd with a `python-zeroconf`-based publisher is on the
+Phase 2.3 roadmap; that library speaks mDNS directly and avoids the
+Bonjour-for-Windows gap.
 
 Skip this whole step if you only need single-machine access; the rest
 of the install works fine without it.
