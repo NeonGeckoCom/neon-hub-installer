@@ -188,6 +188,29 @@ restarts it before exiting.
 
 Re-runnable — existing rows are updated, not duplicated.
 
+### Bootstrap the Hub admin token
+
+`neon-hub-config` is enabled in the compose stack but starts in a
+crash-loop until it finds a valid `hub_admin.yaml` (with a refresh
+token from HANA). This script authenticates as the admin user you
+just seeded, captures the token, writes the file, and bumps
+`hub_config` so it picks the token up immediately.
+
+```powershell
+.\windows\scripts\bootstrap-hub-admin.ps1
+```
+
+Prompts for the same admin username + password you used in
+`seed-users.ps1`. Mirrors `debos/overlays/ansible/bootstrap-hub-admin.yaml`
+from the Linux/macOS path.
+
+Idempotent. Re-run if `hub_config` ever starts failing its HANA auth
+(refresh tokens have a finite TTL set in `windows\seed\diana.yaml`'s
+`refresh_token_ttl`).
+
+After this lands, `https://config.neon-hub-win.local/` should serve
+the Hub Config UI.
+
 ### Tear down
 
 ```powershell
@@ -201,22 +224,18 @@ docker compose -p neon -f windows\docker-compose.yml down -v
 Remove-Item -Recurse -Force $env:USERPROFILE\neon-hub
 ```
 
-## What's intentionally missing in Phase 1
+## What's intentionally missing
 
-- **`hub_config` container.** Needs a valid `hub_admin.yaml` with a refresh
-  token from HANA. Bootstrapping that is a Phase 2 problem (PowerShell
-  script that POSTs to `/auth/login` and writes the file). It's commented
-  out in the compose with a TODO.
 - **`docker_manager` container.** Mounts `/var/run/docker.sock`, which
-  doesn't exist on Windows. Will likely stay disabled on Windows.
-- **Multi-device hostname resolution.** Even with the Phase 2.1 + 2.2
-  Bonjour install, the Windows mDNS API can't publish A records
-  reliably, so other devices on the LAN still need their own hosts-file
-  entry to reach `hana.<hostname>` etc. Service discovery (Node app
-  finding `_neon-hub._tcp`) does work.
-- **Password rotation.** Everything in `seed/` is a static dev placeholder.
-  Phase 2 PowerShell installer will generate fresh values per host. (The
-  TLS cert is already per-host as of Phase 2.1 — see step 2.)
+  Docker Desktop on Windows doesn't expose. Likely permanently disabled
+  on Windows.
+- **Password rotation.** Everything in `seed/` other than the per-host
+  TLS cert is a static dev placeholder. Phase 2.5 will generate fresh
+  RabbitMQ + HANA secrets per host.
+- **One-shot orchestrator.** Today the install is run-each-script-in-order;
+  Phase 3 will wrap hosts-file edit + cert + data tree + .env + compose up
+  + seed-users + bootstrap-hub-admin + register-mdns into a single
+  `installer.ps1`.
 
 ## Troubleshooting
 

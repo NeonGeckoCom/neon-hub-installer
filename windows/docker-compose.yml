@@ -12,8 +12,8 @@
 #   - RabbitMQ uses the macOS-style read-only conf mount + redirected
 #     enabled_plugins file (Docker Desktop on WSL2 has the same uid-999
 #     ownership problem as VirtioFS on macOS)
-#   - `hub_config` and `docker_manager` are commented out (require Hub
-#     admin bootstrap and a Linux docker socket respectively — Phase 2)
+#   - `docker_manager` is commented out (needs /var/run/docker.sock,
+#     which Docker Desktop on Windows doesn't expose)
 #   - All paths use ${NEON_HOME} from .env, forward-slash form
 #
 # Dev secrets are seeded under windows/seed/. ROTATE BEFORE EXPOSING TO
@@ -327,28 +327,30 @@ services:
       - ${NEON_HOME}/${NEON_HOSTNAME}.crt:/etc/ssl/certs/${NEON_HOSTNAME}.crt:ro
       - ${NEON_HOME}/${NEON_HOSTNAME}.key:/etc/ssl/private/${NEON_HOSTNAME}.key:ro
 
-  # ---------- Deferred to Phase 2 ----------
-  # hub_config requires a populated hub_admin.yaml (refresh_token from HANA).
-  # docker_manager mounts /var/run/docker.sock which doesn't exist on Windows.
-  # Both will be re-enabled once the PowerShell bootstrap script lands.
-  #
-  # hub_config:
-  #   logging: *default-logging
-  #   restart: unless-stopped
-  #   depends_on:
-  #     - hana
-  #   image: ghcr.io/neongeckocom/neon-hub-config:main
-  #   environment:
-  #     DIANA_PATH: /root/.config/neon/diana.yaml
-  #     NEON_PATH: /root/.config/neon/neon.yaml
-  #     HUB_ADMIN_TOKEN_FILE: /root/.config/neon/hub_admin.yaml
-  #   container_name: neon-hub-config
-  #   user: root
-  #   networks:
-  #     neon-core:
-  #       aliases:
-  #         - neon-hub-config
-  #   ports:
-  #     - "8005:80"
-  #   volumes:
-  #     - ${NEON_HOME}/xdg/config:/root/.config
+  # hub_admin.yaml is populated by windows\scripts\bootstrap-hub-admin.ps1
+  # post-`compose up`. Until that runs, the container will crash-loop on
+  # auth; `restart: unless-stopped` picks it up the moment the file lands.
+  hub_config:
+    logging: *default-logging
+    restart: unless-stopped
+    depends_on:
+      - hana
+    image: ghcr.io/neongeckocom/neon-hub-config:main
+    environment:
+      DIANA_PATH: /root/.config/neon/diana.yaml
+      NEON_PATH: /root/.config/neon/neon.yaml
+      HUB_ADMIN_TOKEN_FILE: /root/.config/neon/hub_admin.yaml
+    container_name: neon-hub-config
+    user: root
+    networks:
+      neon-core:
+        aliases:
+          - neon-hub-config
+    ports:
+      - "8005:80"
+    volumes:
+      - ${NEON_HOME}/xdg/config:/root/.config
+
+  # ---------- Still deferred ----------
+  # docker_manager mounts /var/run/docker.sock which doesn't exist on
+  # Windows. Likely permanently disabled on Windows.
