@@ -3,28 +3,40 @@
     One-shot installer for the Neon Hub on Windows.
 
 .DESCRIPTION
-    Wraps every script under `windows\scripts\` plus the small bits
-    of glue (hosts-file edit, data tree, .env file, `docker compose up`)
-    into a single Administrator-PowerShell run. Each step is
-    idempotent, so re-running picks up where a prior run left off.
+    Wraps every script under `windows\scripts\` plus the small bits of
+    glue (data tree, .env file, `docker compose up`, optional hosts-file
+    edit) into a single Administrator-PowerShell run. Mirrors the macOS/
+    Linux installer.sh / installer-macos.sh entry-points.
+
+    Two ways to run:
+
+      .\installer.ps1
+          Interactive wizard. Walks every setting with a default in
+          [brackets]; press Enter to accept.
+
+      .\installer.ps1 -AdminUsername neon -AdminPassword (SecureString)
+          Non-prompt mode. Once admin creds are supplied, every other
+          setting falls back to its default unless explicitly overridden.
 
     Default behavior, in order:
 
-      1. Append `127.0.0.1 <hostname> <subdomains...>` to the system
-         hosts file (skipped if `-SkipHostsEdit` or already present).
-      2. Generate a self-signed TLS cert via `new-cert.ps1` (skipped
+      1. Generate a self-signed TLS cert via `new-cert.ps1` (skipped
          if `${NeonHome}\<hostname>.crt` already exists).
-      3. Import the cert into LocalMachine\Root if `-TrustCert`.
-      4. Lay down `${NeonHome}` and copy the static seed files.
-      5. Write `windows\.env` if it doesn't already exist, populating
+      2. Import the cert into LocalMachine\Root if `-TrustCert`.
+      3. Lay down `${NeonHome}` and copy the static seed files.
+      4. Write `windows\.env` if it doesn't already exist, populating
          NEON_HOME, NEON_HOSTNAME, and TZ.
-      6. Create the Hub venv via `setup-python.ps1`.
-      7. Render the templated configs via `generate-secrets.ps1`.
-      8. `docker compose up -d` against `windows\docker-compose.yml`.
-      9. Seed admin + neon_node users via `seed-users.ps1`.
-     10. Bootstrap the Hub admin token via `bootstrap-hub-admin.ps1`.
-     11. Register the mDNS publisher via `register-mdns.ps1` if
-         `-EnableMdns`.
+      5. Create the Hub venv via `setup-python.ps1`.
+      6. Render the templated configs via `generate-secrets.ps1`.
+      7. `docker compose up -d`.
+      8. Seed admin + neon_node users via `seed-users.ps1`.
+      9. Bootstrap the Hub admin token via `bootstrap-hub-admin.ps1`.
+     10. Register the LAN mDNS publisher via `register-mdns.ps1`
+         (default on; skip with `-NoMdns`).
+     11. Append a 127.0.0.1 entry for the Hub hostname + subdomains
+         to the system hosts file (default OFF; opt in with
+         `-AddHostsEntry` if Windows mDNS resolution is unreliable
+         on your machine).
 
 .PARAMETER Hostname
     NEON_HOSTNAME. Default `neon-hub-win.local`.
@@ -33,9 +45,9 @@
     Where the Hub keeps its data. Default `%USERPROFILE%\neon-hub`.
 
 .PARAMETER Timezone
-    IANA timezone string baked into the `.env` as TZ. Default
-    auto-detected from the system's Windows timezone via a built-in
-    mapping table, falling back to `America/Chicago`.
+    IANA timezone string baked into the `.env` as TZ. Auto-detected
+    from the system's Windows timezone via a built-in mapping table,
+    falling back to `America/Chicago`.
 
 .PARAMETER AdminUsername
     Hub admin user to seed into users-service. Prompted if missing.
@@ -45,35 +57,37 @@
 
 .PARAMETER TrustCert
     Import the freshly-generated cert into the LocalMachine root store
-    so browsers don't prompt with a warning.
+    so browsers don't warn.
 
-.PARAMETER EnableMdns
-    Register the LAN mDNS publisher service (`NeonHubMdnsService`) so
-    other devices on the LAN can resolve `hana.<hostname>` etc.
-    without their own hosts-file edits.
+.PARAMETER NoMdns
+    Skip the mDNS publisher registration. mDNS is on by default since
+    it publishes A records for every Hub subdomain to the whole LAN,
+    so other devices don't need their own hosts-file edits.
+
+.PARAMETER AddHostsEntry
+    Append a `127.0.0.1` entry for the Hub hostname + subdomains to
+    the system hosts file. Off by default. Use this if Windows mDNS
+    can't resolve `.local` names reliably on your machine.
 
 .PARAMETER RotateSecrets
     Pass through to `generate-secrets.ps1` to mint fresh credentials.
     Requires `docker compose down -v` first if the stack has already
     initialised its RabbitMQ user database from a previous run.
 
-.PARAMETER SkipHostsEdit
-    Skip the hosts-file edit (useful when something else manages
-    hostname resolution, e.g. a corporate DNS server).
-
 .PARAMETER NonInteractive
-    Fail if any required value (admin user/password) is missing
-    instead of prompting. Useful for CI or scripted reinstalls.
+    Fail if any required value is missing instead of prompting and
+    skip the proceed-confirmation prompt. Required for CI / scripted
+    reinstalls.
 
 .EXAMPLE
     .\installer.ps1
-    # Prompts for admin creds, accepts defaults for everything else.
+    # Interactive wizard.
 
 .EXAMPLE
     .\installer.ps1 -AdminUsername neon `
                     -AdminPassword (Read-Host -AsSecureString) `
                     -TrustCert `
-                    -EnableMdns
+                    -NonInteractive
 #>
 [CmdletBinding()]
 param(
@@ -83,44 +97,82 @@ param(
     [string]$AdminUsername,
     [SecureString]$AdminPassword,
     [switch]$TrustCert,
-    [switch]$EnableMdns,
+    [switch]$NoMdns,
+    [switch]$AddHostsEntry,
     [switch]$RotateSecrets,
-    [switch]$SkipHostsEdit,
     [switch]$NonInteractive
 )
 
 $ErrorActionPreference = 'Stop'
 
-# ───── Setup ──────────────────────────────────────────────────────
+# ---- helpers ----------------------------------------------------------
+
+function Read-Default {
+    param([string]$Prompt, [string]$Default)
+    $shown = if ($Default) { "$Prompt [$Default]" } else { $Prompt }
+    $reply = Read-Host -Prompt $shown
+    if (-not $reply) { return $Default }
+    return $reply
+}
+
+function Read-YesNo {
+    param([string]$Prompt, [bool]$DefaultYes)
+    $hint = if ($DefaultYes) { '[Y/n]' } else { '[y/N]' }
+    while ($true) {
+        $reply = Read-Host -Prompt "$Prompt $hint"
+        if (-not $reply) { return $DefaultYes }
+        switch -Regex ($reply) {
+            '^[Yy]' { return $true }
+            '^[Nn]' { return $false }
+            default { Write-Host 'Please enter y or n.' -ForegroundColor Yellow }
+        }
+    }
+}
+
+function Write-Step {
+    param([string]$Title)
+    Write-Host ''
+    Write-Host "--- $Title ---" -ForegroundColor Cyan
+}
+
+# ---- preflight --------------------------------------------------------
 
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
            ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
     Write-Error @"
-installer.ps1 must run from an Administrator PowerShell — several steps
-edit the hosts file or register Windows services. Right-click PowerShell ->
+installer.ps1 must run from an Administrator PowerShell -- several steps
+register Windows services or edit system files. Right-click PowerShell ->
 Run as administrator, then re-invoke.
 "@
 }
 
-# Verify Docker Desktop is up before doing any work — fail fast if not.
-& docker info 1>$null 2>$null
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Docker Desktop isn't running (`docker info` failed). Start it and re-run."
+# docker info writes WSL2 capability warnings to stderr; under PS 5.1's
+# Stop policy that's a NativeCommandError. Toggle to Continue for the
+# probe and rely on $LASTEXITCODE alone.
+$prev = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+& docker info 2>&1 | Out-Null
+$dockerInfoExit = $LASTEXITCODE
+$ErrorActionPreference = $prev
+if ($dockerInfoExit -ne 0) {
+    Write-Error "Docker Desktop is not running (`docker info` exited $dockerInfoExit). Start it and re-run."
 }
+
+# ---- defaults ---------------------------------------------------------
 
 if (-not $NeonHome) { $NeonHome = Join-Path $env:USERPROFILE 'neon-hub' }
 $NeonHome = $NeonHome.TrimEnd('\','/')
 
-$windowsDir = $PSScriptRoot
-$scriptsDir = Join-Path $windowsDir 'scripts'
-$seedDir    = Join-Path $windowsDir 'seed'
-$envFile    = Join-Path $windowsDir '.env'
-$envExample = Join-Path $windowsDir '.env.example'
+$windowsDir  = $PSScriptRoot
+$scriptsDir  = Join-Path $windowsDir 'scripts'
+$seedDir     = Join-Path $windowsDir 'seed'
+$envFile     = Join-Path $windowsDir '.env'
+$envExample  = Join-Path $windowsDir '.env.example'
+$composeFile = Join-Path $windowsDir 'docker-compose.yml'
 
-# Windows-TZ → IANA mapping for the most common North American + EU zones.
-# Anything not in the table falls back to America/Chicago with a note;
-# users can override with -Timezone.
+# Windows-TZ -> IANA mapping. Anything not in the table falls back to
+# America/Chicago with a note; user can override.
 function Resolve-Timezone {
     param([string]$Override)
     if ($Override) { return $Override }
@@ -153,86 +205,97 @@ function Resolve-Timezone {
 }
 $Timezone = Resolve-Timezone -Override $Timezone
 
-# Prompt for missing admin creds. NonInteractive turns this into a hard error.
-if (-not $AdminUsername) {
-    if ($NonInteractive) { Write-Error "AdminUsername is required in -NonInteractive mode." }
-    $AdminUsername = Read-Host -Prompt 'Hub admin username'
-}
-if (-not $AdminPassword) {
-    if ($NonInteractive) { Write-Error "AdminPassword is required in -NonInteractive mode." }
-    $AdminPassword = Read-Host -Prompt "Password for $AdminUsername" -AsSecureString
+# Coerce switches into plain booleans so the interactive wizard can
+# override them.
+$trustCert      = $TrustCert.IsPresent
+$registerMdns   = -not $NoMdns.IsPresent
+$addHostsEntry  = $AddHostsEntry.IsPresent
+$rotateSecrets  = $RotateSecrets.IsPresent
+
+# ---- interactive wizard ---------------------------------------------
+
+$interactive = -not $NonInteractive
+
+if ($interactive) {
+    Write-Host ''
+    Write-Host '=== Neon Hub installer ===' -ForegroundColor Cyan
+    Write-Host 'Press Enter to accept the [bracketed default].'
+    Write-Host ''
+
+    $Hostname       = Read-Default 'Hub hostname'                   $Hostname
+    $NeonHome       = (Read-Default 'NEON_HOME (Hub data dir)'      $NeonHome).TrimEnd('\','/')
+    $Timezone       = Read-Default 'Timezone (IANA name)'           $Timezone
+    if (-not $AdminUsername) { $AdminUsername = Read-Default 'Hub admin username' 'neon' }
+    if (-not $AdminPassword) { $AdminPassword = Read-Host  "Password for $AdminUsername" -AsSecureString }
+
+    Write-Host ''
+    $registerMdns   = Read-YesNo 'Register LAN mDNS publisher? (other devices can resolve hana.<hostname> without hosts edits)' $registerMdns
+    $addHostsEntry  = Read-YesNo 'Also add a hosts file entry on this machine? (only needed if Windows mDNS does not resolve .local reliably here)' $addHostsEntry
+    $trustCert      = Read-YesNo 'Trust the self-signed TLS cert in this machines LocalMachine\Root store?' $trustCert
+    $rotateSecrets  = Read-YesNo 'Rotate Hub secrets? (needs docker compose down -v if the stack has already been started before)' $rotateSecrets
+} else {
+    if (-not $AdminUsername) { Write-Error 'AdminUsername is required in -NonInteractive mode.' }
+    if (-not $AdminPassword) { Write-Error 'AdminPassword is required in -NonInteractive mode.' }
 }
 
-# ───── Plan summary ────────────────────────────────────────────────
+# ---- plan summary ----------------------------------------------------
 
-Write-Host ""
-Write-Host "═══ Neon Hub Installer ═══" -ForegroundColor Cyan
-Write-Host "  Hostname        $Hostname"
-Write-Host "  NEON_HOME       $NeonHome"
-Write-Host "  Timezone        $Timezone"
-Write-Host "  Admin user      $AdminUsername"
-Write-Host "  Edit hosts file $(-not $SkipHostsEdit.IsPresent)"
-Write-Host "  Trust TLS cert  $($TrustCert.IsPresent)"
-Write-Host "  Register mDNS   $($EnableMdns.IsPresent)"
-Write-Host "  Rotate secrets  $($RotateSecrets.IsPresent)"
-Write-Host ""
+Write-Host ''
+Write-Host '=== Plan ===' -ForegroundColor Cyan
+Write-Host "  Hostname         $Hostname"
+Write-Host "  NEON_HOME        $NeonHome"
+Write-Host "  Timezone         $Timezone"
+Write-Host "  Admin user       $AdminUsername"
+Write-Host "  Register mDNS    $registerMdns"
+Write-Host "  Hosts file entry $addHostsEntry"
+Write-Host "  Trust TLS cert   $trustCert"
+Write-Host "  Rotate secrets   $rotateSecrets"
+Write-Host ''
 
 if (-not $NonInteractive) {
-    $reply = Read-Host "Proceed? [Y/n]"
-    if ($reply -and $reply -notmatch '^[Yy]') {
-        Write-Host "Aborted." -ForegroundColor Yellow
+    if (-not (Read-YesNo 'Proceed?' $true)) {
+        Write-Host 'Aborted.' -ForegroundColor Yellow
         exit 1
     }
 }
 
-function Write-Step {
-    param([string]$Title)
-    Write-Host ""
-    Write-Host "─── $Title ───" -ForegroundColor Cyan
-}
+# ---- 1. TLS cert ----------------------------------------------------
 
-# ───── 1. Hosts file ───────────────────────────────────────────────
-
-if (-not $SkipHostsEdit) {
-    Write-Step "Hosts file"
-    $hostsPath = Join-Path $env:WINDIR 'System32\drivers\etc\hosts'
-    $subdomains = @(
-        'config', 'hana', 'iris', 'iris-websat',
-        'coqui', 'fasterwhisper', 'rmq-admin', 'skill-config'
-    )
-    $entry = "127.0.0.1   $Hostname " + (($subdomains | ForEach-Object { "$_.$Hostname" }) -join ' ')
-
-    $hostsLines = Get-Content $hostsPath -ErrorAction SilentlyContinue
-    $existing = $hostsLines | Where-Object { $_ -match "^\s*127\.0\.0\.1\s+.*\b$([regex]::Escape($Hostname))\b" }
-    if ($existing) {
-        Write-Host "Hosts already maps $Hostname; skipping." -ForegroundColor DarkGray
-    } else {
-        Add-Content -Path $hostsPath -Value "`n$entry"
-        Write-Host "Added: $entry" -ForegroundColor Green
-    }
-}
-
-# ───── 2. TLS cert ─────────────────────────────────────────────────
-
-Write-Step "TLS certificate"
+Write-Step 'TLS certificate'
 $crtPath = Join-Path $NeonHome "$Hostname.crt"
+$needRegen = $false
 if (Test-Path $crtPath) {
-    Write-Host "Cert already at $crtPath; skipping." -ForegroundColor DarkGray
+    # Older Phase 1 certs only covered the bare hostname (DNS:<host>,
+    # DNS:localhost, IP:127.0.0.1) so subdomain hits would warn even
+    # after the cert was trusted. Force a regen if the SAN is missing
+    # the wildcard `*.<host>` entry.
+    $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 $crtPath
+    $sanExt = $cert.Extensions | Where-Object { $_.Oid.Value -eq '2.5.29.17' }
+    $sanText = if ($sanExt) { $sanExt.Format($false) } else { '' }
+    if ($sanText -notmatch "\*\.$([regex]::Escape($Hostname))") {
+        Write-Host "Existing cert lacks `*.$Hostname` SAN; regenerating." -ForegroundColor Yellow
+        $needRegen = $true
+    } else {
+        Write-Host "Cert already at $crtPath with wildcard SAN; skipping." -ForegroundColor DarkGray
+    }
 } else {
+    $needRegen = $true
+}
+if ($needRegen) {
     & (Join-Path $scriptsDir 'new-cert.ps1') -Hostname $Hostname -OutDir $NeonHome
 }
 
-# ───── 3. Trust cert (optional) ────────────────────────────────────
+# ---- 2. Trust cert (optional) ---------------------------------------
 
-if ($TrustCert) {
-    Write-Step "Trust TLS cert"
+if ($trustCert) {
+    Write-Step 'Trust TLS cert'
     Import-Certificate -FilePath $crtPath -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
-    Write-Host "Imported into LocalMachine\Root." -ForegroundColor Green
+    Write-Host 'Imported into LocalMachine\Root.' -ForegroundColor Green
 }
 
-# ───── 4. Data tree + static files ─────────────────────────────────
+# ---- 3. Data tree + static files ------------------------------------
 
-Write-Step "Hub data tree"
+Write-Step 'Hub data tree'
 @(
     "$NeonHome\compose",
     "$NeonHome\xdg\config\neon",
@@ -244,14 +307,15 @@ Write-Step "Hub data tree"
 Copy-Item (Join-Path $seedDir 'rabbitmq.conf')     "$NeonHome\xdg\config\rabbitmq\" -Force
 Copy-Item (Join-Path $seedDir 'enabled_plugins')   "$NeonHome\xdg\config\rabbitmq\" -Force
 Copy-Item (Join-Path $seedDir 'hub_admin.yaml')    "$NeonHome\xdg\config\neon\"     -Force
-Copy-Item (Join-Path $seedDir 'nginx.conf')        "$NeonHome\compose\"             -Force
 Copy-Item (Join-Path $seedDir 'skill-config.json') "$NeonHome\compose\"             -Force
 Copy-Item (Join-Path $seedDir 'neon-logo.png')     "$NeonHome\compose\"             -Force
+# nginx.conf is rendered from the shared Jinja2 template by
+# generate-secrets.ps1 (step 6), so no static copy here.
 Write-Host "Tree ready at $NeonHome." -ForegroundColor Green
 
-# ───── 5. .env ─────────────────────────────────────────────────────
+# ---- 4. .env ---------------------------------------------------------
 
-Write-Step ".env file"
+Write-Step '.env file'
 if (Test-Path $envFile) {
     Write-Host "$envFile already exists; leaving it. Delete it and re-run to regenerate." -ForegroundColor DarkGray
 } else {
@@ -264,26 +328,22 @@ if (Test-Path $envFile) {
     Write-Host "Wrote $envFile." -ForegroundColor Green
 }
 
-# ───── 6. Python venv ──────────────────────────────────────────────
+# ---- 5. Python venv -------------------------------------------------
 
-Write-Step "Python venv"
+Write-Step 'Python venv'
 & (Join-Path $scriptsDir 'setup-python.ps1')
 
-# ───── 7. Render Hub config templates ─────────────────────────────
+# ---- 6. Render Hub config templates ---------------------------------
 
-Write-Step "Render Hub config templates"
-$secretsArgs = @('-Hostname', $Hostname)
-if ($RotateSecrets) { $secretsArgs += '-Rotate' }
-& (Join-Path $scriptsDir 'generate-secrets.ps1') @secretsArgs
+Write-Step 'Render Hub config templates'
+$gsScript = Join-Path $scriptsDir 'generate-secrets.ps1'
+$gsSplat  = @{ Hostname = $Hostname }
+if ($rotateSecrets) { $gsSplat['Rotate'] = $true }
+& $gsScript @gsSplat
 
-# ───── 8. docker compose up ────────────────────────────────────────
+# ---- 7. docker compose up -------------------------------------------
 
-Write-Step "Bring up the container stack"
-$composeFile = Join-Path $windowsDir 'docker-compose.yml'
-
-# docker compose writes its progress to stderr; same dance as
-# bootstrap-hub-admin.ps1 to keep the NativeCommandError from
-# masking a successful run.
+Write-Step 'Bring up the container stack'
 $prev = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
 & docker compose -p neon -f $composeFile --env-file $envFile up -d 2>&1 | Write-Host
@@ -291,36 +351,85 @@ $dockerExit = $LASTEXITCODE
 $ErrorActionPreference = $prev
 if ($dockerExit -ne 0) { Write-Error "docker compose up failed (exit $dockerExit)" }
 
-# ───── 9. Seed users ───────────────────────────────────────────────
+# Restart nginx so it re-reads the bind-mounted nginx.conf -- `compose up -d`
+# doesn't notice bind-mount file changes when the service definition itself
+# hasn't moved, so a fresh install on top of a previous one would otherwise
+# keep serving the old config.
+$ErrorActionPreference = 'Continue'
+& docker compose -p neon -f $composeFile --env-file $envFile restart nginx 2>&1 | Out-Null
+$ErrorActionPreference = $prev
 
-Write-Step "Seed admin + neon_node users"
+# ---- 8. Seed users --------------------------------------------------
+
+Write-Step 'Seed admin + neon_node users'
 & (Join-Path $scriptsDir 'seed-users.ps1') `
     -AdminUsername $AdminUsername `
     -AdminPassword $AdminPassword
 
-# ───── 10. Bootstrap admin token ───────────────────────────────────
+# ---- 9. Bootstrap admin token ---------------------------------------
 
-Write-Step "Bootstrap Hub admin token"
+Write-Step 'Bootstrap Hub admin token'
 & (Join-Path $scriptsDir 'bootstrap-hub-admin.ps1') `
     -AdminUsername $AdminUsername `
     -AdminPassword $AdminPassword
 
-# ───── 11. mDNS (optional) ─────────────────────────────────────────
+# ---- 10. mDNS (default on) ------------------------------------------
 
-if ($EnableMdns) {
-    Write-Step "Register mDNS publisher"
+if ($registerMdns) {
+    Write-Step 'Register mDNS publisher'
     & (Join-Path $scriptsDir 'register-mdns.ps1') -Hostname $Hostname
 }
 
-# ───── Done ────────────────────────────────────────────────────────
+# ---- 11. Hosts file entry (opt-in) ----------------------------------
 
-Write-Host ""
-Write-Host "═══ Installation complete ═══" -ForegroundColor Green
-Write-Host "  Hub Config UI   https://config.$Hostname/"
-Write-Host "  HANA OpenAPI    https://hana.$Hostname/docs"
-Write-Host "  RabbitMQ admin  https://rmq-admin.$Hostname/"
-if (-not $TrustCert.IsPresent) {
-    Write-Host ""
-    Write-Host "  (Browsers will warn about the self-signed cert. Re-run with -TrustCert"
-    Write-Host "   or import $crtPath into LocalMachine\Root to silence the warning.)" -ForegroundColor DarkGray
+if ($addHostsEntry) {
+    Write-Step 'Hosts file entry'
+    $hostsPath = Join-Path $env:WINDIR 'System32\drivers\etc\hosts'
+    $subdomains = @(
+        'config', 'hana', 'iris', 'iris-websat',
+        'coqui', 'fasterwhisper', 'rmq-admin', 'skill-config'
+    )
+    $entry = "127.0.0.1   $Hostname " + (($subdomains | ForEach-Object { "$_.$Hostname" }) -join ' ')
+    $hostsLines = Get-Content $hostsPath -ErrorAction SilentlyContinue
+    $existing = $hostsLines | Where-Object { $_ -match "^\s*127\.0\.0\.1\s+.*\b$([regex]::Escape($Hostname))\b" }
+    if ($existing) {
+        Write-Host "Hosts already maps $Hostname; skipping." -ForegroundColor DarkGray
+    } else {
+        Add-Content -Path $hostsPath -Value "`n$entry"
+        Write-Host "Added: $entry" -ForegroundColor Green
+    }
+}
+
+# ---- done -----------------------------------------------------------
+
+$secretsPath   = Join-Path $NeonHome 'neon_hub_secrets.yaml'
+$dianaPath     = Join-Path $NeonHome 'xdg\config\neon\diana.yaml'
+$hubAdminPath  = Join-Path $NeonHome 'xdg\config\neon\hub_admin.yaml'
+
+Write-Host ''
+Write-Host '=== Installation complete ===' -ForegroundColor Green
+Write-Host ''
+Write-Host 'URLs:' -ForegroundColor Cyan
+Write-Host "  Hub Config UI       https://config.$Hostname/"
+Write-Host "  HANA OpenAPI        https://hana.$Hostname/docs"
+Write-Host "  RabbitMQ admin UI   https://rmq-admin.$Hostname/"
+Write-Host ''
+Write-Host 'Credentials:' -ForegroundColor Cyan
+Write-Host "  Hub admin user      $AdminUsername"
+Write-Host '  Hub admin password  (the password you provided; not stored in plaintext)'
+Write-Host "  Service-user / HANA $secretsPath"
+Write-Host "  Neon Node password  in $dianaPath (look for `node_password:`)"
+Write-Host "  Hub-config token    $hubAdminPath"
+Write-Host ''
+Write-Host '  Treat the files above as sensitive -- they grant full Hub access.' -ForegroundColor Yellow
+if (-not $trustCert) {
+    Write-Host ''
+    Write-Host '  Browsers will warn about the self-signed cert. Re-run with -TrustCert' -ForegroundColor DarkGray
+    Write-Host "  or run Import-Certificate against $crtPath into LocalMachine\Root to silence the warning." -ForegroundColor DarkGray
+} else {
+    Write-Host ''
+    Write-Host '  TLS cert is trusted in LocalMachine\Root. Edge/Chrome cache cert' -ForegroundColor DarkGray
+    Write-Host '  decisions per-process -- fully restart your browser to pick it up.' -ForegroundColor DarkGray
+    Write-Host '  Firefox uses its own cert store and ignores LocalMachine\Root; trust' -ForegroundColor DarkGray
+    Write-Host '  the cert there manually if you use it.' -ForegroundColor DarkGray
 }

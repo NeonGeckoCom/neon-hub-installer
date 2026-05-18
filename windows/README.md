@@ -14,24 +14,33 @@ the prerequisites below:
 .\installer.ps1
 ```
 
-That walks every step in order — hosts file, cert, data tree, .env,
-Python venv, secret generation, `docker compose up`, user seeding,
-admin-token bootstrap — and prompts for the Hub admin username and
-password. Each step is idempotent, so re-running picks up where a
-prior run left off.
+That kicks off an interactive wizard. Press Enter to accept each
+default in brackets, or type a new value. It then walks every step in
+order — cert, data tree, .env, Python venv, secret generation,
+`docker compose up`, user seeding, admin-token bootstrap, and LAN mDNS
+registration — pausing once at the end with a plan summary for
+final confirmation. Each step is idempotent, so re-running picks up
+where a prior run left off.
 
-Useful flags:
+Useful flags (skip the wizard by passing admin creds):
 
+  - `-AdminUsername` / `-AdminPassword` — provide both to bypass the
+    wizard's prompts. Pass the password as a SecureString, e.g.
+    `(Read-Host -AsSecureString)` or `(ConvertTo-SecureString 'pw' -AsPlainText -Force)`.
   - `-TrustCert` — import the self-signed cert into LocalMachine\Root
     so browsers don't warn.
-  - `-EnableMdns` — register the LAN mDNS publisher so other devices on
-    your network can reach `hana.<hostname>` etc. without each one
-    needing its own hosts-file entry.
+  - `-NoMdns` — skip the mDNS publisher (default on; registers a
+    Windows service that publishes A records for `hana.<hostname>`
+    etc. so other LAN devices can resolve them).
+  - `-AddHostsEntry` — also append a `127.0.0.1` line to the system
+    hosts file. Default off; needed only if Windows mDNS can't resolve
+    `.local` names reliably on your machine.
   - `-RotateSecrets` — mint fresh per-host secrets. Pair with
     `docker compose down -v` first if the stack has already initialised
     RabbitMQ's user database.
-  - `-NonInteractive` — fail instead of prompting; useful for CI or
-    scripted reinstalls. Requires `-AdminUsername` + `-AdminPassword`.
+  - `-NonInteractive` — fail instead of prompting, and skip the
+    proceed-confirmation. Required for CI / scripted reinstalls,
+    requires `-AdminUsername` + `-AdminPassword`.
 
 After it finishes, `https://hana.<hostname>/docs` (default
 `neon-hub-win.local`) should serve the HANA OpenAPI page.
@@ -140,10 +149,12 @@ New-Item -ItemType Directory -Force -Path `
 Copy-Item windows\seed\rabbitmq.conf     "$NEON_HOME\xdg\config\rabbitmq\"
 Copy-Item windows\seed\enabled_plugins   "$NEON_HOME\xdg\config\rabbitmq\"
 Copy-Item windows\seed\hub_admin.yaml    "$NEON_HOME\xdg\config\neon\"
-Copy-Item windows\seed\nginx.conf        "$NEON_HOME\compose\"
 Copy-Item windows\seed\skill-config.json "$NEON_HOME\compose\"
 Copy-Item windows\seed\neon-logo.png     "$NEON_HOME\compose\"
 ```
+
+`nginx.conf` is rendered from the shared Jinja2 template in step 6,
+not copied as a static file.
 
 ### 4. Create your `.env`
 
@@ -170,8 +181,8 @@ Idempotent — re-runs upgrade existing packages.
 ### 6. Render Hub config templates
 
 Generate per-host service-user passwords + HANA token secrets and render
-`rabbitmq.json`, `diana.yaml`, and `neon.yaml` from the Jinja2 templates
-the Linux/macOS install uses:
+`rabbitmq.json`, `diana.yaml`, `neon.yaml`, and `nginx.conf` from the
+Jinja2 templates the Linux/macOS install uses:
 
 ```powershell
 .\windows\scripts\generate-secrets.ps1 -Hostname neon-hub-win.local
