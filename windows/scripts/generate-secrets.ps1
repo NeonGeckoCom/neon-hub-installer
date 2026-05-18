@@ -15,7 +15,7 @@
     via sys.executable (handling pyenv-win shims), verifies the
     jinja2 + PyYAML modules are installed, and invokes the renderer.
 
-    Idempotent — re-runs reuse the secrets file at
+    Idempotent -- re-runs reuse the secrets file at
     `${NEON_HOME}\neon_hub_secrets.yaml`. Pass -Rotate to force fresh
     generation. RabbitMQ persists its user database in a Docker volume
     on first launch, so rotating after the stack has come up at least
@@ -93,3 +93,4 @@ Write-Host "Rendered:" -ForegroundColor Green
 Write-Host "  $outDir\xdg\config\rabbitmq\rabbitmq.json"
 Write-Host "  $outDir\xdg\config\neon\diana.yaml"
 Write-Host "  $outDir\xdg\config\neon\neon.yaml"
+Write-Host "  $outDir\compose\nginx.conf"

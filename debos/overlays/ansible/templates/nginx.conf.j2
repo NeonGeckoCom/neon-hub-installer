@@ -18,6 +18,16 @@ http {
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers off;
 
+    # HTTP -> HTTPS redirect. The compose file maps host port 80 to
+    # this server block; everything else (Hub Config, HANA, iris, etc.)
+    # only listens on 443, so a browser typing `http://hana.<host>/`
+    # without us would hang.
+    server {
+        listen 80 default_server;
+        server_name _;
+        return 301 https://$host$request_uri;
+    }
+
     # Neon Hub Config
     server {
         listen 443 ssl;

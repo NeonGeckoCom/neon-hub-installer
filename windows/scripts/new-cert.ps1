@@ -4,9 +4,10 @@
 
 .DESCRIPTION
     Shells out to openssl.exe to produce <Hostname>.crt and <Hostname>.key
-    under -OutDir. The SAN covers the chosen hostname plus localhost and
-    127.0.0.1 so the cert is valid for any access pattern a local Hub will
-    see.
+    under -OutDir. The SAN covers the chosen hostname, `*.<hostname>` so
+    every Hub subdomain (hana, iris, config, ...) validates, plus
+    `localhost` and `127.0.0.1`. Mirrors the Linux/macOS install's
+    debos/overlays/ansible/generate-certificate.yaml.
 
     This is a *development* cert. The key is unencrypted. Do not reuse it
     on anything reachable outside the local machine. For production-grade
@@ -59,7 +60,7 @@ adding the bin dir manually):
 
   - winget install FireDaemon.OpenSSL
   - winget install ShiningLight.OpenSSL.Light
-  - Git for Windows (https://gitforwindows.org/) — bundles openssl under usr\bin
+  - Git for Windows (https://gitforwindows.org/) -- bundles openssl under usr\bin
 
 Then re-run this script. (This script will find openssl whether or not
 it's on PATH, as long as it's installed in a standard location.)
@@ -75,7 +76,7 @@ $key = Join-Path $OutDir "$Hostname.key"
     -keyout $key -out $crt `
     -days $ValidDays `
     -subj "/CN=$Hostname/O=Neon Hub/OU=Dev" `
-    -addext "subjectAltName=DNS:$Hostname,DNS:localhost,IP:127.0.0.1"
+    -addext "subjectAltName=DNS:$Hostname,DNS:*.$Hostname,DNS:localhost,IP:127.0.0.1"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "openssl failed with exit code $LASTEXITCODE"

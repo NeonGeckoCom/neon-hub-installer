@@ -10,7 +10,7 @@ templates the Linux/macOS install uses (debos/overlays/ansible/templates/).
 
 Mirrors debos/overlays/ansible/generate-secrets.yaml.
 
-Idempotent — re-runs reuse the existing secrets file. Pass --rotate
+Idempotent -- re-runs reuse the existing secrets file. Pass --rotate
 to force fresh secret generation; note that RabbitMQ persists its
 user database in its volume on first launch, so rotating secrets
 after the stack has come up at least once requires
@@ -61,6 +61,11 @@ RENDERS = (
     ("rabbitmq.json.j2", "xdg/config/rabbitmq/rabbitmq.json"),
     ("diana.yaml.j2",    "xdg/config/neon/diana.yaml"),
     ("neon.yaml.j2",     "xdg/config/neon/neon.yaml"),
+    # nginx.conf.j2 lives in the shared Linux/macOS template dir; its
+    # Linux-only `manager.<host>` server block is guarded by an
+    # `ansible_system == 'Linux'` Jinja condition, so passing
+    # ansible_system='Windows' below skips it.
+    ("nginx.conf.j2",    "compose/nginx.conf"),
 )
 
 ALPHABET = string.ascii_letters + string.digits
@@ -113,7 +118,14 @@ def main():
         undefined=StrictUndefined,
         keep_trailing_newline=True,
     )
-    context = {**data, "common_name": args.hostname}
+    # ansible_system gates the Linux-only `manager.<host>` server block
+    # in nginx.conf.j2; anything other than 'Linux' causes Jinja to
+    # skip it. Pass 'Windows' explicitly so the rendered file omits it.
+    context = {
+        **data,
+        "common_name":    args.hostname,
+        "ansible_system": "Windows",
+    }
 
     out_root = Path(args.output_dir)
     for template_name, rel_path in RENDERS:
