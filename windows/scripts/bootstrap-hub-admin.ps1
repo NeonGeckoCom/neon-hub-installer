@@ -12,7 +12,7 @@
 
     Mirrors debos/overlays/ansible/bootstrap-hub-admin.yaml. The
     Windows compose maps hana to host port 8082 (same as the Linux/macOS
-    render), so the HTTP path is `http://localhost:8082/auth/login` —
+    render), so the HTTP path is `http://localhost:8082/auth/login` --
     no cert dance needed.
 
     Idempotent. The hub_config container in docker-compose.yml has
@@ -75,7 +75,7 @@ if (-not $AdminUsername) { $AdminUsername = Read-Host -Prompt 'Hub admin usernam
 if (-not $AdminPassword) { $AdminPassword = Read-Host -Prompt "Password for $AdminUsername" -AsSecureString }
 $adminPwPlain = (New-Object PSCredential 'x', $AdminPassword).GetNetworkCredential().Password
 
-# Wait for HANA to be ready. /docs is FastAPI's built-in OpenAPI page —
+# Wait for HANA to be ready. /docs is FastAPI's built-in OpenAPI page --
 # always returns 200 once the app's listener is up.
 Write-Host "Waiting for HANA at $HanaUrl ..." -ForegroundColor Cyan
 $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
@@ -92,7 +92,7 @@ if (-not $ready) {
     Write-Error "HANA never returned 200 from $HanaUrl/docs within $TimeoutSeconds seconds. Is the stack up?"
 }
 
-# POST /auth/login. Retries cover users-service MQ warm-up — HANA's
+# POST /auth/login. Retries cover users-service MQ warm-up -- HANA's
 # login path validates against users-service over RabbitMQ, and that
 # consumer may take 30-60s to start after `docker compose up`.
 Write-Host "Authenticating as $AdminUsername ..." -ForegroundColor Cyan
@@ -123,7 +123,7 @@ if (-not $refreshToken) {
 }
 
 # Write hub_admin.yaml. JSON-encode each value so passwords / tokens
-# with quotes or backslashes survive into YAML cleanly — JSON's string
+# with quotes or backslashes survive into YAML cleanly -- JSON's string
 # encoding is a valid YAML string literal.
 $usernameYaml = $AdminUsername | ConvertTo-Json -Compress
 $passwordYaml = $adminPwPlain  | ConvertTo-Json -Compress

@@ -14,7 +14,7 @@
     back (the previous direct-URL strategy now 302s to a 404). winget's
     Apple.BonjourPrintServices is the current Apple-published vehicle.
 
-    Idempotent — safe to re-run on a machine that already has Bonjour.
+    Idempotent -- safe to re-run on a machine that already has Bonjour.
 
 .EXAMPLE
     .\install-bonjour.ps1

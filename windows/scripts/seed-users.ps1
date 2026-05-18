@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     Bypasses HANA's /auth/register because users-service has no admin-
-    bootstrap mechanism — registering through HANA only creates users
+    bootstrap mechanism -- registering through HANA only creates users
     with default permissions and there's no admin-promotion path. The
     installer is a privileged context, so we write the rows directly,
     matching the Linux/macOS path (debos/overlays/ansible/seed-hana-users.yaml).
@@ -17,7 +17,7 @@
         password is read from windows\seed\diana.yaml so the seed
         matches the credential HANA is configured to accept.
 
-    Idempotent — re-running with the same username updates the row
+    Idempotent -- re-running with the same username updates the row
     rather than duplicating it (see seed-user.py upsert logic).
 
     Requirements:
@@ -131,7 +131,7 @@ $nodePerms  = '{"klat": -1, "core": -1, "diana": -1, "users": -1, "node": -1, "h
 # the env-var refs, so docker only receives the head of the script.
 # A wrapper file dodges that entirely.
 $wrapperPath = Join-Path $env:TEMP "neon-seed-wrapper.sh"
-# Force LF line endings — sh inside the container reads `command\r`
+# Force LF line endings -- sh inside the container reads `command\r`
 # tokens literally and fails with "command not found" on CRLF scripts.
 # PowerShell's here-strings on Windows otherwise embed CRLF.
 $wrapperContent = (@'

@@ -6,9 +6,9 @@
     The Hub's helper scripts (`mdns-publisher.py`,
     `generate-secrets.py`) need a handful of pip packages
     (zeroconf, jinja2, PyYAML). Rather than installing them into the
-    user's system Python — which would pollute pyenv shims and force
+    user's system Python -- which would pollute pyenv shims and force
     the LocalSystem-run mDNS service to use a path-dependent
-    interpreter — this script creates an isolated venv under
+    interpreter -- this script creates an isolated venv under
     `${NEON_HOME}\venv` and pip-installs `windows\requirements.txt`
     into it.
 

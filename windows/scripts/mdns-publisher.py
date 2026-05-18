@@ -25,7 +25,7 @@ This script publishes:
   - One A record for the bare hostname.
   - One A record per Hub subdomain (config, hana, iris, iris-websat,
     coqui, fasterwhisper, rmq-admin, skill-config), advertised via a
-    dummy `_neon-hub-alias._tcp` service type — discovery clients
+    dummy `_neon-hub-alias._tcp` service type -- discovery clients
     browsing `_neon-hub._tcp` don't see the alias entries, but their
     A records broadcast as a side-effect of the registration.
 

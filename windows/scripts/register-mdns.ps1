@@ -21,7 +21,7 @@
     26100). python-zeroconf speaks mDNS directly over UDP 5353 and
     sidesteps both.
 
-    Idempotent — re-running the script reinstalls the service with
+    Idempotent -- re-running the script reinstalls the service with
     current parameters.
 
 .PARAMETER Hostname
