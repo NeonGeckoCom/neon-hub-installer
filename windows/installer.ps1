@@ -164,24 +164,40 @@ if ($dockerInfoExit -ne 0) {
 # through and forcing the user to re-run. Each sub-script still keeps
 # its own check for the case where it's invoked standalone.
 
-# `python` on PATH might be the Windows 11 Microsoft Store stub: a
-# shortcut to the Store, not a real interpreter. Detect by actually
-# invoking --version, and offer to remove the shortcuts so PATH falls
-# through to whatever Python is really installed. Catching this here
-# means setup-python.ps1 doesn't blow up with a misleading error.
+# `python` on PATH might be the Windows 11 Microsoft Store stub:
+# a shortcut to the Store, not a real interpreter. Check the path
+# first (anything under \WindowsApps\python*.exe is the stub) so
+# we never trip the stub trying to probe it. The path match is
+# loose on purpose -- $env:LocalAppData can shift across UAC token
+# splits, but the stub always lives under a `\WindowsApps\` dir.
 function Test-RealPython {
     param([string]$Exe)
-    if (-not $Exe) { return $false }
-    $out = & $Exe --version 2>&1
-    return ($LASTEXITCODE -eq 0 -and $out -match '^Python \d')
+    if (-not $Exe -or -not (Test-Path -LiteralPath $Exe)) { return $false }
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $out = & $Exe --version 2>&1 | Out-String
+        return ($LASTEXITCODE -eq 0 -and $out -match '^Python \d')
+    } catch {
+        return $false
+    } finally {
+        $ErrorActionPreference = $prev
+    }
 }
 
-$pythonCmd = Get-Command python -ErrorAction SilentlyContinue
-$pythonOk  = if ($pythonCmd) { Test-RealPython $pythonCmd.Source } else { $false }
-$stubDir   = "$env:LocalAppData\Microsoft\WindowsApps"
-$stubFiles = @("$stubDir\python.exe", "$stubDir\python3.exe")
+$pythonCmd    = Get-Command python -ErrorAction SilentlyContinue
+$pythonIsStub = $pythonCmd -and $pythonCmd.Source -match '\\WindowsApps\\python[3]?\.exe$'
+$pythonOk     = $false
+if ($pythonCmd -and -not $pythonIsStub) {
+    $pythonOk = Test-RealPython $pythonCmd.Source
+}
 
-if (-not $pythonOk -and $pythonCmd -and $pythonCmd.Source -like "$stubDir\*") {
+if ($pythonIsStub) {
+    $stubDir   = Split-Path $pythonCmd.Source -Parent
+    $stubFiles = @(
+        (Join-Path $stubDir 'python.exe'),
+        (Join-Path $stubDir 'python3.exe')
+    )
     Write-Host ''
     Write-Host 'python on PATH resolves to the Windows 11 Microsoft Store stub:' -ForegroundColor Yellow
     Write-Host "  $($pythonCmd.Source)"
@@ -195,8 +211,11 @@ if (-not $pythonOk -and $pythonCmd -and $pythonCmd.Source -like "$stubDir\*") {
     }
     if (Read-YesNo 'Remove the Store stubs now?' $true) {
         foreach ($f in $stubFiles) { Remove-Item -LiteralPath $f -ErrorAction SilentlyContinue }
-        $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
-        $pythonOk  = if ($pythonCmd) { Test-RealPython $pythonCmd.Source } else { $false }
+        $pythonCmd    = Get-Command python -ErrorAction SilentlyContinue
+        $pythonIsStub = $pythonCmd -and $pythonCmd.Source -match '\\WindowsApps\\python[3]?\.exe$'
+        if ($pythonCmd -and -not $pythonIsStub) {
+            $pythonOk = Test-RealPython $pythonCmd.Source
+        }
         if ($pythonOk) {
             Write-Host "Stubs removed. python now resolves to $($pythonCmd.Source)." -ForegroundColor Green
         } else {
