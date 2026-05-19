@@ -159,6 +159,56 @@ if ($dockerInfoExit -ne 0) {
     Write-Error "Docker Desktop is not running (`docker info` exited $dockerInfoExit). Start it and re-run."
 }
 
+# ---- preflight: required external tools -----------------------------
+# Report every missing prereq in one pass instead of failing partway
+# through and forcing the user to re-run. Each sub-script still keeps
+# its own check for the case where it's invoked standalone.
+
+$missing = @()
+
+if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
+    $missing += @{ Tool = 'Python 3.11'
+                   Why  = 'Hub venv + secret rendering + mDNS publisher'
+                   Cmd  = 'winget install -e --id Python.Python.3.11' }
+}
+
+# Match new-cert.ps1's openssl lookup: PATH first, then the well-known
+# install dirs (ShiningLight, FireDaemon, Git for Windows).
+$opensslOnPath = (Get-Command openssl -ErrorAction SilentlyContinue) -ne $null
+$opensslAlt = @(
+    "$env:ProgramFiles\OpenSSL-Win64\bin\openssl.exe",
+    "$env:ProgramFiles\FireDaemon OpenSSL 3\bin\openssl.exe",
+    "$env:ProgramFiles\Git\usr\bin\openssl.exe",
+    "${env:ProgramFiles(x86)}\OpenSSL-Win32\bin\openssl.exe"
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $opensslOnPath -and -not $opensslAlt) {
+    $missing += @{ Tool = 'openssl'
+                   Why  = 'mints the Hub TLS cert'
+                   Cmd  = 'winget install -e --id FireDaemon.OpenSSL' }
+}
+
+# shawl is only needed if mDNS is being registered. mDNS defaults to
+# on, so the wizard path still requires it; only skip the check when
+# -NoMdns was passed explicitly on the command line.
+if (-not $NoMdns.IsPresent -and -not (Get-Command shawl -ErrorAction SilentlyContinue)) {
+    $missing += @{ Tool = 'shawl'
+                   Why  = 'wraps the mDNS publisher as a Windows service'
+                   Cmd  = 'winget install -e --id mtkennerly.shawl' }
+}
+
+if ($missing.Count -gt 0) {
+    Write-Host ''
+    Write-Host 'Missing required tools:' -ForegroundColor Yellow
+    foreach ($m in $missing) {
+        Write-Host ("  - {0,-12}  ({1})" -f $m.Tool, $m.Why)
+        Write-Host ("      $($m.Cmd)") -ForegroundColor DarkGray
+    }
+    Write-Host ''
+    Write-Host 'Install each one (winget commands above), then RESTART this PowerShell' -ForegroundColor Yellow
+    Write-Host 'window so the new PATH entries take effect, and re-run installer.ps1.' -ForegroundColor Yellow
+    exit 1
+}
+
 # ---- defaults ---------------------------------------------------------
 
 if (-not $NeonHome) { $NeonHome = Join-Path $env:USERPROFILE 'neon-hub' }

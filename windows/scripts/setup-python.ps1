@@ -63,7 +63,7 @@ if (-not $PythonPath) {
 python.exe not found on PATH.
 
 Install Python from python.org or via winget:
-  winget install -e --id Python.Python.3.12
+  winget install -e --id Python.Python.3.11
 "@
     }
     $PythonPath = (& $shim -c "import sys; print(sys.executable)" 2>$null).Trim()

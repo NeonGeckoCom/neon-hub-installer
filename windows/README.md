@@ -79,13 +79,13 @@ After it finishes, `https://hana.<hostname>/docs` (default
    ```powershell
    winget install -e --id mtkennerly.shawl
    ```
-7. **Python 3.10+.** Used by the LAN mDNS publisher
+7. **Python 3.11.** Used by the LAN mDNS publisher
    (`mdns-publisher.py`) and the per-host secrets renderer
    (`generate-secrets.py`). The Hub install creates and manages its
    own venv under `${NEON_HOME}\venv` so dependencies don't pollute
    the system Python; see "Set up the Hub venv" below.
    ```powershell
-   winget install -e --id Python.Python.3.12
+   winget install -e --id Python.Python.3.11
    ```
 
 ## Manual install (reference)
