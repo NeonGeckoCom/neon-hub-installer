@@ -15,12 +15,17 @@
     render), so the HTTP path is `http://localhost:8082/auth/login` --
     no cert dance needed.
 
-    Idempotent. The hub_config container in docker-compose.yml has
-    `restart: unless-stopped`, so once hub_admin.yaml is correct the
-    next restart cycle will pick it up. The script issues an explicit
-    `docker compose restart hub_config` at the end for snappier
-    feedback (the compose project name and file path are derived
-    from the script's location and windows\.env).
+    Idempotent. If `hub_admin.yaml` already contains a refresh_token
+    for the same admin username, the script exits without re-hitting
+    HANA -- rotating the named token on every installer run buys
+    nothing and HANA's auth path has a real cost (users-service over
+    MQ, DB write per call). Pass `-Force` to override, e.g. after a
+    password change that invalidates the cached token.
+
+    The hub_config container has `restart: unless-stopped`, so once
+    hub_admin.yaml is correct the next restart cycle picks it up.
+    On a non-skipped run the script issues an explicit
+    `docker compose restart hub_config` for snappier feedback.
 
 .PARAMETER AdminUsername
     Admin user's username. Prompted if omitted. Must match a user
@@ -36,6 +41,11 @@
     How long to wait for HANA to become reachable before giving up.
     Default 120 seconds.
 
+.PARAMETER Force
+    Re-authenticate against HANA and overwrite hub_admin.yaml even
+    when an existing refresh_token is already present for this admin.
+    Use after a password change or if the cached token has expired.
+
 .EXAMPLE
     .\bootstrap-hub-admin.ps1
     # Prompts for admin creds, hits http://localhost:8082.
@@ -48,7 +58,8 @@ param(
     [string]$AdminUsername,
     [SecureString]$AdminPassword,
     [string]$HanaUrl = 'http://localhost:8082',
-    [int]$TimeoutSeconds = 120
+    [int]$TimeoutSeconds = 120,
+    [switch]$Force
 )
 
 $ErrorActionPreference = 'Stop'
@@ -70,8 +81,25 @@ $neonHome = $envVars['NEON_HOME']
 if (-not $neonHome) { Write-Error "NEON_HOME missing from $envFile" }
 $hubAdminFile = (Join-Path $neonHome 'xdg/config/neon/hub_admin.yaml') -replace '/', '\'
 
-# Prompt for any creds that weren't passed as parameters.
+# Prompt for the username first so the idempotency check can compare
+# against the existing hub_admin.yaml before we bother prompting for
+# the password (which we won't need if we end up skipping the login).
 if (-not $AdminUsername) { $AdminUsername = Read-Host -Prompt 'Hub admin username' }
+
+# Skip the HANA round-trip when hub_admin.yaml already has a token
+# for this admin. Pass -Force to override (e.g. after a password
+# change that invalidated the cached token).
+if (-not $Force.IsPresent -and (Test-Path $hubAdminFile)) {
+    $existing      = Get-Content $hubAdminFile -Raw
+    $existingUser  = if ($existing -match '(?m)^username:\s*(.+?)\s*$')      { $matches[1].Trim('"').Trim("'") } else { '' }
+    $existingToken = if ($existing -match '(?m)^refresh_token:\s*(.+?)\s*$') { $matches[1].Trim('"').Trim("'") } else { '' }
+    if ($existingUser -eq $AdminUsername -and $existingToken) {
+        Write-Host "hub_admin.yaml already has a refresh_token for '$AdminUsername'; skipping login." -ForegroundColor DarkGray
+        Write-Host '  (Pass -Force to mint a new token after a password change.)' -ForegroundColor DarkGray
+        return
+    }
+}
+
 if (-not $AdminPassword) { $AdminPassword = Read-Host -Prompt "Password for $AdminUsername" -AsSecureString }
 $adminPwPlain = (New-Object PSCredential 'x', $AdminPassword).GetNetworkCredential().Password
 
