@@ -484,16 +484,51 @@ Write-Host "Tree ready at $NeonHome." -ForegroundColor Green
 # ---- 4. .env ---------------------------------------------------------
 
 Write-Step '.env file'
-if (Test-Path $envFile) {
-    Write-Host "$envFile already exists; leaving it. Delete it and re-run to regenerate." -ForegroundColor DarkGray
-} else {
-    $neonHomeForward = $NeonHome -replace '\\', '/'
-    $envContent = (Get-Content $envExample -Raw) `
+# docker-compose substitutes NEON_HOSTNAME / NEON_HOME from .env into
+# cert mount paths at `up` time, so a stale .env left from a prior
+# run with a different hostname leaves nginx looking for cert files
+# the new install never created. Detect drift and rewrite the
+# managed keys in place (custom edits to other keys are preserved).
+$neonHomeForward = $NeonHome -replace '\\', '/'
+$desired = [ordered]@{
+    NEON_HOME     = $neonHomeForward
+    NEON_HOSTNAME = $Hostname
+    TZ            = $Timezone
+}
+
+if (-not (Test-Path $envFile)) {
+    $content = (Get-Content $envExample -Raw) `
         -replace 'NEON_HOME=.*',     "NEON_HOME=$neonHomeForward" `
         -replace 'NEON_HOSTNAME=.*', "NEON_HOSTNAME=$Hostname" `
         -replace 'TZ=.*',            "TZ=$Timezone"
-    [System.IO.File]::WriteAllText($envFile, $envContent)
+    [System.IO.File]::WriteAllText($envFile, $content)
     Write-Host "Wrote $envFile." -ForegroundColor Green
+} else {
+    $current = @{}
+    foreach ($line in (Get-Content $envFile)) {
+        if ($line -match '^\s*([A-Z_][A-Z_0-9]*)\s*=\s*(.+?)\s*$') {
+            $current[$matches[1]] = $matches[2].Trim('"').Trim("'")
+        }
+    }
+    $staleKeys = @()
+    foreach ($key in $desired.Keys) {
+        if ($current[$key] -ne $desired[$key]) {
+            $staleKeys += $key
+            Write-Host "  $key drift: '$($current[$key])' -> '$($desired[$key])'" -ForegroundColor Yellow
+        }
+    }
+    if ($staleKeys.Count -gt 0) {
+        $content = Get-Content $envFile -Raw
+        $content = $content `
+            -replace 'NEON_HOME=.*',     "NEON_HOME=$neonHomeForward" `
+            -replace 'NEON_HOSTNAME=.*', "NEON_HOSTNAME=$Hostname" `
+            -replace 'TZ=.*',            "TZ=$Timezone"
+        [System.IO.File]::WriteAllText($envFile, $content)
+        Write-Host "Rewrote $envFile (keys: $($staleKeys -join ', '))." -ForegroundColor Green
+        $envDrifted = $true
+    } else {
+        Write-Host "$envFile already in sync; skipping." -ForegroundColor DarkGray
+    }
 }
 
 # ---- 5. Python venv -------------------------------------------------
@@ -512,9 +547,18 @@ if ($rotateSecrets) { $gsSplat['Rotate'] = $true }
 # ---- 7. docker compose up -------------------------------------------
 
 Write-Step 'Bring up the container stack'
+# .env drift changes the substituted mount paths (cert files in
+# particular), but `up -d` doesn't always re-evaluate those for
+# already-running containers. Force-recreate when .env was rewritten
+# above so nginx and friends pick up the new env-derived paths.
+$upArgs = @('compose', '-p', 'neon', '-f', $composeFile, '--env-file', $envFile, 'up', '-d')
+if ($envDrifted) {
+    $upArgs += '--force-recreate'
+    Write-Host '  (forcing recreate because .env was rewritten)' -ForegroundColor DarkGray
+}
 $prev = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
-& docker compose -p neon -f $composeFile --env-file $envFile up -d 2>&1 | Write-Host
+& docker @upArgs 2>&1 | Write-Host
 $dockerExit = $LASTEXITCODE
 $ErrorActionPreference = $prev
 if ($dockerExit -ne 0) { Write-Error "docker compose up failed (exit $dockerExit)" }
