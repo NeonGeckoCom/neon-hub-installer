@@ -90,22 +90,31 @@ if (-not (Test-Path $publisher)) {
     Write-Error "mdns-publisher.py not found next to register-mdns.ps1 (expected at $publisher)"
 }
 
-# Auto-detect LAN IP if not passed. Filters out loopback, APIPA, and
-# Docker's default 172.16/12 bridge so we don't advertise an address
-# only the host or its containers can reach.
+# Auto-detect LAN IP if not passed. Skip loopback, APIPA, and Hyper-V
+# / WSL / Docker virtual switches (Windows names every one of those
+# `vEthernet (...)`). Avoid filtering by IP range -- some LANs (most
+# notably ones provisioned through Hyper-V external switches) sit
+# inside RFC 1918 ranges that overlap with Docker's default 172.17/16
+# bridge, and we'd otherwise mistakenly drop the user's real address.
 if (-not $Ip) {
     $candidate = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
         Where-Object {
             $_.IPAddress -ne '127.0.0.1' -and
             $_.IPAddress -notlike '169.254.*' -and
-            $_.IPAddress -notlike '172.1[6-9].*' -and
-            $_.IPAddress -notlike '172.2[0-9].*' -and
-            $_.IPAddress -notlike '172.3[0-1].*' -and
+            $_.InterfaceAlias -notlike 'vEthernet*' -and
+            $_.InterfaceAlias -notlike 'Loopback*' -and
             $_.PrefixOrigin -in @('Dhcp', 'Manual')
         } |
         Select-Object -First 1
     if (-not $candidate) {
-        Write-Error "Could not auto-detect a LAN IPv4 address. Pass -Ip explicitly."
+        $available = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+            Select-Object IPAddress, InterfaceAlias, PrefixOrigin |
+            Format-Table -AutoSize | Out-String
+        Write-Error @"
+Could not auto-detect a LAN IPv4 address. Available interfaces:
+$available
+Re-run with -Ip <address> to pick one explicitly.
+"@
     }
     $Ip = $candidate.IPAddress
     Write-Host "Auto-detected LAN IP: $Ip (interface $($candidate.InterfaceAlias))" -ForegroundColor Cyan
