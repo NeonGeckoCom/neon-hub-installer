@@ -164,9 +164,52 @@ if ($dockerInfoExit -ne 0) {
 # through and forcing the user to re-run. Each sub-script still keeps
 # its own check for the case where it's invoked standalone.
 
+# `python` on PATH might be the Windows 11 Microsoft Store stub: a
+# shortcut to the Store, not a real interpreter. Detect by actually
+# invoking --version, and offer to remove the shortcuts so PATH falls
+# through to whatever Python is really installed. Catching this here
+# means setup-python.ps1 doesn't blow up with a misleading error.
+function Test-RealPython {
+    param([string]$Exe)
+    if (-not $Exe) { return $false }
+    $out = & $Exe --version 2>&1
+    return ($LASTEXITCODE -eq 0 -and $out -match '^Python \d')
+}
+
+$pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+$pythonOk  = if ($pythonCmd) { Test-RealPython $pythonCmd.Source } else { $false }
+$stubDir   = "$env:LocalAppData\Microsoft\WindowsApps"
+$stubFiles = @("$stubDir\python.exe", "$stubDir\python3.exe")
+
+if (-not $pythonOk -and $pythonCmd -and $pythonCmd.Source -like "$stubDir\*") {
+    Write-Host ''
+    Write-Host 'python on PATH resolves to the Windows 11 Microsoft Store stub:' -ForegroundColor Yellow
+    Write-Host "  $($pythonCmd.Source)"
+    Write-Host 'The stub opens the Store rather than running Python, so the venv step' -ForegroundColor Yellow
+    Write-Host 'fails downstream. Removing both Store shortcuts lets PATH fall through' -ForegroundColor Yellow
+    Write-Host 'to whatever real Python is installed:' -ForegroundColor Yellow
+    foreach ($f in $stubFiles) { Write-Host "  Remove-Item '$f'" -ForegroundColor DarkGray }
+    Write-Host ''
+    if ($NonInteractive.IsPresent) {
+        Write-Error 'Cannot prompt to remove stubs in -NonInteractive mode. Run the Remove-Item commands above (or toggle off the App execution aliases in Settings -> Apps -> Advanced app settings -> App execution aliases), then re-run.'
+    }
+    if (Read-YesNo 'Remove the Store stubs now?' $true) {
+        foreach ($f in $stubFiles) { Remove-Item -LiteralPath $f -ErrorAction SilentlyContinue }
+        $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+        $pythonOk  = if ($pythonCmd) { Test-RealPython $pythonCmd.Source } else { $false }
+        if ($pythonOk) {
+            Write-Host "Stubs removed. python now resolves to $($pythonCmd.Source)." -ForegroundColor Green
+        } else {
+            Write-Host 'Stubs removed; no other Python on PATH. Install one and re-run.' -ForegroundColor DarkGray
+        }
+    } else {
+        Write-Error 'Stub removal declined. Remove the files manually or toggle off the App execution aliases in Settings, then re-run.'
+    }
+}
+
 $missing = @()
 
-if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
+if (-not $pythonOk) {
     $missing += @{ Tool = 'Python 3.11'
                    Why  = 'Hub venv + secret rendering + mDNS publisher'
                    Cmd  = 'winget install -e --id Python.Python.3.11' }
