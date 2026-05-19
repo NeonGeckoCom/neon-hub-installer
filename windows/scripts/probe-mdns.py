@@ -31,7 +31,7 @@ from zeroconf import Zeroconf, ServiceBrowser
 
 SERVICE_TYPES = (
     "_neon-hub._tcp.local.",
-    "_neon-hub-alias._tcp.local.",
+    "_https._tcp.local.",
 )
 
 

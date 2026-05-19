@@ -21,13 +21,21 @@ broken stacks.
 This script publishes:
 
   - One `_neon-hub._tcp.local.` service record (Hub discovery, matches
-    the macOS launchd plist's intent).
-  - One A record for the bare hostname.
-  - One A record per Hub subdomain (config, hana, iris, iris-websat,
-    coqui, fasterwhisper, rmq-admin, skill-config), advertised via a
-    dummy `_neon-hub-alias._tcp` service type -- discovery clients
-    browsing `_neon-hub._tcp` don't see the alias entries, but their
-    A records broadcast as a side-effect of the registration.
+    the macOS launchd plist's intent). Its SRV.server field carries
+    the bare hostname's A record.
+  - One `_https._tcp.local.` service per Hub subdomain (config, hana,
+    iris, iris-websat, coqui, fasterwhisper, rmq-admin, skill-config).
+    Each subdomain's A record rides along as the SRV.server field.
+
+    We picked `_https._tcp` instead of a custom `_neon-hub-alias._tcp`
+    type because Windows' built-in mDNS resolver silently ignores A
+    records published under service types it doesn't browse -- the
+    custom-type version worked on macOS and on Windows-with-Bonjour
+    but left a bare Win11 VM returning NXDOMAIN for every subdomain.
+    `_https._tcp` is in the well-known set Windows pays attention to,
+    and it's semantically accurate (every Hub subdomain serves HTTPS
+    on 443), so cross-platform tools (Safari Bonjour list, etc.) get
+    something useful too.
 
 Runs under the NeonHubMdnsService Windows service (wrapped by Shawl);
 handles Ctrl-C / SIGBREAK to deregister cleanly before exiting.
@@ -76,8 +84,8 @@ def build_service_infos(hostname, ip):
     )
     aliases = [
         ServiceInfo(
-            type_="_neon-hub-alias._tcp.local.",
-            name=f"{sub}._neon-hub-alias._tcp.local.",
+            type_="_https._tcp.local.",
+            name=f"{sub}.{hostname}._https._tcp.local.",
             addresses=[ip_packed],
             port=443,
             server=f"{sub}.{hostname}.",
