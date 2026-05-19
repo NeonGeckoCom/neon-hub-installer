@@ -226,37 +226,48 @@ if ($pythonIsStub) {
     }
 }
 
-$missing = @()
+function Get-MissingPrereqs {
+    $missing = @()
 
-if (-not $pythonOk) {
-    $missing += @{ Tool = 'Python 3.11'
-                   Why  = 'Hub venv + secret rendering + mDNS publisher'
-                   Cmd  = 'winget install -e --id Python.Python.3.11' }
+    $pCmd    = Get-Command python -ErrorAction SilentlyContinue
+    $pIsStub = $pCmd -and $pCmd.Source -match '\\WindowsApps\\python[3]?\.exe$'
+    $pOk     = $false
+    if ($pCmd -and -not $pIsStub) { $pOk = Test-RealPython $pCmd.Source }
+    if (-not $pOk) {
+        $missing += @{ Tool = 'Python 3.11'
+                       Why  = 'Hub venv + secret rendering + mDNS publisher'
+                       Cmd  = 'winget install -e --id Python.Python.3.11' }
+    }
+
+    # Match new-cert.ps1's openssl lookup: PATH first, then the
+    # well-known install dirs (ShiningLight, FireDaemon, Git for Windows).
+    $opensslOnPath = (Get-Command openssl -ErrorAction SilentlyContinue) -ne $null
+    $opensslAlt = @(
+        "$env:ProgramFiles\OpenSSL-Win64\bin\openssl.exe",
+        "$env:ProgramFiles\FireDaemon OpenSSL 3\bin\openssl.exe",
+        "$env:ProgramFiles\Git\usr\bin\openssl.exe",
+        "${env:ProgramFiles(x86)}\OpenSSL-Win32\bin\openssl.exe"
+    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $opensslOnPath -and -not $opensslAlt) {
+        $missing += @{ Tool = 'openssl'
+                       Why  = 'mints the Hub TLS cert'
+                       Cmd  = 'winget install -e --id FireDaemon.OpenSSL' }
+    }
+
+    # shawl is only needed if mDNS is being registered. mDNS defaults
+    # to on; only skip when -NoMdns was passed explicitly.
+    if (-not $NoMdns.IsPresent -and -not (Get-Command shawl -ErrorAction SilentlyContinue)) {
+        $missing += @{ Tool = 'shawl'
+                       Why  = 'wraps the mDNS publisher as a Windows service'
+                       Cmd  = 'winget install -e --id mtkennerly.shawl' }
+    }
+
+    # Comma forces a single-element array shape so callers can rely on
+    # .Count and foreach behaviour even when 0 or 1 tool is missing.
+    return ,$missing
 }
 
-# Match new-cert.ps1's openssl lookup: PATH first, then the well-known
-# install dirs (ShiningLight, FireDaemon, Git for Windows).
-$opensslOnPath = (Get-Command openssl -ErrorAction SilentlyContinue) -ne $null
-$opensslAlt = @(
-    "$env:ProgramFiles\OpenSSL-Win64\bin\openssl.exe",
-    "$env:ProgramFiles\FireDaemon OpenSSL 3\bin\openssl.exe",
-    "$env:ProgramFiles\Git\usr\bin\openssl.exe",
-    "${env:ProgramFiles(x86)}\OpenSSL-Win32\bin\openssl.exe"
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
-if (-not $opensslOnPath -and -not $opensslAlt) {
-    $missing += @{ Tool = 'openssl'
-                   Why  = 'mints the Hub TLS cert'
-                   Cmd  = 'winget install -e --id FireDaemon.OpenSSL' }
-}
-
-# shawl is only needed if mDNS is being registered. mDNS defaults to
-# on, so the wizard path still requires it; only skip the check when
-# -NoMdns was passed explicitly on the command line.
-if (-not $NoMdns.IsPresent -and -not (Get-Command shawl -ErrorAction SilentlyContinue)) {
-    $missing += @{ Tool = 'shawl'
-                   Why  = 'wraps the mDNS publisher as a Windows service'
-                   Cmd  = 'winget install -e --id mtkennerly.shawl' }
-}
+$missing = Get-MissingPrereqs
 
 if ($missing.Count -gt 0) {
     Write-Host ''
@@ -266,9 +277,54 @@ if ($missing.Count -gt 0) {
         Write-Host ("      $($m.Cmd)") -ForegroundColor DarkGray
     }
     Write-Host ''
-    Write-Host 'Install each one (winget commands above), then RESTART this PowerShell' -ForegroundColor Yellow
-    Write-Host 'window so the new PATH entries take effect, and re-run installer.ps1.' -ForegroundColor Yellow
-    exit 1
+
+    $wingetOk = (Get-Command winget -ErrorAction SilentlyContinue) -ne $null
+    $canOffer = $wingetOk -and -not $NonInteractive.IsPresent
+
+    if ($canOffer -and (Read-YesNo 'Install all missing tools via winget now?' $true)) {
+        foreach ($m in $missing) {
+            $cmd = "$($m.Cmd) --accept-source-agreements --accept-package-agreements"
+            Write-Host ''
+            Write-Host "Running: $cmd" -ForegroundColor Cyan
+            $prev = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            Invoke-Expression $cmd
+            $wgExit = $LASTEXITCODE
+            $ErrorActionPreference = $prev
+            if ($wgExit -ne 0) {
+                Write-Host "  winget exit $wgExit (continuing; will recheck)" -ForegroundColor Yellow
+            }
+        }
+        # winget appends to user/machine PATH in the registry but the
+        # current process inherited the old PATH. Refresh from registry
+        # so newly-installed tools resolve without a shell restart.
+        $env:PATH = ([System.Environment]::GetEnvironmentVariable('PATH', 'Machine')) + ';' +
+                    ([System.Environment]::GetEnvironmentVariable('PATH', 'User'))
+
+        $missing = Get-MissingPrereqs
+        if ($missing.Count -gt 0) {
+            Write-Host ''
+            Write-Host 'Still missing after install attempts:' -ForegroundColor Yellow
+            foreach ($m in $missing) {
+                Write-Host ("  - {0,-12}  ({1})" -f $m.Tool, $m.Why)
+                Write-Host ("      $($m.Cmd)") -ForegroundColor DarkGray
+            }
+            Write-Host ''
+            Write-Host 'Install manually, RESTART this PowerShell window, and re-run.' -ForegroundColor Yellow
+            exit 1
+        }
+        Write-Host ''
+        Write-Host 'All prerequisites available.' -ForegroundColor Green
+    } else {
+        if (-not $wingetOk) {
+            Write-Host 'winget not found on PATH; install tools manually with the' -ForegroundColor Yellow
+            Write-Host 'commands above, then RESTART this PowerShell window and re-run.' -ForegroundColor Yellow
+        } else {
+            Write-Host 'Install each one (winget commands above), then RESTART this PowerShell' -ForegroundColor Yellow
+            Write-Host 'window so the new PATH entries take effect, and re-run installer.ps1.' -ForegroundColor Yellow
+        }
+        exit 1
+    }
 }
 
 # ---- defaults ---------------------------------------------------------
