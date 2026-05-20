@@ -40,6 +40,7 @@ nav:
   - About: index.md
   - System Requirements: requirements.md
   - Installation: installation.md
+  - Cloud VPS Deployment: cloud-vps.md
   - Configuration: configuration.md
   - Troubleshooting: troubleshooting.md
   - Available Services: services.md
