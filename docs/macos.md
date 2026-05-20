@@ -119,7 +119,21 @@ sudo sed -i '' '/ANSIBLE MANAGED BLOCK - NEON HUB SUBDOMAINS/,/END ANSIBLE MANAG
 sudo security delete-certificate -c neon-hub-mac.local -t /Library/Keychains/System.keychain
 ```
 
-PulseAudio and `whiptail` are left installed. If you don't use them elsewhere, you can remove them with `brew uninstall pulseaudio newt`.
+PulseAudio and `whiptail` are left installed. To remove them and revert the installer's PulseAudio changes:
+
+```bash
+# Stop the PulseAudio daemon
+brew services stop pulseaudio
+
+# Comment out the TCP module line in PulseAudio's default config
+sed -i '' 's|^load-module module-native-protocol-tcp|#load-module module-native-protocol-tcp|' "$(brew --prefix pulseaudio)/etc/pulse/default.pa"
+
+# Remove the .so symlinks the installer created to work around Homebrew's .dylib naming
+find "$(brew --prefix pulseaudio)/lib/pulseaudio/modules" -name '*.so' -type l -delete
+
+# Uninstall the Homebrew packages if you don't use them elsewhere
+brew uninstall pulseaudio newt
+```
 
 ## Feature parity
 
@@ -140,6 +154,7 @@ Most Hub features work on macOS. The differences are summarized below.
 | STT (Faster Whisper)           | **Limited on ARM64** | Upstream image is amd64-only. Runs under Rosetta on Apple Silicon, slower than native.             |
 | Speech service (voice loop)    | Works                | Audio reaches the host PulseAudio daemon over TCP on `host.docker.internal:4713`.                  |
 | Audio service (playback)       | Works                | Same PulseAudio path as the speech service.                                                        |
+| Enclosure service              | Works                | Runs without X11 or D-Bus. Those mounts are skipped on Darwin.                                     |
 | Admin user bootstrap           | Works                | `seed-user.py` writes the initial user directly into the users-service SQLite DB.                  |
 | Self-signed cert trust         | Works                | Via `security add-trusted-cert`.                                                                   |
 | **Simple Docker Manager**      | **Skipped on macOS** | Docker Desktop's built-in container UI replaces it. No `manager.<hostname>` route.                 |
