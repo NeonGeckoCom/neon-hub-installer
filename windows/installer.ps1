@@ -581,9 +581,12 @@ Write-Step 'Seed admin + neon_node users'
 # ---- 9. Bootstrap admin token ---------------------------------------
 
 Write-Step 'Bootstrap Hub admin token'
+# Generous timeout: a first install is still pulling images and warming
+# up RabbitMQ when this runs, so HANA can take a few minutes to answer.
 & (Join-Path $scriptsDir 'bootstrap-hub-admin.ps1') `
     -AdminUsername $AdminUsername `
-    -AdminPassword $AdminPassword
+    -AdminPassword $AdminPassword `
+    -TimeoutSeconds 300
 
 # ---- 10. mDNS (default on) ------------------------------------------
 

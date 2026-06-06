@@ -39,7 +39,10 @@
 
 .PARAMETER TimeoutSeconds
     How long to wait for HANA to become reachable before giving up.
-    Default 120 seconds.
+    Default 300 seconds. A first install on a fresh machine has to pull
+    images and initialise RabbitMQ's user DB before HANA can answer, so
+    the cold-start budget is deliberately generous; warm re-runs return
+    almost immediately.
 
 .PARAMETER Force
     Re-authenticate against HANA and overwrite hub_admin.yaml even
@@ -58,7 +61,7 @@ param(
     [string]$AdminUsername,
     [SecureString]$AdminPassword,
     [string]$HanaUrl = 'http://localhost:8082',
-    [int]$TimeoutSeconds = 120,
+    [int]$TimeoutSeconds = 300,
     [switch]$Force
 )
 
@@ -117,7 +120,17 @@ while ((Get-Date) -lt $deadline) {
     }
 }
 if (-not $ready) {
-    Write-Error "HANA never returned 200 from $HanaUrl/docs within $TimeoutSeconds seconds. Is the stack up?"
+    Write-Error @"
+HANA never returned 200 from $HanaUrl/docs within $TimeoutSeconds seconds.
+
+The container stack is up but HANA was still warming up (first installs
+pull images and initialise RabbitMQ before HANA can answer). This is
+usually transient, not a failed install.
+
+What to do:
+  1. Check the stack: docker compose -p neon ps   (wait for 'healthy')
+  2. Re-run installer.ps1. It is idempotent and resumes from here.
+"@
 }
 
 # POST /auth/login. Retries cover users-service MQ warm-up -- HANA's

@@ -6,11 +6,14 @@ Neon Hub runs on Windows 11 via Docker Desktop with the WSL2 backend. The Window
 
 You will need:
 
-- **Windows 11.** Hardware virtualization must be enabled in BIOS/UEFI.
+- **Windows 11 Pro.** Hardware virtualization must be enabled in BIOS/UEFI.
+- **Hyper-V.** From an Administrator PowerShell, run `Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All` and reboot when prompted.
 - **WSL2.** From an Administrator PowerShell, run `wsl --install` and reboot when prompted.
 - **[Docker Desktop](https://www.docker.com/products/docker-desktop/) 4.x or newer**, with the WSL2 backend enabled (Settings → General → "Use the WSL 2 based engine"). Verify with `docker version` and `docker compose version`.
+  - **NOTE:** Docker Desktop does not run on startup by default, and this is behavior you want if you are running a Hub full-time. To enable this behavior, go to General Settings in Docker Desktop, and check "Start Docker Desktop when you sign into your computer."
 - **OpenSSL.** Used to generate the Hub's TLS cert. The installer finds `openssl.exe` automatically if it is in a standard location. The easiest install is `winget install FireDaemon.OpenSSL`, which adds itself to PATH by default.
 - **[Shawl](https://github.com/mtkennerly/shawl).** A small Rust service wrapper used so the LAN mDNS publisher can run as a real Windows service. Install with `winget install -e --id mtkennerly.shawl`.
+- **Git.** Needed to clone the repo and run the installer. Install with `winget install -e --id Git.Git`.
 - **Python 3.11.** Used by the mDNS publisher and the per-host secrets renderer. The installer creates its own venv so dependencies do not pollute the system Python. Install with `winget install -e --id Python.Python.3.11`.
 - **A text editor that writes Unix line endings.** VS Code, Notepad++, or anything other than the default Notepad. The seed config files are LF-terminated and editing them with Notepad will silently break the containers.
 
@@ -18,15 +21,17 @@ The installer must be run from an **Administrator PowerShell** so it can edit th
 
 ## Install
 
-Clone the repo and run the PowerShell installer from inside the `windows/` directory:
+Clone the repo and run the PowerShell installer from inside the `windows/` directory, in an **Administrator PowerShell** window:
 
 ```powershell
+cd $HOME
 git clone https://github.com/NeonGeckoCom/neon-hub-installer
 cd neon-hub-installer\windows
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned -Force
 .\installer.ps1
 ```
 
-That kicks off an interactive wizard. Press Enter to accept each default in brackets, or type a new value. It walks every step in order:
+That kicks off an interactive terminal wizard. Press Enter to accept each default in brackets, or type a new value. It walks every step in order:
 
 1. **Hostname prompt.** Default `neon-hub-win.local`. Used for the TLS cert, nginx server names, and mDNS advertisement.
 2. **Cert generation.** Creates a self-signed cert at `%USERPROFILE%\neon-hub\<hostname>.crt`.
@@ -41,10 +46,12 @@ That kicks off an interactive wizard. Press Enter to accept each default in brac
 
 Each step is idempotent. Rerunning the installer picks up where a prior run left off.
 
+> **First install takes a few minutes.** Step 7 pulls the container images and step 9 waits for HANA to come up, which on a cold machine means waiting on image extraction and RabbitMQ initialisation. If the admin-token step times out, the stack is usually fine — just still warming up. Check `docker compose -p neon ps` for `healthy` containers, then re-run `installer.ps1`; it resumes from where it stopped.
+
 When it finishes, validate the install:
 
 ```powershell
-Invoke-WebRequest -SkipCertificateCheck https://hana.neon-hub-win.local/docs
+  curl.exe -k https://hana.neon-hub-win.local/docs -w "%{http_code}" -o nul
 ```
 
 A 200 confirms HANA is up. The configuration UI is at `https://config.neon-hub-win.local`.
