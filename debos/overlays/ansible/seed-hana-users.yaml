@@ -16,8 +16,6 @@
     src: files/seed-user.py
     dest: /tmp/seed-user.py
     mode: "0700"
-    owner: root
-    group: root
 
 - name: Seed Hub admin user with ADMIN permissions
   ansible.builtin.command:
@@ -51,6 +49,6 @@
 - name: Set users-service DB ownership for the container user
   ansible.builtin.file:
     path: "{{ users_service_db_path }}"
-    owner: neon
-    group: neon
+    owner: "{{ neon_user }}"
+    group: "{{ neon_group }}"
     mode: "0644"

@@ -1,0 +1,11 @@
+# Placeholder for hub_admin token file. Populated by
+# windows\scripts\bootstrap-hub-admin.ps1, which authenticates against
+# HANA as the seeded admin user and writes:
+#
+#   username: "admin"
+#   password: "your-admin-password"
+#   refresh_token: "<token returned by HANA>"
+#
+# This file is bind-mounted into neon-hub-config; the container reads
+# it at startup and will crash-loop until the bootstrap script lands a
+# real refresh token.

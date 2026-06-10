@@ -1,14 +1,14 @@
 ---
 - name: Check if self-signed certificate already exists
   ansible.builtin.stat:
-    path: /home/neon/{{ common_name }}.crt
+    path: "{{ neon_home }}/{{ common_name }}.crt"
   register: cert_file
 - name: Generate self-signed certificate for {{ common_name }} and primary IP
   ansible.builtin.command:
     cmd: >
-      openssl req -x509 -nodes -days 365 -newkey rsa:2048 
-      -keyout /home/neon/{{ common_name }}.key 
-      -out /home/neon/{{ common_name }}.crt 
+      openssl req -x509 -nodes -days 365 -newkey rsa:2048
+      -keyout {{ neon_home }}/{{ common_name }}.key
+      -out {{ neon_home }}/{{ common_name }}.crt
       -subj "/C={{ country }}/ST={{ state }}/L={{ location }}/O={{ organization }}/OU={{ organizational_unit }}/CN={{ common_name }}"
       -addext "subjectAltName = DNS:{{ common_name }},DNS:*.{{ common_name }},IP:{{ primary_ip }}"
   become: yes
@@ -16,29 +16,33 @@
 - name: Set proper permissions for key and certificate
   ansible.builtin.file:
     path: "{{ item }}"
-    owner: neon
-    group: neon
+    owner: "{{ neon_user }}"
+    group: "{{ neon_group }}"
     mode: "0600"
   loop:
-    - /home/neon/{{ common_name }}.key
-    - /home/neon/{{ common_name }}.crt
+    - "{{ neon_home }}/{{ common_name }}.key"
+    - "{{ neon_home }}/{{ common_name }}.crt"
   become: yes
-# Copy certificate to system trust store
+# Copy certificate to system trust store (Linux only)
 - name: Copy certificate to system trust store
   ansible.builtin.copy:
-    src: /home/neon/{{ common_name }}.crt
+    src: "{{ neon_home }}/{{ common_name }}.crt"
     dest: /usr/local/share/ca-certificates/{{ common_name }}.crt
     mode: "0644"
   become: yes
-  when: trust_self_signed_cert == "1"
+  when:
+    - ansible_os_family != 'Darwin'
+    - trust_self_signed_cert == "1"
 - name: Update system trust store
   ansible.builtin.command:
     cmd: update-ca-certificates
   become: yes
-  when: trust_self_signed_cert == "1"
+  when:
+    - ansible_os_family != 'Darwin'
+    - trust_self_signed_cert == "1"
 - name: Display certificate information
   ansible.builtin.command:
-    cmd: openssl x509 -in /home/neon/{{ common_name }}.crt -text -noout
+    cmd: openssl x509 -in {{ neon_home }}/{{ common_name }}.crt -text -noout
   register: cert_info
   changed_when: false
 - name: Show certificate details

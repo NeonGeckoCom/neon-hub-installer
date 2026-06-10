@@ -1,0 +1,10 @@
+{
+  "logo": {
+    "type": "image",
+    "src": "logo.png",
+    "alt": "Neon Logo",
+    "width": 32,
+    "height": 32,
+    "text": "Neon"
+  }
+}

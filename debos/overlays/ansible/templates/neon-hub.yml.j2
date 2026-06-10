@@ -1,3 +1,14 @@
+# TEMPORARY: Several images lack linux/arm64 manifests and are forced to
+# linux/amd64 on Darwin (Rosetta 2). Remove the per-service
+# `platform: linux/amd64` conditionals once upstream ships multi-arch builds.
+# Tracking issues:
+#   https://github.com/NeonGeckoCom/neon_api_proxy/issues/109
+#   https://github.com/NeonGeckoCom/neon-hana/issues/53
+#   https://github.com/NeonGeckoCom/neon-hub-config/issues/17
+#   https://github.com/NeonGeckoCom/neon-iris/issues/81 (iris + iris-websat)
+#   https://github.com/NeonGeckoCom/neon-tts-plugin-coqui/issues/129
+#   https://github.com/NeonGeckoCom/neon-users-service/issues/7
+#   https://github.com/OpenVoiceOS/ovos-docker-stt/issues/16
 x-podman: &podman
   userns_mode: keep-id
   security_opt:
@@ -12,17 +23,23 @@ x-logging: &default-logging
 x-default-env-vars: &default-env-vars
   XDG_CONFIG_HOME: $XDG_CONFIG_HOME
   TZ: $TZ
-  PULSE_SERVER: unix:${XDG_RUNTIME_DIR}/pulse/native
-  PULSE_COOKIE: /xdg/config/pulse/cookie
 
 networks:
   neon-core:
 volumes:
   xdg:
+{% if ansible_system == 'Linux' %}
     driver_opts:
       type: xdg
       o: bind
       device: ${NEON_XDG_PATH}
+{% else %}
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${NEON_XDG_PATH}
+{% endif %}
   models:
     name: models
     driver: local
@@ -44,9 +61,11 @@ volumes:
   neon_gui_files:
     name: neon_gui_files
     driver: local
+{% if ansible_system == 'Linux' %}
   sdm-data:
     name: sdm-data
     driver: local
+{% endif %}
 
 services:
   # Core
@@ -65,8 +84,10 @@ services:
     volumes:
       - ${NEON_CONFIG_FOLDER}:/xdg/config
       - ${NEON_LOCAL_FOLDER}:/xdg/local
+{% if ansible_system == 'Linux' %}
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+{% endif %}
     environment:
       <<: *default-env-vars
   speech:
@@ -81,9 +102,11 @@ services:
       neon-core:
     volumes:
       - xdg:/home/neon:rw
+{% if ansible_system == 'Linux' %}
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
       - /home/${NEON_USER}/.config/pulse/cookie:/xdg/config/pulse/cookie:ro
+{% endif %}
       - ${NEON_CONFIG_FOLDER}:/xdg/config:ro
       - listener_records:/xdg/local/share/neon/listener
       - ${NEON_LOCAL_FOLDER}:/xdg/local
@@ -91,8 +114,10 @@ services:
       - vosk:/xdg/local/share/vosk
     environment:
       <<: *default-env-vars
+{% if ansible_system == 'Linux' %}
     devices:
       - /dev/snd
+{% endif %}
   audio:
     <<: *podman
     logging: *default-logging
@@ -104,19 +129,27 @@ services:
     networks:
       neon-core:
     volumes:
+{% if ansible_system == 'Linux' %}
       - ${XDG_RUNTIME_DIR}/bus:${XDG_RUNTIME_DIR}/bus:ro
       - /home/${NEON_USER}/.config/pulse/cookie:/xdg/config/pulse/cookie:ro
+{% endif %}
       - ${NEON_CONFIG_FOLDER}:/xdg/config
       - ${NEON_LOCAL_FOLDER}:/xdg/local
       - tts_cache:/xdg/cache/neon
+{% if ansible_system == 'Linux' %}
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+{% endif %}
     environment:
       <<: *default-env-vars
+{% if ansible_system == 'Linux' %}
       DBUS_SESSION_BUS_ADDRESS: unix:path=${XDG_RUNTIME_DIR}/bus
+{% endif %}
       LOG_LEVEL: INFO
+{% if ansible_system == 'Linux' %}
     devices:
       - /dev/snd
+{% endif %}
   enclosure:
     <<: *podman
     logging: *default-logging
@@ -128,19 +161,27 @@ services:
     networks:
       neon-core:
     volumes:
+{% if ansible_system == 'Linux' %}
       - ${XDG_RUNTIME_DIR}/pulse/cookie:${XDG_RUNTIME_DIR}/pulse/cookie:ro
       - ${XDG_RUNTIME_DIR}/bus:${XDG_RUNTIME_DIR}/bus:ro
       - /tmp/.X11-unix:/tmp/.X11-unix:ro
+{% endif %}
       - ${NEON_CONFIG_FOLDER}:/xdg/config
       - ${NEON_LOCAL_FOLDER}:/xdg/local
+{% if ansible_system == 'Linux' %}
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+{% endif %}
     environment:
       <<: *default-env-vars
+{% if ansible_system == 'Linux' %}
       DISPLAY: ${DISPLAY}
       DBUS_SESSION_BUS_ADDRESS: unix:path=${XDG_RUNTIME_DIR}/bus
+{% endif %}
+{% if ansible_system == 'Linux' %}
     devices:
       - /dev/snd
+{% endif %}
   skills:
     <<: *podman
     logging: *default-logging
@@ -152,15 +193,21 @@ services:
     networks:
       neon-core:
     volumes:
+{% if ansible_system == 'Linux' %}
       - /home/${NEON_USER}/.config/pulse/cookie:/xdg/config/pulse/cookie:ro
+{% endif %}
       - ${NEON_CONFIG_FOLDER}:/xdg/config
       - ${NEON_LOCAL_FOLDER}:/xdg/local
       - nltk:/home/${NEON_USER}/nltk_data
       - ${NEON_SHARE_FOLDER}:/xdg/local/share/neon
+{% if ansible_system == 'Linux' %}
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+{% endif %}
+{% if ansible_system == 'Linux' %}
     devices:
       - /dev/snd
+{% endif %}
     environment:
       <<: *default-env-vars
   # Hub
@@ -179,14 +226,27 @@ services:
         aliases:
           - neon-rabbitmq
     volumes:
-      - /home/neon/xdg/config/rabbitmq:/etc/rabbitmq
+{% if ansible_os_family in ('Darwin', 'Windows') %}
+      # macOS (VirtioFS) and Windows (WSL2 9P) both preserve host UIDs in
+      # bind mounts, so the in-image rabbitmq user (uid 999) can't own the
+      # config dir. Mount the two files read-only and redirect the writable
+      # enabled_plugins file to /var/lib/rabbitmq instead.
+      - {{ neon_home }}/xdg/config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - {{ neon_home }}/xdg/config/rabbitmq/rabbitmq.json:/etc/rabbitmq/rabbitmq.json:ro
+{% else %}
+      - {{ neon_home }}/xdg/config/rabbitmq:/etc/rabbitmq
+{% endif %}
     environment:
       - RABBITMQ_ENABLED_PLUGINS=rabbitmq_management
+      - RABBITMQ_ENABLED_PLUGINS_FILE=/var/lib/rabbitmq/enabled_plugins
   # MQ Services
   api_proxy:
     <<: *podman
     container_name: neon-api-proxy
     image: ghcr.io/neongeckocom/neon_api_proxy:${MQ_IMAGE_TAG}
+{% if ansible_os_family == 'Darwin' %}
+    platform: linux/amd64
+{% endif %}
     depends_on:
       - rabbitmq
     restart: unless-stopped
@@ -199,6 +259,7 @@ services:
     environment:
       <<: *default-env-vars
   # HTTP Services
+{% if ansible_system == 'Linux' %}
   docker_manager:
     <<: *podman
     container_name: neon-docker-manager
@@ -221,6 +282,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - sdm-data:/data
+{% endif %}
   skill_config:
     <<: *podman
     container_name: neon-skill-config
@@ -237,8 +299,8 @@ services:
       - 8010:8000
     volumes:
       - ${NEON_CONFIG_FOLDER}:/home/appuser/.config:rw
-      - /home/neon/compose/neon-logo.png:/app/static/logo.png:ro
-      - /home/neon/compose/skill-config.json:/app/static/config.json:ro
+      - {{ neon_home }}/compose/neon-logo.png:/app/static/logo.png:ro
+      - {{ neon_home }}/compose/skill-config.json:/app/static/config.json:ro
     environment:
       <<: *default-env-vars
       OVOS_CONFIG_USERNAME: neon
@@ -251,6 +313,9 @@ services:
       - rabbitmq
     container_name: neon-users-service
     image: ghcr.io/neongeckocom/neon-users-service:${MQ_IMAGE_TAG}
+{% if ansible_os_family == 'Darwin' %}
+    platform: linux/amd64
+{% endif %}
     restart: unless-stopped
     logging: *default-logging
     hostname: $HOSTNAME
@@ -270,6 +335,9 @@ services:
       - users-service
     container_name: neon-hana
     image: ghcr.io/neongeckocom/neon-hana:${HTTP_IMAGE_TAG}
+{% if ansible_os_family == 'Darwin' %}
+    platform: linux/amd64
+{% endif %}
     restart: unless-stopped
     logging: *default-logging
     hostname: $HOSTNAME
@@ -285,6 +353,9 @@ services:
     <<: *podman
     container_name: neon-tts-coqui
     image: ghcr.io/neongeckocom/neon-tts-plugin-coqui:${HTTP_IMAGE_TAG}
+{% if ansible_os_family == 'Darwin' %}
+    platform: linux/amd64
+{% endif %}
     restart: unless-stopped
     logging: *default-logging
     hostname: $HOSTNAME
@@ -302,6 +373,9 @@ services:
     <<: *podman
     container_name: neon-stt-fasterwhisper
     image: docker.io/smartgic/ovos-stt-server-fasterwhisper:alpha
+{% if ansible_os_family == 'Darwin' %}
+    platform: linux/amd64
+{% endif %}
     restart: unless-stopped
     logging: *default-logging
     hostname: $HOSTNAME
@@ -320,6 +394,9 @@ services:
     container_name: neon-iris
     user: root
     image: ghcr.io/neongeckocom/neon-iris:${HTTP_IMAGE_TAG}
+{% if ansible_os_family == 'Darwin' %}
+    platform: linux/amd64
+{% endif %}
     restart: unless-stopped
     logging: *default-logging
     hostname: $HOSTNAME
@@ -340,6 +417,9 @@ services:
       - rabbitmq
     container_name: neon-iris-websat
     image: ghcr.io/neongeckocom/neon-iris-websat:${HTTP_IMAGE_TAG}
+{% if ansible_os_family == 'Darwin' %}
+    platform: linux/amd64
+{% endif %}
     restart: unless-stopped
     logging: *default-logging
     hostname: $HOSTNAME
@@ -366,9 +446,9 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - /home/neon/compose/nginx.conf:/etc/nginx/nginx.conf:ro
-      - /home/neon/{{ common_name }}.crt:/etc/ssl/certs/{{ common_name }}.crt:ro
-      - /home/neon/{{ common_name }}.key:/etc/ssl/private/{{ common_name }}.key:ro
+      - {{ neon_home }}/compose/nginx.conf:/etc/nginx/nginx.conf:ro
+      - {{ neon_home }}/{{ common_name }}.crt:/etc/ssl/certs/{{ common_name }}.crt:ro
+      - {{ neon_home }}/{{ common_name }}.key:/etc/ssl/private/{{ common_name }}.key:ro
   hub_config:
     <<: *podman
     logging: *default-logging
@@ -376,6 +456,9 @@ services:
     depends_on:
       - hana
     image: ghcr.io/neongeckocom/neon-hub-config:main
+{% if ansible_os_family == 'Darwin' %}
+    platform: linux/amd64
+{% endif %}
     environment:
       DIANA_PATH: /root/.config/neon/diana.yaml
       NEON_PATH: /root/.config/neon/neon.yaml
@@ -390,5 +473,7 @@ services:
       - 8005:80
     volumes:
       - ${NEON_CONFIG_FOLDER}:/root/.config
+{% if ansible_system == 'Linux' %}
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+{% endif %}
