@@ -1,0 +1,70 @@
+---
+# Renders neon-hub.yml.j2 for each host profile and asserts the audio wiring
+# (/dev/snd device binds and pulse cookie mounts) appears only when the host
+# has sound support. Run with: ansible-playbook tests/render_test.yml
+- name: Verify compose template renders correctly per host profile
+  hosts: localhost
+  gather_facts: false
+  vars:
+    template_path: "{{ playbook_dir }}/../debos/overlays/ansible/templates/neon-hub.yml.j2"
+    # Stubs for unrelated template variables
+    common_name: test-hub.local
+    docker_gid: 999
+    neon_home: /home/neon
+    xdg_dir: /home/neon/xdg
+    users:
+      neon_skill_config:
+        password: test
+      simple_docker_manager:
+        password: test
+    profiles:
+      - name: linux with audio
+        tvars: {ansible_system: Linux, ansible_os_family: Debian, hub_has_audio: true}
+        dev_snd: 4
+        pulse_cookie: 8
+      - name: linux headless (detected)
+        tvars: {ansible_system: Linux, ansible_os_family: Debian, hub_has_audio: false}
+        dev_snd: 0
+        pulse_cookie: 0
+      - name: linux headless (string extra-var)
+        tvars: {ansible_system: Linux, ansible_os_family: Debian, hub_has_audio: "false"}
+        dev_snd: 0
+        pulse_cookie: 0
+      - name: linux undetected (debos image build)
+        tvars: {ansible_system: Linux, ansible_os_family: Debian}
+        dev_snd: 4
+        pulse_cookie: 8
+      - name: macos
+        tvars: {ansible_system: Darwin, ansible_os_family: Darwin}
+        dev_snd: 0
+        pulse_cookie: 0
+  tasks:
+    - name: Render template for each profile
+      ansible.builtin.set_fact:
+        renders: "{{ renders | default({}) | combine({item.name: lookup('ansible.builtin.template', template_path, template_vars=item.tvars)}) }}"
+      loop: "{{ profiles }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Assert rendered output is valid YAML
+      ansible.builtin.assert:
+        that:
+          - renders[item.name] | from_yaml is mapping
+        fail_msg: "Profile '{{ item.name }}' rendered invalid YAML"
+      loop: "{{ profiles }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Assert audio wiring matches each profile
+      ansible.builtin.assert:
+        that:
+          - renders[item.name] | regex_findall('/dev/snd') | length == item.dev_snd
+          - renders[item.name] | regex_findall('pulse/cookie') | length == item.pulse_cookie
+        fail_msg: >-
+          Profile '{{ item.name }}' expected {{ item.dev_snd }} /dev/snd and
+          {{ item.pulse_cookie }} pulse/cookie references, got
+          {{ renders[item.name] | regex_findall('/dev/snd') | length }} and
+          {{ renders[item.name] | regex_findall('pulse/cookie') | length }}
+      loop: "{{ profiles }}"
+      loop_control:
+        label: "{{ item.name }}"

@@ -1,0 +1,6 @@
+profile: basic
+exclude_paths:
+  # debos recipes are Go-templated YAML, not Ansible
+  - debos/hub-efi.yaml
+  - debos/recipes/
+  - windows/
