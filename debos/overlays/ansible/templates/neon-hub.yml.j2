@@ -105,7 +105,9 @@ services:
 {% if ansible_system == 'Linux' %}
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+{% if hub_has_audio | default(true) | bool %}
       - /home/${NEON_USER}/.config/pulse/cookie:/xdg/config/pulse/cookie:ro
+{% endif %}
 {% endif %}
       - ${NEON_CONFIG_FOLDER}:/xdg/config:ro
       - listener_records:/xdg/local/share/neon/listener
@@ -114,7 +116,7 @@ services:
       - vosk:/xdg/local/share/vosk
     environment:
       <<: *default-env-vars
-{% if ansible_system == 'Linux' %}
+{% if ansible_system == 'Linux' and hub_has_audio | default(true) | bool %}
     devices:
       - /dev/snd
 {% endif %}
@@ -131,7 +133,9 @@ services:
     volumes:
 {% if ansible_system == 'Linux' %}
       - ${XDG_RUNTIME_DIR}/bus:${XDG_RUNTIME_DIR}/bus:ro
+{% if hub_has_audio | default(true) | bool %}
       - /home/${NEON_USER}/.config/pulse/cookie:/xdg/config/pulse/cookie:ro
+{% endif %}
 {% endif %}
       - ${NEON_CONFIG_FOLDER}:/xdg/config
       - ${NEON_LOCAL_FOLDER}:/xdg/local
@@ -146,7 +150,7 @@ services:
       DBUS_SESSION_BUS_ADDRESS: unix:path=${XDG_RUNTIME_DIR}/bus
 {% endif %}
       LOG_LEVEL: INFO
-{% if ansible_system == 'Linux' %}
+{% if ansible_system == 'Linux' and hub_has_audio | default(true) | bool %}
     devices:
       - /dev/snd
 {% endif %}
@@ -162,7 +166,9 @@ services:
       neon-core:
     volumes:
 {% if ansible_system == 'Linux' %}
+{% if hub_has_audio | default(true) | bool %}
       - ${XDG_RUNTIME_DIR}/pulse/cookie:${XDG_RUNTIME_DIR}/pulse/cookie:ro
+{% endif %}
       - ${XDG_RUNTIME_DIR}/bus:${XDG_RUNTIME_DIR}/bus:ro
       - /tmp/.X11-unix:/tmp/.X11-unix:ro
 {% endif %}
@@ -178,7 +184,7 @@ services:
       DISPLAY: ${DISPLAY}
       DBUS_SESSION_BUS_ADDRESS: unix:path=${XDG_RUNTIME_DIR}/bus
 {% endif %}
-{% if ansible_system == 'Linux' %}
+{% if ansible_system == 'Linux' and hub_has_audio | default(true) | bool %}
     devices:
       - /dev/snd
 {% endif %}
@@ -193,7 +199,7 @@ services:
     networks:
       neon-core:
     volumes:
-{% if ansible_system == 'Linux' %}
+{% if ansible_system == 'Linux' and hub_has_audio | default(true) | bool %}
       - /home/${NEON_USER}/.config/pulse/cookie:/xdg/config/pulse/cookie:ro
 {% endif %}
       - ${NEON_CONFIG_FOLDER}:/xdg/config
@@ -204,7 +210,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
 {% endif %}
-{% if ansible_system == 'Linux' %}
+{% if ansible_system == 'Linux' and hub_has_audio | default(true) | bool %}
     devices:
       - /dev/snd
 {% endif %}

@@ -96,6 +96,14 @@ The installer walks you through a guided setup. When it asks for a hostname, use
 
 See [Installation](installation.md) for what the installer prompts cover and what you can change later.
 
+### No sound hardware on cloud kernels
+
+Cloud-optimized kernels (AWS `linux-aws`, and similar builds on other providers) ship without ALSA. `/dev/snd` does not exist and cannot be created with `modprobe`, because the sound modules are not compiled for these kernels at all.
+
+The installer detects this and generates a compose file without sound-device wiring. Nothing is lost in practice. STT, TTS, and wake word are served to Nodes over the network, and a cloud Hub has no microphone or speaker to drive anyway.
+
+To force the detection either way, pass `hub_has_audio=true` or `false` as an Ansible extra variable. If you see `error gathering device information while adding custom device "/dev/snd"` during install, you are running an installer version that predates this detection. Update and re-run.
+
 ## Validating the install
 
 After `installer.sh` finishes, hit HANA from your admin workstation:
