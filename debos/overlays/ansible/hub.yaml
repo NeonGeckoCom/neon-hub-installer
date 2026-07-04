@@ -325,6 +325,21 @@
     - name: Parse .env file
       ansible.builtin.set_fact:
         env_vars: "{{ (env_file['content'] | b64decode).split('\n') | select('match', '^(?!#).*=.*') | list }}"
+    # Cloud kernels (AWS linux-aws and similar) ship without ALSA, so binding
+    # /dev/snd fails the audio containers. Probe only on a live install: debos
+    # builds lack /dev/snd but their target hardware has it.
+    - name: Check for ALSA sound devices
+      ansible.builtin.stat:
+        path: /dev/snd/timer
+      register: alsa_timer
+      when:
+        - ansible_system == 'Linux'
+        - start_neon_hub_services == "1"
+        - hub_has_audio is not defined
+    - name: Default hub audio support from ALSA probe
+      ansible.builtin.set_fact:
+        hub_has_audio: "{{ alsa_timer.stat.exists | default(true) }}"
+      when: hub_has_audio is not defined
     - name: Copy compose file from template
       ansible.builtin.template:
         src: templates/neon-hub.yml.j2
