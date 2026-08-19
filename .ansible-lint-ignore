@@ -1,0 +1,14 @@
+# This file contains ignores rule violations for ansible-lint
+debos/overlays/ansible/generate-certificate.yaml name[template]
+debos/overlays/ansible/generate-certificate.yaml yaml[truthy]
+debos/overlays/ansible/generate-secrets.yaml yaml[line-length]
+debos/overlays/ansible/hub.yaml command-instead-of-module
+debos/overlays/ansible/hub.yaml command-instead-of-shell
+debos/overlays/ansible/hub.yaml name[template]
+debos/overlays/ansible/hub.yaml yaml[truthy]
+debos/overlays/ansible/kiosk-teardown.yaml command-instead-of-shell
+debos/overlays/ansible/kiosk-teardown.yaml yaml[truthy]
+debos/overlays/ansible/kiosk.yaml yaml[truthy]
+debos/overlays/ansible/neon-node.yaml command-instead-of-module
+debos/overlays/ansible/neon-node.yaml yaml[indentation]
+debos/overlays/ansible/neon-node.yaml yaml[octal-values]

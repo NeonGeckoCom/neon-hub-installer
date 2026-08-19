@@ -1,0 +1,33 @@
+---
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ansible:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: tests/requirements.txt
+      - name: Install ansible tooling
+        run: pip install -r tests/requirements.txt
+      - name: Cache galaxy requirements
+        uses: actions/cache@v6
+        with:
+          path: ~/.ansible
+          key: galaxy-${{ hashFiles('debos/overlays/ansible/requirements.yml') }}
+      - name: Install galaxy requirements
+        run: ansible-galaxy install -r debos/overlays/ansible/requirements.yml
+      - name: Lint
+        run: ansible-lint
+      - name: Syntax check
+        run: ansible-playbook --syntax-check -i 127.0.0.1, debos/overlays/ansible/hub.yaml
+      - name: Compose template render test
+        run: ansible-playbook tests/render_test.yml
