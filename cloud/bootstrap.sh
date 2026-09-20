@@ -27,7 +27,8 @@ export USER_ID="$EUID"
 
 readonly DEPLOY_LOG=/var/log/neon-hub-cloud-deploy.log
 readonly CREDENTIALS_FILE=/root/neon-hub-credentials.txt
-readonly DATA_MOUNT=/mnt/neon-hub-data
+export XDG_DIR=/home/neon/xdg
+readonly XDG_DIR
 readonly DATA_DEVICE_WAIT_SECONDS=300
 readonly HEALTH_WAIT_SECONDS=1800
 readonly HEALTH_POLL_SECONDS=15
@@ -55,6 +56,7 @@ signal_cloudformation() {
 
 fail() {
     log "FAILED: $1"
+    rm -f "$EXTRA_VARS_FILE"
     signal_cloudformation FAILURE "$1. See ${DEPLOY_LOG} on the instance."
     exit 1
 }
@@ -89,8 +91,9 @@ resolve_hostname() {
     log "Public IP ${PUBLIC_IP}, hostname ${HUB_HOSTNAME}"
 }
 
+# The volume is mounted at the installer's default data path. A custom xdg_dir does not
+# work: the compose templates hardcode /home/neon/xdg.
 mount_data_volume() {
-    XDG_DIR=/home/neon/xdg
     [ -n "$NEON_HUB_DATA_DEVICE" ] || return 0
     local waited=0
     until [ -b "$NEON_HUB_DATA_DEVICE" ]; do
@@ -100,10 +103,17 @@ mount_data_volume() {
     done
     # Format only a blank device, so a re-attached volume keeps its Hub data.
     blkid "$NEON_HUB_DATA_DEVICE" >/dev/null || mkfs.ext4 -L neon-hub-data "$NEON_HUB_DATA_DEVICE"
-    mkdir -p "$DATA_MOUNT"
-    grep -q "$DATA_MOUNT" /etc/fstab || echo "LABEL=neon-hub-data ${DATA_MOUNT} ext4 defaults,nofail 0 2" >>/etc/fstab
-    mount "$DATA_MOUNT"
-    XDG_DIR="${DATA_MOUNT}/xdg"
+    mkdir -p "$XDG_DIR"
+    grep -q "$XDG_DIR" /etc/fstab || echo "LABEL=neon-hub-data ${XDG_DIR} ext4 defaults,nofail,x-systemd.before=docker.service 0 2" >>/etc/fstab
+    mount "$XDG_DIR"
+    CREATED_NEON_HOME=1
+}
+
+# Creating the mount point made /home/neon before the playbook made the neon user,
+# so useradd left the home directory owned by root.
+fix_home_ownership() {
+    [ -n "$CREATED_NEON_HOME" ] || return 0
+    chown neon:neon /home/neon
 }
 
 # Docker publishes container ports ahead of ufw, so the limit has to live in DOCKER-USER.
@@ -166,7 +176,7 @@ generate_password() {
 # and survive quoting. Blank service passwords make the playbook generate them.
 write_extra_vars() {
     umask 077
-    XDG_DIR="$XDG_DIR" HUB_HOSTNAME="$HUB_HOSTNAME" \
+    HUB_HOSTNAME="$HUB_HOSTNAME" \
         ADMIN_USERNAME="$ADMIN_USERNAME" ADMIN_PASSWORD="$ADMIN_PASSWORD" \
         python3 - >"$EXTRA_VARS_FILE" <<'PY'
 import json, os
@@ -229,6 +239,7 @@ main() {
     prepare_ansible
     restrict_inbound
     run_playbook
+    fix_home_ownership
     persist_inbound_rules
     wait_for_hana
     write_credentials

@@ -143,12 +143,12 @@ sudo docker compose -p neon -f /home/neon/compose/neon-hub.yml up -d
 
 ## Backup and restore
 
-Hub state lives in one directory. Docker images come from the registry and do not need a backup.
+Hub state lives in `/home/neon/xdg`. Docker images come from the registry and do not need a backup.
 
-| Provider     | Data directory           | Backup                                                   |
-| ------------ | ------------------------ | -------------------------------------------------------- |
-| AWS          | `/mnt/neon-hub-data/xdg` | Snapshot the `neon-hub-data` EBS volume                  |
-| DigitalOcean | `/home/neon/xdg`         | Enable Droplet backups, or take a snapshot of the Droplet |
+| Provider     | Storage                         | Backup                                                    |
+| ------------ | ------------------------------- | --------------------------------------------------------- |
+| AWS          | Separate EBS volume, `*-data`   | Snapshot the data volume                                  |
+| DigitalOcean | The Droplet's disk              | Enable Droplet backups, or take a snapshot of the Droplet |
 
 To restore on AWS, create a volume from the snapshot in the same availability zone as the instance. Stop the instance, detach the current data volume, attach the restored one as `/dev/sdf`, and start the instance.
 
@@ -161,8 +161,6 @@ sudo docker compose -p neon -f /home/neon/compose/neon-hub.yml stop
 sudo tar -czf neon-hub-backup.tar.gz -C /home/neon xdg
 sudo docker compose -p neon -f /home/neon/compose/neon-hub.yml start
 ```
-
-On AWS, replace `-C /home/neon` with `-C /mnt/neon-hub-data`.
 
 ## Troubleshooting
 
