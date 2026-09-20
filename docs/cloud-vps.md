@@ -2,6 +2,8 @@
 
 Neon Hub runs on any Linux VPS that meets the [system requirements](requirements.md). The installer itself is the same as on bare metal. Clone the repo and run `installer.sh`. This guide covers what to do around that: picking an instance, locking down the network, and getting an admin path in without a public IP.
 
+For an automated install on AWS or DigitalOcean, see [Deploy to Cloud](cloud-deploy.md).
+
 ## Instance sizing
 
 | Workload                               | vCPU | RAM   | Disk       | Example types                                            |
@@ -10,7 +12,7 @@ Neon Hub runs on any Linux VPS that meets the [system requirements](requirements
 | Recommended (household / small office) | 8    | 16 GB | 150 GB SSD | AWS `m6i.2xlarge`, GCP `n2-standard-8`, Azure `D8s_v5`   |
 | Heavy (multi-user, many Nodes)         | 16   | 32 GB | 300 GB SSD | AWS `m6i.4xlarge`, GCP `n2-standard-16`, Azure `D16s_v5` |
 
-Avoid burstable families (AWS `t3`/`t4g`, Azure `B`-series). Model inference can exhaust CPU credits rapidly.
+Burstable families (AWS `t3`, Azure `B`-series) suit the Minimum row. A Hub is idle between requests, and a voice request costs about 10 CPU-seconds, so credits accumulate far faster than one household spends them. Use a fixed-performance family for the Recommended and Heavy rows, where many Nodes keep the CPU busy. Keep 4 vCPUs in every case, because speech recognition spreads across cores.
 
 Use a general-purpose SSD (AWS `gp3`, GCP `pd-balanced`, Azure Premium SSD). The Hub reads many small model files at startup, and spinning disks add minutes to boot.
 
