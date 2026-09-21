@@ -65,7 +65,7 @@ aws cloudformation describe-stacks --stack-name neon-hub --region us-east-2 --qu
 
 ### When the stack finishes
 
-The stack takes 30 to 45 minutes. It reports `CREATE_COMPLETE` only after the Hub answers, so there is nothing to check by hand. The **Outputs** tab then shows:
+The stack takes about 15 minutes. It reports `CREATE_COMPLETE` only after the Hub answers, so a finished stack is a working Hub. The **Outputs** tab then shows:
 
 | Output         | Use                                        |
 | -------------- | ------------------------------------------ |
@@ -109,7 +109,7 @@ doctl compute droplet create neon-hub --image ubuntu-24-04-x64 --size s-4vcpu-8g
 
 ### Finding your Hub
 
-The install takes 30 to 45 minutes after the Droplet is created. Follow it over SSH:
+The install takes about 15 minutes after the Droplet is created. Follow it over SSH:
 
 ```bash
 ssh root@DROPLET_IP tail -f /var/log/neon-hub-cloud-deploy.log
