@@ -45,9 +45,25 @@ Add `/32` to the result, for example `203.0.113.7/32`. This value is called the 
 
 1. Select **Launch Stack** above and sign in.
 2. Choose a region in the top bar. The region needs a default VPC, which every new AWS account has.
-3. Enter your allowed CIDR. Every other field has a working default.
+3. Enter your allowed CIDR in the `AllowedCidr` field. Every other field has a working default, including the **Advanced** group.
 4. Tick the box acknowledging that the stack creates IAM resources. The template adds one role so that Systems Manager can open a shell on the instance.
 5. Select **Create stack**.
+
+### Command line
+
+With the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) installed and authenticated:
+
+```bash
+aws cloudformation create-stack --stack-name neon-hub --region us-east-2 --capabilities CAPABILITY_IAM --template-url https://NEON_TEMPLATE_BUCKET.s3.amazonaws.com/neon-hub.yaml --parameters ParameterKey=AllowedCidr,ParameterValue=203.0.113.7/32
+```
+
+Check progress with:
+
+```bash
+aws cloudformation describe-stacks --stack-name neon-hub --region us-east-2 --query "Stacks[0].StackStatus"
+```
+
+### When the stack finishes
 
 The stack takes 30 to 45 minutes. It reports `CREATE_COMPLETE` only after the Hub answers, so there is nothing to check by hand. The **Outputs** tab then shows:
 
@@ -58,12 +74,13 @@ The stack takes 30 to 45 minutes. It reports `CREATE_COMPLETE` only after the Hu
 | `PublicIp`     | Static IP, for your own DNS records        |
 | `InstanceId`   | Target for Systems Manager Session Manager |
 
-If you left the admin password empty, read the generated one from the instance:
+If you left the admin password empty, read the generated one from the instance. In the EC2 console, select the instance, then **Connect**, then **Session Manager**, then **Connect**. This opens a shell in the browser with nothing to install. Then run:
 
 ```bash
-aws ssm start-session --target i-xxxxxxxx
 sudo cat /root/neon-hub-credentials.txt
 ```
+
+From the command line, `aws ssm start-session --target i-xxxxxxxx` opens the same shell. It needs the [Session Manager plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html).
 
 Deleting the stack removes everything except a snapshot of the data volume.
 
@@ -116,7 +133,7 @@ To use your own domain, set `HubHostname` on AWS or add `export NEON_HUB_HOSTNAM
 
 The Hub uses a self-signed certificate. Accept it in the browser on first visit. Replacing it with a Let's Encrypt certificate is a manual step and needs your own domain.
 
-Confirm the Hub from your workstation:
+Confirm the Hub from your workstation. Replace the address with your own `hana` address on either provider:
 
 ```bash
 curl -k https://hana.203-0-113-10.sslip.io/docs
@@ -166,7 +183,7 @@ sudo docker compose -p neon -f /home/neon/compose/neon-hub.yml start
 
 | Symptom                                            | Cause                                          | Fix                                                                        |
 | -------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------- |
-| AWS stack fails with a wait condition timeout      | Install did not finish within an hour          | Open a Session Manager shell and read `/var/log/neon-hub-cloud-deploy.log` |
+| AWS stack ends in `CREATE_FAILED` or `ROLLBACK_COMPLETE` | The install failed. The reason is on the `InstallWaitCondition` row of the **Events** tab. | CloudFormation deletes a failed instance, and its logs with it. Delete the stack and create it again with rollback turned off: add `--disable-rollback` on the command line, or choose **Preserve successfully provisioned resources** under **Stack failure options** in the console. Then read `/var/log/neon-hub-cloud-deploy.log` on the instance. |
 | Log ends with `NEON_HUB_ALLOWED_CIDR is not set`   | The DigitalOcean script was pasted unedited    | Destroy the Droplet and create it again with the CIDR filled in            |
 | Hub worked yesterday and now times out             | Your public IP changed                         | [Change the allowed network](#changing-the-allowed-network)                |
 | Browser warns about the certificate                | Self-signed certificate                        | Accept it, or install your own certificate                                 |
