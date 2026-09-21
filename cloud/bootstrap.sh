@@ -186,6 +186,7 @@ print(json.dumps({
     "install_neon_node": "0",
     "install_neon_node_gui": "0",
     "browser_package": "firefox",
+    "hub_advertise_mdns": False,
     "hub_admin_username_input": os.environ["ADMIN_USERNAME"],
     "hub_admin_password_input": os.environ["ADMIN_PASSWORD"],
     "sdm_password": "",

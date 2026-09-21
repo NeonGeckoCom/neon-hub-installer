@@ -14,7 +14,9 @@ Type=simple
 # or interface-swapped IP lands cleanly. The helper writes the
 # current address into PRIMARY_IP for ExecStart to consume.
 ExecStartPre=/usr/local/sbin/avahi-alias-hana-resolve
-EnvironmentFile=/run/avahi-alias-hana.env
+# The "-" is required: systemd loads this file before it runs ExecStartPre,
+# so on first start the file that ExecStartPre writes does not exist yet.
+EnvironmentFile=-/run/avahi-alias-hana.env
 # -R skips avahi's local conflict check. Without it, the publish
 # fails with "Local name collision" even though no peer on the LAN
 # is actually claiming the name. Source of the apparent conflict
