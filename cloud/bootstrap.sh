@@ -138,11 +138,12 @@ restrict_inbound() {
     publish_ipv4_only
 }
 
-# The allowlist is IPv4 only. IPv6 connections to published ports go through docker-proxy
-# on the host and skip DOCKER-USER, so Docker must not publish on IPv6 at all.
+# The allowlist is IPv4 only. On IPv4-only networks the userland proxy also publishes
+# every port on the host's IPv6 addresses, and that traffic skips DOCKER-USER.
+# Without the proxy, Docker publishes these ports on IPv4 only.
 publish_ipv4_only() {
     mkdir -p "$(dirname "$DOCKER_DAEMON_CONFIG")"
-    echo '{"ip": "0.0.0.0"}' >"$DOCKER_DAEMON_CONFIG"
+    echo '{"userland-proxy": false}' >"$DOCKER_DAEMON_CONFIG"
 }
 
 # The playbook installs Avahi for LAN discovery. A cloud Hub has no LAN to announce to.
