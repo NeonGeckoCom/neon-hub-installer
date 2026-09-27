@@ -36,10 +36,11 @@ Both defaults have 4 vCPUs because speech recognition uses about 7 CPU-seconds p
 Find the public IP of the network your Nodes and browser will connect from. The templates only let that network reach the Hub.
 
 ```bash
-curl https://checkip.amazonaws.com
+ALLOWED_CIDR="$(curl -fsS https://checkip.amazonaws.com)/32"
+echo "$ALLOWED_CIDR"
 ```
 
-Add `/32` to the result, for example `203.0.113.7/32`. This value is called the allowed CIDR below. If your ISP changes your IP later, update it as described under [Changing the allowed network](#changing-the-allowed-network).
+Check that it prints an address followed by `/32`, for example `203.0.113.7/32`. If it prints only `/32`, the lookup failed; run it again. This value is called the allowed CIDR below. The command-line steps read it from `ALLOWED_CIDR`, so run them in the same terminal. If you use a VPN, the result is the VPN's address, so the Hub is reachable only while the VPN is on. If your ISP changes your IP later, update it as described under [Changing the allowed network](#changing-the-allowed-network).
 
 ## AWS
 
@@ -54,7 +55,7 @@ Add `/32` to the result, for example `203.0.113.7/32`. This value is called the 
 With the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) installed and authenticated:
 
 ```bash
-aws cloudformation create-stack --stack-name neon-hub --region us-east-2 --capabilities CAPABILITY_IAM --template-url https://NEON_TEMPLATE_BUCKET.s3.amazonaws.com/neon-hub.yaml --parameters ParameterKey=AllowedCidr,ParameterValue=203.0.113.7/32
+aws cloudformation create-stack --stack-name neon-hub --region us-east-2 --capabilities CAPABILITY_IAM --template-url https://NEON_TEMPLATE_BUCKET.s3.amazonaws.com/neon-hub.yaml --parameters ParameterKey=AllowedCidr,ParameterValue="$ALLOWED_CIDR"
 ```
 
 Check progress with:
@@ -103,7 +104,8 @@ With [`doctl`](https://docs.digitalocean.com/reference/doctl/how-to/install/) in
 
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/NeonGeckoCom/neon-hub-installer/main/cloud/digitalocean/user-data.sh
-sed -i.bak 's|NEON_HUB_ALLOWED_CIDR=""|NEON_HUB_ALLOWED_CIDR="203.0.113.7/32"|' user-data.sh
+sed -i.bak "s|NEON_HUB_ALLOWED_CIDR=\"\"|NEON_HUB_ALLOWED_CIDR=\"${ALLOWED_CIDR}\"|" user-data.sh
+grep NEON_HUB_ALLOWED_CIDR= user-data.sh
 doctl compute droplet create neon-hub --image ubuntu-24-04-x64 --size s-4vcpu-8gb --region nyc3 --ssh-keys "$(doctl compute ssh-key list --format ID --no-header | head -n 1)" --user-data-file user-data.sh --wait
 ```
 
