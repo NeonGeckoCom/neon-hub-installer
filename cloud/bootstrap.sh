@@ -69,6 +69,17 @@ require_settings() {
     esac
     # The Hub is not designed for the open internet, so an unset CIDR stops the install.
     [ -n "$NEON_HUB_ALLOWED_CIDR" ] || fail "NEON_HUB_ALLOWED_CIDR is not set"
+    # A rejected iptables rule does not stop the firewall script, so a bad CIDR would
+    # leave only the DROP rule and a Hub that nobody can reach.
+    local cidr
+    for cidr in ${NEON_HUB_ALLOWED_CIDR//,/ }; do
+        is_ipv4_cidr "$cidr" || fail "NEON_HUB_ALLOWED_CIDR has an invalid IPv4 CIDR: '${cidr}'"
+    done
+}
+
+# python3 is always present, because cloud-init itself runs on it.
+is_ipv4_cidr() {
+    python3 -c 'import ipaddress, sys; ipaddress.IPv4Network(sys.argv[1], strict=False)' "$1" 2>/dev/null
 }
 
 public_ip_from_metadata() {
