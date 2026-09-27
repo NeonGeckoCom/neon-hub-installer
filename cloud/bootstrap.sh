@@ -35,6 +35,7 @@ readonly HEALTH_POLL_SECONDS=15
 readonly METADATA_HOST=169.254.169.254
 readonly FIREWALL_UNIT=/etc/systemd/system/neon-hub-firewall.service
 readonly FIREWALL_SCRIPT=/usr/local/sbin/neon-hub-firewall
+readonly DOCKER_DAEMON_CONFIG=/etc/docker/daemon.json
 readonly EXTRA_VARS_FILE=/root/neon-hub-extra-vars.json
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -134,6 +135,19 @@ restrict_inbound() {
     } >"$FIREWALL_SCRIPT"
     chmod 700 "$FIREWALL_SCRIPT"
     "$FIREWALL_SCRIPT"
+    publish_ipv4_only
+}
+
+# The allowlist is IPv4 only. IPv6 connections to published ports go through docker-proxy
+# on the host and skip DOCKER-USER, so Docker must not publish on IPv6 at all.
+publish_ipv4_only() {
+    mkdir -p "$(dirname "$DOCKER_DAEMON_CONFIG")"
+    echo '{"ip": "0.0.0.0"}' >"$DOCKER_DAEMON_CONFIG"
+}
+
+# The playbook installs Avahi for LAN discovery. A cloud Hub has no LAN to announce to.
+disable_mdns() {
+    systemctl disable --now avahi-daemon.socket avahi-daemon.service
 }
 
 persist_inbound_rules() {
@@ -240,6 +254,7 @@ main() {
     prepare_ansible
     restrict_inbound
     run_playbook
+    disable_mdns
     fix_home_ownership
     persist_inbound_rules
     wait_for_hana
