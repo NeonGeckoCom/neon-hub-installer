@@ -43,6 +43,7 @@ nav:
   - macOS Installation: macos.md
   - Windows Installation: windows.md
   - Cloud VPS Deployment: cloud-vps.md
+  - Deploy to Cloud: cloud-deploy.md
   - Configuration: configuration.md
   - Troubleshooting: troubleshooting.md
   - Available Services: services.md

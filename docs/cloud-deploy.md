@@ -1,0 +1,192 @@
+# Deploy to Cloud
+
+These templates create a cloud VM and install Neon Hub on it without any prompts. For a manual install on any Linux VPS, see [Cloud VPS Deployment](cloud-vps.md).
+
+[![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?stackName=neon-hub&templateURL=https://neon-hub-installer.s3.us-west-2.amazonaws.com/neon-hub.yaml)
+[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/droplets/new?image=ubuntu-24-04-x64&size=s-4vcpu-8gb&region=nyc3)
+
+## Is this for you?
+
+A cloud Hub is a good way to try Neon Hub before you commit to hardware. Both providers bill by the hour, so a weekend trial costs a few dollars, and deleting the VM ends the charges.
+
+For a Hub you plan to keep, your own hardware costs less. A Hub is idle most of the day, and a cloud VM bills for that idle time. A used laptop or mini PC with 4 cores and 8 GB of memory pays for itself in about 6 months at these prices, and a new one in about 9. Everything runs on the CPU, so no graphics card is needed. See [Installation](installation.md).
+
+A cloud Hub also suits you if you cannot keep a computer running at home, or if your Nodes are spread across several locations.
+
+## Choosing a provider
+
+|                          | AWS                                         | DigitalOcean                             |
+| ------------------------ | ------------------------------------------- | ---------------------------------------- |
+| Default size             | `t3.xlarge`, 4 vCPU, 16 GB                  | `s-4vcpu-8gb`, 4 vCPU, 8 GB              |
+| Disk                     | 80 GB system plus 20 GB data volume         | 160 GB included                          |
+| Approximate monthly cost | $133 (instance $121, disks $8, public IP $4) | $48                                      |
+| CPU                      | Burstable                                   | Shared                                   |
+| Regions                  | 30+                                         | 9 cities                                 |
+| Free tier                | Does not cover this size                    | None. New accounts often receive credit. |
+| Static IP                | Included in the template                    | Droplet IP is kept until it is destroyed |
+| Firewall                 | Security group                              | Rules on the Droplet                     |
+| Steps                    | One form                                    | One form and a pasted script             |
+
+Prices are on-demand rates in US regions as of September 2026. Both providers bill by the hour or less, so a short trial costs a few dollars.
+
+Both defaults have 4 vCPUs because speech recognition uses about 7 CPU-seconds per request and spreads across cores. With 2 vCPUs the Hub works, but replies take several seconds longer. A Hub for one household uses about 5 GB of memory and is idle between requests, so burstable and shared CPUs are a good fit. Pick an `m6i` size on AWS or a dedicated-CPU Droplet for many Nodes in constant use.
+
+## Before you start
+
+Find the public IP of the network your Nodes and browser will connect from. The templates only let that network reach the Hub.
+
+```bash
+ALLOWED_CIDR="$(curl -fsS https://checkip.amazonaws.com)/32"
+echo "$ALLOWED_CIDR"
+```
+
+Check that it prints an address followed by `/32`, for example `203.0.113.7/32`. If it prints only `/32`, the lookup failed; run it again. This value is called the allowed CIDR below. The command-line steps read it from `ALLOWED_CIDR`, so run them in the same terminal. If you use a VPN, the result is the VPN's address, so the Hub is reachable only while the VPN is on. If your ISP changes your IP later, update it as described under [Changing the allowed network](#changing-the-allowed-network).
+
+## AWS
+
+1. Select **Launch Stack** above and sign in.
+2. Choose a region in the top bar. The region needs a default VPC, which every new AWS account has.
+3. Enter your allowed CIDR in the `AllowedCidr` field. Every other field has a working default, including the **Advanced** group.
+4. Tick the box acknowledging that the stack creates IAM resources. The template adds one role so that Systems Manager can open a shell on the instance.
+5. Select **Create stack**.
+
+### Command line
+
+With the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) installed and authenticated:
+
+```bash
+aws cloudformation create-stack --stack-name neon-hub --region us-east-2 --capabilities CAPABILITY_IAM --template-url https://neon-hub-installer.s3.us-west-2.amazonaws.com/neon-hub.yaml --parameters ParameterKey=AllowedCidr,ParameterValue="$ALLOWED_CIDR"
+```
+
+Check progress with:
+
+```bash
+aws cloudformation describe-stacks --stack-name neon-hub --region us-east-2 --query "Stacks[0].StackStatus"
+```
+
+### When the stack finishes
+
+The stack takes about 15 minutes. It reports `CREATE_COMPLETE` only after the Hub answers, so a finished stack is a working Hub. The **Outputs** tab then shows:
+
+| Output         | Use                                        |
+| -------------- | ------------------------------------------ |
+| `HubConfigUrl` | Hub configuration page                     |
+| `NodeAddress`  | Address to enter in the Neon Node app      |
+| `PublicIp`     | Static IP, for your own DNS records        |
+| `InstanceId`   | Target for Systems Manager Session Manager |
+
+If you left the admin password empty, read the generated one from the instance. In the EC2 console, select the instance, then **Connect**, then **Session Manager**, then **Connect**. This opens a shell in the browser with nothing to install. Then run:
+
+```bash
+sudo cat /root/neon-hub-credentials.txt
+```
+
+From the command line, `aws ssm start-session --target i-xxxxxxxx` opens the same shell. It needs the [Session Manager plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html).
+
+Deleting the stack removes everything except a snapshot of the data volume.
+
+## DigitalOcean
+
+DigitalOcean's own deploy button only targets App Platform, which cannot run the Hub's Docker Compose stack. A Droplet needs one pasted script.
+
+### Control panel
+
+1. Select **Deploy to DO** above and sign in. The form opens with Ubuntu 24.04 and the `s-4vcpu-8gb` size selected. If it does not, choose them by hand.
+2. Choose an SSH key under **Authentication**.
+3. Open **Advanced Options** and tick **Add Initialization scripts**.
+4. Paste the contents of [`cloud/digitalocean/user-data.sh`](https://github.com/NeonGeckoCom/neon-hub-installer/blob/main/cloud/digitalocean/user-data.sh).
+5. Put your allowed CIDR between the quotes on the `NEON_HUB_ALLOWED_CIDR` line.
+6. Select **Create Droplet**.
+
+### Command line
+
+With [`doctl`](https://docs.digitalocean.com/reference/doctl/how-to/install/) installed and authenticated:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/NeonGeckoCom/neon-hub-installer/main/cloud/digitalocean/user-data.sh
+sed -i.bak "s|NEON_HUB_ALLOWED_CIDR=\"\"|NEON_HUB_ALLOWED_CIDR=\"${ALLOWED_CIDR}\"|" user-data.sh
+grep NEON_HUB_ALLOWED_CIDR= user-data.sh
+doctl compute droplet create neon-hub --image ubuntu-24-04-x64 --size s-4vcpu-8gb --region nyc3 --ssh-keys "$(doctl compute ssh-key list --format ID --no-header | head -n 1)" --user-data-file user-data.sh --wait
+```
+
+### Finding your Hub
+
+The install takes about 15 minutes after the Droplet is created. Follow it over SSH:
+
+```bash
+ssh root@DROPLET_IP tail -f /var/log/neon-hub-cloud-deploy.log
+```
+
+When the log ends with `Neon Hub cloud deploy finished`, the addresses and admin password are in `/root/neon-hub-credentials.txt`.
+
+## Hostnames
+
+The Hub serves each service on its own subdomain, so a bare IP address is not enough. Without a domain, the templates use [sslip.io](https://sslip.io), a public DNS service that resolves any name containing an IP address to that address. A Hub at `203.0.113.10` becomes:
+
+```txt
+https://config.203-0-113-10.sslip.io
+https://hana.203-0-113-10.sslip.io
+https://iris.203-0-113-10.sslip.io
+```
+
+To use your own domain, set `HubHostname` on AWS or add `export NEON_HUB_HOSTNAME="example-hub.com"` to the DigitalOcean script. Then create A records for the domain and its `hana`, `config`, and `iris` subdomains. See [Available Services](services.md) for the full list.
+
+## After the install
+
+The Hub uses a self-signed certificate. Accept it in the browser on first visit. Replacing it with a Let's Encrypt certificate is a manual step and needs your own domain.
+
+Confirm the Hub from your workstation. Replace the address with your own `hana` address on either provider:
+
+```bash
+curl -k https://hana.203-0-113-10.sslip.io/docs
+```
+
+A 200 confirms the stack is up. Then open the `config` address, sign in with the admin account, and add Node users. In the Neon Node app, enter the `hana` address and a Node user's credentials.
+
+### Changing the allowed network
+
+On AWS, update the stack and change `AllowedCidr`. The instance is not replaced.
+
+On DigitalOcean, edit the addresses in `/usr/local/sbin/neon-hub-firewall`, then run:
+
+```bash
+sudo systemctl restart neon-hub-firewall
+```
+
+## Updating the Hub
+
+```bash
+sudo docker compose -p neon -f /home/neon/compose/neon-hub.yml pull
+sudo docker compose -p neon -f /home/neon/compose/neon-hub.yml up -d
+```
+
+## Backup and restore
+
+Hub state lives in `/home/neon/xdg`. Docker images come from the registry and do not need a backup.
+
+| Provider     | Storage                         | Backup                                                    |
+| ------------ | ------------------------------- | --------------------------------------------------------- |
+| AWS          | Separate EBS volume, `*-data`   | Snapshot the data volume                                  |
+| DigitalOcean | The Droplet's disk              | Enable Droplet backups, or take a snapshot of the Droplet |
+
+To restore on AWS, create a volume from the snapshot in the same availability zone as the instance. Stop the instance, detach the current data volume, attach the restored one as `/dev/sdf`, and start the instance.
+
+To restore on DigitalOcean, create a new Droplet from the backup or snapshot. The new Droplet has a new IP, so its sslip.io hostname changes. Use your own domain if you need the address to survive a restore.
+
+For a copy you hold yourself, archive the directory while the stack is stopped:
+
+```bash
+sudo docker compose -p neon -f /home/neon/compose/neon-hub.yml stop
+sudo tar -czf neon-hub-backup.tar.gz -C /home/neon xdg
+sudo docker compose -p neon -f /home/neon/compose/neon-hub.yml start
+```
+
+## Troubleshooting
+
+| Symptom                                            | Cause                                          | Fix                                                                        |
+| -------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------- |
+| AWS stack ends in `CREATE_FAILED` or `ROLLBACK_COMPLETE` | The install failed. The reason is on the `InstallWaitCondition` row of the **Events** tab. | CloudFormation deletes a failed instance, and its logs with it. Delete the stack and create it again with rollback turned off: add `--disable-rollback` on the command line, or choose **Preserve successfully provisioned resources** under **Stack failure options** in the console. Then read `/var/log/neon-hub-cloud-deploy.log` on the instance. |
+| Log ends with `NEON_HUB_ALLOWED_CIDR is not set`   | The DigitalOcean script was pasted unedited    | Destroy the Droplet and create it again with the CIDR filled in            |
+| Log ends with `NEON_HUB_ALLOWED_CIDR has an invalid IPv4 CIDR` | A typo in the CIDR, or the IP lookup failed and left only `/32` | Destroy the Droplet and create it again with a corrected CIDR |
+| Hub worked yesterday and now times out             | Your public IP changed                         | [Change the allowed network](#changing-the-allowed-network)                |
+| Browser warns about the certificate                | Self-signed certificate                        | Accept it, or install your own certificate                                 |

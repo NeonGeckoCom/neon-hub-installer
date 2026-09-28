@@ -4,3 +4,5 @@ exclude_paths:
   - debos/hub-efi.yaml
   - debos/recipes/
   - windows/
+  # CloudFormation uses YAML tags (!Ref, !Sub) that are not Ansible
+  - cloud/
