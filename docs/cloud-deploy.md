@@ -2,7 +2,7 @@
 
 These templates create a cloud VM and install Neon Hub on it without any prompts. For a manual install on any Linux VPS, see [Cloud VPS Deployment](cloud-vps.md).
 
-[![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?stackName=neon-hub&templateURL=https://NEON_TEMPLATE_BUCKET.s3.amazonaws.com/neon-hub.yaml)
+[![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?stackName=neon-hub&templateURL=https://neon-hub-installer.s3.us-west-2.amazonaws.com/neon-hub.yaml)
 [![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/droplets/new?image=ubuntu-24-04-x64&size=s-4vcpu-8gb&region=nyc3)
 
 ## Is this for you?
@@ -55,7 +55,7 @@ Check that it prints an address followed by `/32`, for example `203.0.113.7/32`.
 With the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) installed and authenticated:
 
 ```bash
-aws cloudformation create-stack --stack-name neon-hub --region us-east-2 --capabilities CAPABILITY_IAM --template-url https://NEON_TEMPLATE_BUCKET.s3.amazonaws.com/neon-hub.yaml --parameters ParameterKey=AllowedCidr,ParameterValue="$ALLOWED_CIDR"
+aws cloudformation create-stack --stack-name neon-hub --region us-east-2 --capabilities CAPABILITY_IAM --template-url https://neon-hub-installer.s3.us-west-2.amazonaws.com/neon-hub.yaml --parameters ParameterKey=AllowedCidr,ParameterValue="$ALLOWED_CIDR"
 ```
 
 Check progress with:
