@@ -41,7 +41,7 @@ echo "$ALLOWED_CIDR"
 ```
 
 Check that it prints an address followed by `/32`, for example `203.0.113.7/32`. If it prints only `/32`, the lookup failed; run it again. This value is called the allowed CIDR below. The command-line steps read it from `ALLOWED_CIDR`, so run them in the same terminal. If you use a VPN, the result is the VPN's address, so the Hub is reachable only while the VPN is on. If your ISP changes your IP later, update it as described under [Changing the allowed network](#changing-the-allowed-network).
-
+> Note that most residential internet connections do not have static IP addresses. Setting up a VPN like Tailscale or Wireguard is outside the scope of this document, but may be a solution if you only have a small number of clients connecting to the hub.
 ## AWS
 
 1. Select **Launch Stack** above and sign in.
