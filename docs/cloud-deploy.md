@@ -93,6 +93,7 @@ DigitalOcean's own deploy button only targets App Platform, which cannot run the
 
 1. Select **Deploy to DO** above and sign in. The form opens with Ubuntu 24.04 and the `s-4vcpu-8gb` size selected. If it does not, choose them by hand.
 2. Choose an SSH key under **Authentication**.
+  > If you do not have an SSH key, DigitalOcean provides instructions for how to make one
 3. Open **Advanced Options** and tick **Add Initialization scripts**.
 4. Paste the contents of [`cloud/digitalocean/user-data.sh`](https://github.com/NeonGeckoCom/neon-hub-installer/blob/main/cloud/digitalocean/user-data.sh).
 5. Put your allowed CIDR between the quotes on the `NEON_HUB_ALLOWED_CIDR` line.
