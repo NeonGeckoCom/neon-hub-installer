@@ -52,7 +52,7 @@ Check that it prints an address followed by `/32`, for example `203.0.113.7/32`.
 
 ### Command line
 
-With the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) installed and authenticated:
+With the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) installed and authenticated on your computer, run:
 
 ```bash
 aws cloudformation create-stack --stack-name neon-hub --region us-east-2 --capabilities CAPABILITY_IAM --template-url https://neon-hub-installer.s3.us-west-2.amazonaws.com/neon-hub.yaml --parameters ParameterKey=AllowedCidr,ParameterValue="$ALLOWED_CIDR"
