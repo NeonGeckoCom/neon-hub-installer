@@ -1,0 +1,215 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Neon Hub on a single EC2 instance. Ubuntu 24.04 running the Neon Hub Docker Compose stack,
+  with a security group limited to your network and a separate EBS volume for Hub data.
+  Uses the default VPC of the region.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: { default: Network access }
+        Parameters: [AllowedCidr, KeyName]
+      - Label: { default: Instance }
+        Parameters: [InstanceType, RootVolumeSizeGiB, DataVolumeSizeGiB]
+      - Label: { default: Hub settings }
+        Parameters: [HubHostname, AdminUsername, AdminPassword]
+      - Label: { default: Advanced }
+        Parameters: [InstallerRef, UbuntuAmi]
+
+Parameters:
+  AllowedCidr:
+    Type: String
+    Description: >-
+      Network allowed to reach the Hub, as a CIDR. For one home or office, use your public IP
+      followed by /32, for example 203.0.113.7/32. The Hub is not designed for the open internet.
+    AllowedPattern: ^([0-9]{1,3}\.){3}[0-9]{1,3}/([0-9]|[12][0-9]|3[0-2])$
+    ConstraintDescription: Must be an IPv4 CIDR such as 203.0.113.7/32.
+  KeyName:
+    Type: String
+    Default: ""
+    Description: Optional EC2 key pair for SSH. Leave empty to use Systems Manager Session Manager only.
+  InstanceType:
+    Type: String
+    Default: t3.xlarge
+    AllowedValues: [t3.xlarge, t3.2xlarge, m6i.xlarge, m6i.2xlarge, m6i.4xlarge]
+    Description: >-
+      t3.xlarge suits a household. A Hub is idle between requests and each voice request costs about 10 CPU-seconds,
+      so burstable credits are not a limit. Choose m6i for many Nodes in constant use. Speech recognition needs 4 vCPUs to answer promptly.
+  RootVolumeSizeGiB:
+    Type: Number
+    Default: 80
+    MinValue: 80
+    Description: Operating system and Docker images.
+  DataVolumeSizeGiB:
+    Type: Number
+    Default: 20
+    MinValue: 10
+    Description: Hub configuration and user data. Kept as a snapshot when the stack is deleted.
+  HubHostname:
+    Type: String
+    Default: ""
+    AllowedPattern: ^[A-Za-z0-9.-]*$
+    ConstraintDescription: Letters, digits, dots, and hyphens only.
+    Description: >-
+      Optional domain you control, for example example-hub.com. Point it and its hana, config, and iris
+      subdomains at the PublicIp output. Leave empty to use an automatic sslip.io name.
+  AdminUsername:
+    Type: String
+    Default: neon
+    Description: Hub admin account for the Hub configuration page.
+  AdminPassword:
+    Type: String
+    Default: ""
+    NoEcho: true
+    AllowedPattern: ^[A-Za-z0-9!@#%^*_+=.,-]*$
+    ConstraintDescription: Letters, digits, and !@#%^*_+=.,- only.
+    Description: Leave empty to generate one. A generated password is saved on the instance in /root/neon-hub-credentials.txt.
+  InstallerRef:
+    Type: String
+    Default: main
+    Description: Branch or tag of neon-hub-installer to deploy.
+  UbuntuAmi:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id
+    Description: Public Systems Manager parameter that resolves to the current Ubuntu 24.04 image in this region.
+
+Conditions:
+  HasKeyName: !Not [!Equals [!Ref KeyName, ""]]
+  HasHubHostname: !Not [!Equals [!Ref HubHostname, ""]]
+
+Resources:
+  HubSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Neon Hub access from the allowed network only
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: !Ref AllowedCidr, Description: Hub web pages and HANA }
+
+  HubSshIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasKeyName
+    Properties:
+      GroupId: !GetAtt HubSecurityGroup.GroupId
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: !Ref AllowedCidr
+      Description: SSH
+
+  HubRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  HubInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref HubRole]
+
+  HubElasticIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  HubDataVolume:
+    Type: AWS::EC2::Volume
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Size: !Ref DataVolumeSizeGiB
+      VolumeType: gp3
+      Encrypted: true
+      Tags:
+        - { Key: Name, Value: !Sub "${AWS::StackName}-data" }
+
+  InstallWaitHandle:
+    Type: AWS::CloudFormation::WaitConditionHandle
+
+  HubInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref UbuntuAmi
+      InstanceType: !Ref InstanceType
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      KeyName: !If [HasKeyName, !Ref KeyName, !Ref "AWS::NoValue"]
+      IamInstanceProfile: !Ref HubInstanceProfile
+      SecurityGroupIds: [!GetAtt HubSecurityGroup.GroupId]
+      MetadataOptions:
+        HttpTokens: required
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs: { VolumeSize: !Ref RootVolumeSizeGiB, VolumeType: gp3, Encrypted: true }
+      Tags:
+        - { Key: Name, Value: !Ref "AWS::StackName" }
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          export NEON_HUB_PROVIDER=aws
+          export NEON_HUB_ALLOWED_CIDR='${AllowedCidr}'
+          export NEON_HUB_PUBLIC_IP='${HubElasticIp.PublicIp}'
+          export NEON_HUB_HOSTNAME='${HubHostname}'
+          export NEON_HUB_ADMIN_USERNAME='${AdminUsername}'
+          export NEON_HUB_ADMIN_PASSWORD='${AdminPassword}'
+          export NEON_HUB_SIGNAL_URL='${InstallWaitHandle}'
+          VOLUME_ID='${HubDataVolume}'
+          export NEON_HUB_DATA_DEVICE="/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_${!VOLUME_ID//-/}"
+
+          # The Elastic IP replaces the launch IP shortly after boot. Wait for it so downloads are not cut off.
+          for _ in $(seq 60); do
+            TOKEN=$(curl -sf -X PUT -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' http://169.254.169.254/latest/api/token)
+            CURRENT_IP=$(curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)
+            [ "$CURRENT_IP" = "$NEON_HUB_PUBLIC_IP" ] && break
+            sleep 5
+          done
+
+          apt-get update -y
+          apt-get install -y git
+          git clone --depth 1 --branch '${InstallerRef}' https://github.com/NeonGeckoCom/neon-hub-installer /opt/neon-hub-installer
+          /opt/neon-hub-installer/cloud/bootstrap.sh
+
+  HubElasticIpAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt HubElasticIp.AllocationId
+      InstanceId: !Ref HubInstance
+
+  HubDataVolumeAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/sdf
+      InstanceId: !Ref HubInstance
+      VolumeId: !Ref HubDataVolume
+
+  InstallWaitCondition:
+    Type: AWS::CloudFormation::WaitCondition
+    DependsOn: [HubElasticIpAssociation, HubDataVolumeAttachment]
+    Properties:
+      Handle: !Ref InstallWaitHandle
+      Timeout: "3600"
+      Count: 1
+
+Outputs:
+  PublicIp:
+    Description: Static public IP of the Hub.
+    Value: !GetAtt HubElasticIp.PublicIp
+  HubConfigUrl:
+    Description: Hub configuration page. Accept the self-signed certificate on first visit.
+    Value: !Sub
+      - https://config.${Host}
+      - Host: !If [HasHubHostname, !Ref HubHostname, !Sub ["${DashedIp}.sslip.io", { DashedIp: !Join ["-", !Split [".", !GetAtt HubElasticIp.PublicIp]] }]]
+  NodeAddress:
+    Description: Address to enter in the Neon Node app.
+    Value: !Sub
+      - https://hana.${Host}
+      - Host: !If [HasHubHostname, !Ref HubHostname, !Sub ["${DashedIp}.sslip.io", { DashedIp: !Join ["-", !Split [".", !GetAtt HubElasticIp.PublicIp]] }]]
+  InstanceId:
+    Description: Use with "aws ssm start-session --target" to open a shell and read /root/neon-hub-credentials.txt.
+    Value: !Ref HubInstance
