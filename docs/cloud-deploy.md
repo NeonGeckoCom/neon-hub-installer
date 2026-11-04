@@ -11,7 +11,7 @@ A cloud Hub is a good way to try Neon Hub before you commit to hardware. Both pr
 
 For a Hub you plan to keep, your own hardware costs less. A Hub is idle most of the day, and a cloud VM bills for that idle time. A used laptop or mini PC with 4 cores and 8 GB of memory pays for itself in about 6 months at these prices, and a new one in about 9. Everything runs on the CPU, so no graphics card is needed for core functionality. See [Installation](installation.md).
 
-A cloud Hub also suits you if you cannot keep a computer running at home, or if your Nodes are spread across several locations.
+A cloud Hub also suits you if you cannot keep a computer running at home, or if your Nodes are spread across multiple locations and internet connections.
 
 ## Choosing a provider
 
