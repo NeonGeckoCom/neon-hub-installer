@@ -131,6 +131,7 @@ https://iris.203-0-113-10.sslip.io
 ```
 
 To use your own domain, set `HubHostname` on AWS or add `export NEON_HUB_HOSTNAME="example-hub.com"` to the DigitalOcean script. Then create A records for the domain and its `hana`, `config`, and `iris` subdomains. See [Available Services](services.md) for the full list.
+> Note that the hub will still restrict access based on the `AllowedCidr` specified during installation
 
 ## After the install
 
