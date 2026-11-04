@@ -175,6 +175,7 @@ Hub state lives in `/home/neon/xdg`. Docker images come from the registry and do
 To restore on AWS, create a volume from the snapshot in the same availability zone as the instance. Stop the instance, detach the current data volume, attach the restored one as `/dev/sdf`, and start the instance.
 
 To restore on DigitalOcean, create a new Droplet from the backup or snapshot. The new Droplet has a new IP, so its sslip.io hostname changes. Use your own domain if you need the address to survive a restore.
+> You may also use a service like [Duck DNS](https://duckdns.org) if you want a static domain without purchasing one
 
 For a copy you hold yourself, archive the directory while the stack is stopped:
 
