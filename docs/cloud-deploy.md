@@ -33,7 +33,7 @@ Both defaults have 4 vCPUs because speech recognition uses about 7 CPU-seconds p
 
 ## Before you start
 
-Find the public IP of the network your Nodes and browser will connect from. The templates only let that network reach the Hub.
+Find the public IP of the network your Nodes and browser will connect from. The templates only let that network reach the Hub. Use the command below or navigate to https://checkip.amazonaws.com/ in a web browser to find your public IP Address.
 
 ```bash
 ALLOWED_CIDR="$(curl -fsS https://checkip.amazonaws.com)/32"
