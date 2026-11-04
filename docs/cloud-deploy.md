@@ -144,6 +144,7 @@ curl -k https://hana.203-0-113-10.sslip.io/docs
 ```
 
 A 200 confirms the stack is up. Then open the `config` address, sign in with the admin account, and add Node users. In the Neon Node app, enter the `hana` address and a Node user's credentials.
+> You will need to create at least one user to authenticate a node connection to the hub
 
 ### Changing the allowed network
 
