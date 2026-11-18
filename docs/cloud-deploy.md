@@ -50,7 +50,7 @@ Check that it prints an address followed by `/32`, for example `203.0.113.7/32`.
 4. Tick the box acknowledging that the stack creates IAM resources. The template adds one role so that Systems Manager can open a shell on the instance.
 5. Select **Create stack**.
 
-### Command line
+### Command line (alternative method)
 
 With the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) installed and authenticated on your computer, run:
 
@@ -89,8 +89,6 @@ Deleting the stack removes everything except a snapshot of the data volume.
 
 DigitalOcean's own deploy button only targets App Platform, which cannot run the Hub's Docker Compose stack. A Droplet needs one pasted script.
 
-### Control panel
-
 1. Select **Deploy to DO** above and sign in. The form opens with Ubuntu 24.04 and the `s-4vcpu-8gb` size selected. If it does not, choose them by hand.
 2. Choose an SSH key under **Authentication**.
   > If you do not have an SSH key, DigitalOcean provides instructions for how to make one
@@ -99,7 +97,7 @@ DigitalOcean's own deploy button only targets App Platform, which cannot run the
 5. Put your allowed CIDR between the quotes on the `NEON_HUB_ALLOWED_CIDR` line.
 6. Select **Create Droplet**.
 
-### Command line
+### Command line (alternative method)
 
 With [`doctl`](https://docs.digitalocean.com/reference/doctl/how-to/install/) installed and authenticated:
 
@@ -118,7 +116,9 @@ The install takes about 15 minutes after the Droplet is created. Follow it over 
 ssh root@DROPLET_IP tail -f /var/log/neon-hub-cloud-deploy.log
 ```
 
-When the log ends with `Neon Hub cloud deploy finished`, the addresses and admin password are in `/root/neon-hub-credentials.txt`.
+You can also select **Web Console** on the Droplet's page to open a shell in the browser. The button shows an error that `droplet-agent` is not installed for the first 1 to 2 minutes after the Droplet is created. Wait, then try again.
+
+The log is quiet for about 10 minutes while the Hub playbook runs. That step writes its progress to `/var/log/neon-hub-ansible.log`. When the deploy log ends with `Neon Hub cloud deploy finished`, the addresses and admin password are in `/root/neon-hub-credentials.txt`.
 
 ## Hostnames
 
@@ -130,20 +130,26 @@ https://hana.203-0-113-10.sslip.io
 https://iris.203-0-113-10.sslip.io
 ```
 
-To use your own domain, set `HubHostname` on AWS or add `export NEON_HUB_HOSTNAME="example-hub.com"` to the DigitalOcean script. Then create A records for the domain and its `hana`, `config`, and `iris` subdomains. See [Available Services](services.md) for the full list.
+> The Hub uses a self-signed certificate, so browsers warn that the connection is not secure. sslip.io provides DNS only. It does not issue certificates.
+
+Before the install finishes, it checks that each of these names resolves to the Hub's public IP and reaches its own service. It stops with an error if a name opens the wrong service.
+
+To use your own domain, set `HubHostname` on AWS or add `export NEON_HUB_HOSTNAME="example-hub.com"` to the DigitalOcean script. Then create A records for the domain and its `hana`, `config`, and `iris` subdomains. See [Available Services](services.md) for the full list. If the records do not exist yet when the install finishes, the credentials file lists the names that still need them.
 > Note that the hub will still restrict access based on the `AllowedCidr` specified during installation
 
 ## After the install
 
-The Hub uses a self-signed certificate. Accept it in the browser on first visit. Replacing it with a Let's Encrypt certificate is a manual step and needs your own domain.
+Accept the certificate warning in the browser on first visit. Replacing the self-signed certificate with a Let's Encrypt certificate is a manual step and needs your own domain.
 
 Confirm the Hub from your workstation. Replace the address with your own `hana` address on either provider:
 
 ```bash
-curl -k https://hana.203-0-113-10.sslip.io/docs
+curl -ks https://hana.203-0-113-10.sslip.io/openapi.json | grep -o '"title": *"[^"]*"' | head -n 1
 ```
 
-A 200 confirms the stack is up. Then open the `config` address, sign in with the admin account, and add Node users. In the Neon Node app, enter the `hana` address and a Node user's credentials.
+It prints `"title":"My HANA API Host"`. If it prints `"title":"Neon Hub Configuration API"`, the name reached the config page instead of HANA. See [Troubleshooting](#troubleshooting).
+
+Then open the `config` address, sign in with the Hub admin account from the credentials file, and add Node users. In the Neon Node app, enter the `hana` address and a Node user's credentials.
 > You will need to create at least one user to authenticate a node connection to the hub
 
 ### Changing the allowed network
@@ -193,4 +199,5 @@ sudo docker compose -p neon -f /home/neon/compose/neon-hub.yml start
 | Log ends with `NEON_HUB_ALLOWED_CIDR is not set`   | The DigitalOcean script was pasted unedited    | Destroy the Droplet and create it again with the CIDR filled in            |
 | Log ends with `NEON_HUB_ALLOWED_CIDR has an invalid IPv4 CIDR` | A typo in the CIDR, or the IP lookup failed and left only `/32` | Destroy the Droplet and create it again with a corrected CIDR |
 | Hub worked yesterday and now times out             | Your public IP changed                         | [Change the allowed network](#changing-the-allowed-network)                |
+| Every address opens the config page                | The name in the browser is not the Hub's hostname. nginx sends unknown names to the config page. | Use the addresses in `/root/neon-hub-credentials.txt` exactly. A Droplet restored to a new IP needs a new install or your own domain. |
 | Browser warns about the certificate                | Self-signed certificate                        | Accept it, or install your own certificate                                 |
