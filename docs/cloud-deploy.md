@@ -110,7 +110,7 @@ doctl compute droplet create neon-hub --image ubuntu-24-04-x64 --size s-4vcpu-8g
 
 ### Finding your Hub
 
-The install takes about 15 minutes after the Droplet is created. Follow it over SSH:
+The install takes 15 to 20 minutes after the Droplet is created. Follow it over SSH:
 
 ```bash
 ssh root@DROPLET_IP tail -f /var/log/neon-hub-cloud-deploy.log
@@ -118,7 +118,7 @@ ssh root@DROPLET_IP tail -f /var/log/neon-hub-cloud-deploy.log
 
 You can also select **Web Console** on the Droplet's page to open a shell in the browser. The button shows an error that `droplet-agent` is not installed for the first 1 to 2 minutes after the Droplet is created. Wait, then try again.
 
-The log is quiet for about 10 minutes while the Hub playbook runs. That step writes its progress to `/var/log/neon-hub-ansible.log`. When the deploy log ends with `Neon Hub cloud deploy finished`, the addresses and admin password are in `/root/neon-hub-credentials.txt`.
+The log is quiet for 10 to 20 minutes while the Hub playbook runs. That step writes its progress to `/var/log/neon-hub-ansible.log`. When the deploy log ends with `Neon Hub cloud deploy finished`, the addresses and admin password are in `/root/neon-hub-credentials.txt`.
 
 ## Hostnames
 

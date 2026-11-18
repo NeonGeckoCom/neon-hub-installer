@@ -231,7 +231,7 @@ run_playbook() {
     hostnamectl set-hostname "$HUB_HOSTNAME"
     write_extra_vars
     export ANSIBLE_CONFIG=ansible.cfg
-    log "Running the Hub playbook. This takes about 10 minutes. Progress: tail -f ${ANSIBLE_LOG_FILE}"
+    log "Running the Hub playbook. This takes 10 to 20 minutes. Progress: tail -f ${ANSIBLE_LOG_FILE}"
     ansible-playbook -i 127.0.0.1 -e "@${EXTRA_VARS_FILE}" \
         debos/overlays/ansible/hub.yaml >>"$ANSIBLE_LOG_FILE" 2>&1 || fail "Ansible playbook failed. See ${ANSIBLE_LOG_FILE}"
     rm -f "$EXTRA_VARS_FILE"
