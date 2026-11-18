@@ -469,7 +469,7 @@ services:
       DIANA_PATH: /root/.config/neon/diana.yaml
       NEON_PATH: /root/.config/neon/neon.yaml
       HUB_ADMIN_TOKEN_FILE: /root/.config/neon/hub_admin.yaml
-{% if hub_config_admin_login | bool %}
+{% if hub_config_admin_login | default(false) | bool %}
       NEON_HUB_CONFIG_USERNAME: {{ hub_admin_username | to_json }}
       NEON_HUB_CONFIG_PASSWORD: {{ hub_admin_password | to_json }}
 {% endif %}
