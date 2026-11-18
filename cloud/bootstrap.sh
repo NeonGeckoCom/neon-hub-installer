@@ -40,6 +40,8 @@ readonly EXTRA_VARS_FILE=/root/neon-hub-extra-vars.json
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly REPO_DIR
+# shellcheck source=cloud/verify-hub.sh
+source "${REPO_DIR}/cloud/verify-hub.sh"
 
 exec >>"$DEPLOY_LOG" 2>&1
 
@@ -213,6 +215,7 @@ print(json.dumps({
     "install_neon_node_gui": "0",
     "browser_package": "firefox",
     "hub_advertise_mdns": False,
+    "hub_config_admin_login": True,
     "hub_admin_username_input": os.environ["ADMIN_USERNAME"],
     "hub_admin_password_input": os.environ["ADMIN_PASSWORD"],
     "sdm_password": "",
@@ -228,13 +231,16 @@ run_playbook() {
     hostnamectl set-hostname "$HUB_HOSTNAME"
     write_extra_vars
     export ANSIBLE_CONFIG=ansible.cfg
+    log "Running the Hub playbook. This takes about 10 minutes. Progress: tail -f ${ANSIBLE_LOG_FILE}"
     ansible-playbook -i 127.0.0.1 -e "@${EXTRA_VARS_FILE}" \
         debos/overlays/ansible/hub.yaml >>"$ANSIBLE_LOG_FILE" 2>&1 || fail "Ansible playbook failed. See ${ANSIBLE_LOG_FILE}"
     rm -f "$EXTRA_VARS_FILE"
+    log "Hub playbook finished"
 }
 
 wait_for_hana() {
     local waited=0
+    log "Waiting for HANA to answer"
     until curl -ksf --resolve "hana.${HUB_HOSTNAME}:443:127.0.0.1" "https://hana.${HUB_HOSTNAME}/docs" >/dev/null; do
         [ "$waited" -lt "$HEALTH_WAIT_SECONDS" ] || fail "HANA did not answer within ${HEALTH_WAIT_SECONDS} seconds"
         sleep "$HEALTH_POLL_SECONDS"
@@ -252,9 +258,11 @@ Neon Hub
   Iris web client:    https://iris.${HUB_HOSTNAME}
 
 Hub admin account:    ${ADMIN_USERNAME} / ${ADMIN_PASSWORD}
+  Signs in to the Hub configuration page and to HANA.
 Service passwords:    ${REPO_DIR}/debos/overlays/ansible/neon_hub_secrets.yaml
 Admin token:          ${XDG_DIR}/config/neon/hub_admin.yaml
 EOF
+    [ -z "$DNS_WARNINGS" ] || printf '\nDNS records still needed:\n%s' "$DNS_WARNINGS" >>"$CREDENTIALS_FILE"
 }
 
 main() {
@@ -270,6 +278,8 @@ main() {
     fix_home_ownership
     persist_inbound_rules
     wait_for_hana
+    verify_vhost_routing
+    verify_public_dns
     write_credentials
     signal_cloudformation SUCCESS "Neon Hub is running at https://config.${HUB_HOSTNAME}"
     log "Neon Hub cloud deploy finished"

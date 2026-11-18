@@ -55,6 +55,8 @@
     install_neon_node_gui: "0"
     # mDNS only reaches the local network, so cloud installs turn it off
     hub_advertise_mdns: true
+    # The config page otherwise signs in with neon/neon, which is too weak for a public host
+    hub_config_admin_login: false
     secrets_file: "{{ playbook_dir }}/neon_hub_secrets.yaml"
     # Hub admin bootstrap
     hana_url: "http://localhost:8082"
