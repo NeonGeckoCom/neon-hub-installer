@@ -130,6 +130,7 @@ https://hana.203-0-113-10.sslip.io
 https://iris.203-0-113-10.sslip.io
 ```
 
+> Note that sslip.io issues their own SSL certificates, so browsers will often warn that the connection is not secure.
 > The Hub uses a self-signed certificate, so browsers warn that the connection is not secure. sslip.io provides DNS only. It does not issue certificates.
 
 Before the install finishes, it checks that each of these names resolves to the Hub's public IP and reaches its own service. It stops with an error if a name opens the wrong service.
