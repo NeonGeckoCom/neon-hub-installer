@@ -118,7 +118,7 @@ ssh root@DROPLET_IP tail -f /var/log/neon-hub-cloud-deploy.log
 
 You can also select **Web Console** on the Droplet's page to open a shell in the browser. The button shows an error that `droplet-agent` is not installed for the first 1 to 2 minutes after the Droplet is created. Wait, then try again.
 
-The Hub playbook runs for 10 to 20 minutes. During that time the deploy log adds one `Playbook still running` line each minute, with the name of the current step. The full playbook output is in `/var/log/neon-hub-ansible.log`. After the playbook, the install waits until every Hub service has run for one minute without a restart. The install is done when the log shows:
+The Hub playbook runs for 10 to 20 minutes. During that time the deploy log adds one `Playbook still running` line each minute, with the name of the current step. The full playbook output is in `/var/log/neon-hub-ansible.log`. After the playbook, the install waits until every Hub service has run for one minute without a restart. The install is done when `/var/log/neon-hub-cloud-deploy.log` shows:
 
 ```txt
 Neon Hub cloud deploy finished. All services are running.
@@ -126,6 +126,14 @@ Open https://config.203-0-113-10.sslip.io. Addresses and admin password: /root/n
 ```
 
 If the install fails, the log ends with a `FAILED:` line that gives the cause.
+
+The install writes three logs:
+
+| Log | Contents |
+| --- | --- |
+| `/var/log/neon-hub-cloud-deploy.log` | Each deploy step, progress, and the final result. Read this one. |
+| `/var/log/neon-hub-ansible.log` | Full playbook output. A clean `PLAY RECAP` here does not mean the install is done, because checks run after the playbook. |
+| `/var/log/neon-hub-installer.log` | Ansible setup. The final result line is copied here too. |
 
 ## Hostnames
 

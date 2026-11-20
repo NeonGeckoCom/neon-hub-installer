@@ -50,6 +50,12 @@ log() {
     echo "[$(date -u +%FT%TZ)] $*"
 }
 
+# The installer log is the name people guess, so the final result is copied there too.
+# A failed copy must not trip the ERR trap, or a Hub that installed is reported FAILED.
+log_result() {
+    log "$*" | tee -a "$LOG_FILE" || true
+}
+
 signal_cloudformation() {
     local status=$1 reason=$2
     [ -n "$NEON_HUB_SIGNAL_URL" ] || return 0
@@ -60,7 +66,7 @@ signal_cloudformation() {
 
 fail() {
     stop_playbook_heartbeat
-    log "FAILED: $1"
+    log_result "FAILED: $1"
     rm -f "$EXTRA_VARS_FILE"
     signal_cloudformation FAILURE "$1. See ${DEPLOY_LOG} on the instance."
     exit 1
@@ -312,8 +318,8 @@ main() {
     verify_public_dns
     write_credentials
     signal_cloudformation SUCCESS "Neon Hub is running at https://config.${HUB_HOSTNAME}"
-    log "Neon Hub cloud deploy finished. All services are running."
-    log "Open https://config.${HUB_HOSTNAME}. Addresses and admin password: ${CREDENTIALS_FILE}"
+    log_result "Neon Hub cloud deploy finished. All services are running."
+    log_result "Open https://config.${HUB_HOSTNAME}. Addresses and admin password: ${CREDENTIALS_FILE}"
 }
 
 main "$@"
