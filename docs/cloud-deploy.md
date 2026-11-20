@@ -118,7 +118,14 @@ ssh root@DROPLET_IP tail -f /var/log/neon-hub-cloud-deploy.log
 
 You can also select **Web Console** on the Droplet's page to open a shell in the browser. The button shows an error that `droplet-agent` is not installed for the first 1 to 2 minutes after the Droplet is created. Wait, then try again.
 
-The log is quiet for 10 to 20 minutes while the Hub playbook runs. That step writes its progress to `/var/log/neon-hub-ansible.log`. When the deploy log ends with `Neon Hub cloud deploy finished`, the addresses and admin password are in `/root/neon-hub-credentials.txt`.
+The Hub playbook runs for 10 to 20 minutes. During that time the deploy log adds one `Playbook still running` line each minute, with the name of the current step. The full playbook output is in `/var/log/neon-hub-ansible.log`. After the playbook, the install waits until every Hub service has run for one minute without a restart. The install is done when the log shows:
+
+```txt
+Neon Hub cloud deploy finished. All services are running.
+Open https://config.203-0-113-10.sslip.io. Addresses and admin password: /root/neon-hub-credentials.txt
+```
+
+If the install fails, the log ends with a `FAILED:` line that gives the cause.
 
 ## Hostnames
 
@@ -130,7 +137,6 @@ https://hana.203-0-113-10.sslip.io
 https://iris.203-0-113-10.sslip.io
 ```
 
-> Note that sslip.io issues their own SSL certificates, so browsers will often warn that the connection is not secure.
 > The Hub uses a self-signed certificate, so browsers warn that the connection is not secure. sslip.io provides DNS only. It does not issue certificates.
 
 Before the install finishes, it checks that each of these names resolves to the Hub's public IP and reaches its own service. It stops with an error if a name opens the wrong service.

@@ -32,6 +32,7 @@ readonly XDG_DIR
 readonly DATA_DEVICE_WAIT_SECONDS=300
 readonly HEALTH_WAIT_SECONDS=1800
 readonly HEALTH_POLL_SECONDS=15
+readonly HEARTBEAT_SECONDS=60
 readonly METADATA_HOST=169.254.169.254
 readonly FIREWALL_UNIT=/etc/systemd/system/neon-hub-firewall.service
 readonly FIREWALL_SCRIPT=/usr/local/sbin/neon-hub-firewall
@@ -58,6 +59,7 @@ signal_cloudformation() {
 }
 
 fail() {
+    stop_playbook_heartbeat
     log "FAILED: $1"
     rm -f "$EXTRA_VARS_FILE"
     signal_cloudformation FAILURE "$1. See ${DEPLOY_LOG} on the instance."
@@ -224,6 +226,31 @@ print(json.dumps({
 PY
 }
 
+current_playbook_task() {
+    local task
+    task=$(grep -o 'TASK \[[^]]*\]' "$ANSIBLE_LOG_FILE" 2>/dev/null | tail -n 1 | sed 's/^TASK \[\(.*\)\]$/\1/') || true
+    echo "${task:-installing Ansible dependencies}"
+}
+
+# The playbook writes to its own log, so without this the deploy log looks stalled.
+# The loop runs in a subshell without the ERR trap: a failed grep there must not fail the deploy.
+start_playbook_heartbeat() {
+    (
+        trap - ERR
+        set +e
+        while sleep "$HEARTBEAT_SECONDS"; do
+            log "Playbook still running. Current step: $(current_playbook_task)"
+        done
+    ) &
+    HEARTBEAT_PID=$!
+}
+
+stop_playbook_heartbeat() {
+    [ -n "$HEARTBEAT_PID" ] || return 0
+    kill "$HEARTBEAT_PID" 2>/dev/null || true
+    HEARTBEAT_PID=""
+}
+
 run_playbook() {
     ADMIN_USERNAME="${NEON_HUB_ADMIN_USERNAME:-neon}"
     ADMIN_PASSWORD="${NEON_HUB_ADMIN_PASSWORD:-$(generate_password)}"
@@ -231,9 +258,11 @@ run_playbook() {
     hostnamectl set-hostname "$HUB_HOSTNAME"
     write_extra_vars
     export ANSIBLE_CONFIG=ansible.cfg
-    log "Running the Hub playbook. This takes 10 to 20 minutes. Progress: tail -f ${ANSIBLE_LOG_FILE}"
+    log "Running the Hub playbook. This takes 10 to 20 minutes. Full output: tail -f ${ANSIBLE_LOG_FILE}"
+    start_playbook_heartbeat
     ansible-playbook -i 127.0.0.1 -e "@${EXTRA_VARS_FILE}" \
         debos/overlays/ansible/hub.yaml >>"$ANSIBLE_LOG_FILE" 2>&1 || fail "Ansible playbook failed. See ${ANSIBLE_LOG_FILE}"
+    stop_playbook_heartbeat
     rm -f "$EXTRA_VARS_FILE"
     log "Hub playbook finished"
 }
@@ -278,11 +307,13 @@ main() {
     fix_home_ownership
     persist_inbound_rules
     wait_for_hana
+    wait_for_stable_containers
     verify_vhost_routing
     verify_public_dns
     write_credentials
     signal_cloudformation SUCCESS "Neon Hub is running at https://config.${HUB_HOSTNAME}"
-    log "Neon Hub cloud deploy finished"
+    log "Neon Hub cloud deploy finished. All services are running."
+    log "Open https://config.${HUB_HOSTNAME}. Addresses and admin password: ${CREDENTIALS_FILE}"
 }
 
 main "$@"

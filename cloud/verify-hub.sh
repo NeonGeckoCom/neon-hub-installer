@@ -1,10 +1,43 @@
 #!/bin/bash
-# Checks that each advertised Hub hostname reaches its own service.
-# Sourced by bootstrap.sh, which provides log, fail, HUB_HOSTNAME and PUBLIC_IP.
+# Checks that the Hub containers stay up and each advertised hostname reaches its own service.
+# Sourced by bootstrap.sh, which provides log, fail, HUB_HOSTNAME, PUBLIC_IP and HEALTH_POLL_SECONDS.
 
 readonly ROUTED_SERVICES=(hana iris)
 readonly PUBLIC_DNS_URL=https://cloudflare-dns.com/dns-query
 readonly VHOST_TIMEOUT_SECONDS=10
+readonly COMPOSE_PROJECT=neon
+readonly CONTAINERS_STABLE_SECONDS=60
+# Short enough that a crash loop fails here, with its cause, before the CloudFormation wait times out.
+readonly CONTAINERS_WAIT_SECONDS=600
+
+container_states() {
+    docker ps -aq --filter "label=com.docker.compose.project=${COMPOSE_PROJECT}" |
+        xargs -r docker inspect --format '{{.Name}} {{.State.Status}} {{.RestartCount}}' | sort
+}
+
+all_running() {
+    [ -n "$1" ] && awk '$2 != "running" {bad=1} END {exit bad}' <<<"$1"
+}
+
+# Every service restarts unless stopped and none has a healthcheck, so a crashing service
+# shows only as a status other than running or a rising restart count.
+wait_for_stable_containers() {
+    local waited=0 stable=0 states previous=""
+    log "Waiting for every Hub container to run for ${CONTAINERS_STABLE_SECONDS} seconds without a restart"
+    until [ "$stable" -ge "$CONTAINERS_STABLE_SECONDS" ]; do
+        [ "$waited" -lt "$CONTAINERS_WAIT_SECONDS" ] || fail "Hub containers did not settle (name, status, restarts): $(tr '\n' ';' <<<"$states")"
+        states=$(container_states)
+        if [ "$states" = "$previous" ] && all_running "$states"; then
+            stable=$((stable + HEALTH_POLL_SECONDS))
+        else
+            stable=0
+        fi
+        previous=$states
+        sleep "$HEALTH_POLL_SECONDS"
+        waited=$((waited + HEALTH_POLL_SECONDS))
+    done
+    log "All $(wc -l <<<"$states" | tr -d ' ') Hub containers are running"
+}
 
 fetch_vhost_root() {
     local host="$1.${HUB_HOSTNAME}"
