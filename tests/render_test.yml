@@ -22,22 +22,38 @@
         tvars: {ansible_system: Linux, ansible_os_family: Debian, hub_has_audio: true}
         dev_snd: 4
         pulse_cookie: 8
+        config_login: 0
       - name: linux headless (detected)
         tvars: {ansible_system: Linux, ansible_os_family: Debian, hub_has_audio: false}
         dev_snd: 0
         pulse_cookie: 0
+        config_login: 0
       - name: linux headless (string extra-var)
         tvars: {ansible_system: Linux, ansible_os_family: Debian, hub_has_audio: "false"}
         dev_snd: 0
         pulse_cookie: 0
+        config_login: 0
       - name: linux undetected (debos image build)
         tvars: {ansible_system: Linux, ansible_os_family: Debian}
         dev_snd: 4
         pulse_cookie: 8
+        config_login: 0
       - name: macos
         tvars: {ansible_system: Darwin, ansible_os_family: Darwin}
         dev_snd: 0
         pulse_cookie: 0
+        config_login: 0
+      - name: cloud with admin login on the config page
+        tvars:
+          ansible_system: Linux
+          ansible_os_family: Debian
+          hub_has_audio: false
+          hub_config_admin_login: true
+          hub_admin_username: neon
+          hub_admin_password: 'p"a: ss#x'
+        dev_snd: 0
+        pulse_cookie: 0
+        config_login: 2
   tasks:
     - name: Render template for each profile
       ansible.builtin.set_fact:
@@ -45,7 +61,6 @@
       loop: "{{ profiles }}"
       loop_control:
         label: "{{ item.name }}"
-
     - name: Assert rendered output is valid YAML
       ansible.builtin.assert:
         that:
@@ -54,7 +69,6 @@
       loop: "{{ profiles }}"
       loop_control:
         label: "{{ item.name }}"
-
     - name: Assert audio wiring matches each profile
       ansible.builtin.assert:
         that:
@@ -65,6 +79,19 @@
           {{ item.pulse_cookie }} pulse/cookie references, got
           {{ renders[item.name] | regex_findall('/dev/snd') | length }} and
           {{ renders[item.name] | regex_findall('pulse/cookie') | length }}
+      loop: "{{ profiles }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Assert the config page login matches each profile
+      ansible.builtin.assert:
+        that:
+          - renders[item.name] | regex_findall('NEON_HUB_CONFIG_(USERNAME|PASSWORD)') | length == item.config_login
+          - >-
+            item.config_login == 0 or
+            (renders[item.name] | from_yaml).services.hub_config.environment.NEON_HUB_CONFIG_PASSWORD
+            == item.tvars.hub_admin_password
+        fail_msg: "Profile '{{ item.name }}' has the wrong config page login variables"
       loop: "{{ profiles }}"
       loop_control:
         label: "{{ item.name }}"

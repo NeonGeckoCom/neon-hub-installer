@@ -53,6 +53,10 @@
     common_name: neon-hub.local
     install_neon_node: "0"
     install_neon_node_gui: "0"
+    # mDNS only reaches the local network, so cloud installs turn it off
+    hub_advertise_mdns: true
+    # The config page otherwise signs in with neon/neon, which is too weak for a public host
+    hub_config_admin_login: false
     secrets_file: "{{ playbook_dir }}/neon_hub_secrets.yaml"
     # Hub admin bootstrap
     hana_url: "http://localhost:8082"
@@ -401,7 +405,9 @@
         owner: root
         group: root
       notify: Restart avahi-daemon
-      when: ansible_os_family != 'Darwin'
+      when:
+        - ansible_os_family != 'Darwin'
+        - hub_advertise_mdns | bool
 
     - name: Install hana mDNS alias resolver helper
       ansible.builtin.copy:
@@ -410,7 +416,9 @@
         mode: "0755"
         owner: root
         group: root
-      when: ansible_os_family != 'Darwin'
+      when:
+        - ansible_os_family != 'Darwin'
+        - hub_advertise_mdns | bool
 
     - name: Install hana mDNS alias systemd unit
       ansible.builtin.template:
@@ -420,7 +428,9 @@
         owner: root
         group: root
       notify: Restart avahi-alias-hana
-      when: ansible_os_family != 'Darwin'
+      when:
+        - ansible_os_family != 'Darwin'
+        - hub_advertise_mdns | bool
 
     - name: Enable and start hana mDNS alias
       ansible.builtin.systemd:
@@ -428,7 +438,9 @@
         enabled: true
         state: started
         daemon_reload: true
-      when: ansible_os_family != 'Darwin'
+      when:
+        - ansible_os_family != 'Darwin'
+        - hub_advertise_mdns | bool
 
     # mDNS service advertisement — macOS (dns-sd via launchd)
     - name: Template mDNS service advertisement plist
